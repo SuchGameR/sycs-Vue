@@ -66,6 +66,16 @@ async function startServer() {
         }
     });
 
+    // 【デバッグ用】登録されているユーザーを確認するための窓口
+    app.get('/api/debug/users', async (req, res) => {
+        try {
+            const users = await db.all('SELECT id, username FROM users');
+            res.json(users);
+        } catch (error) {
+            res.status(500).send('Error fetching users');
+        }
+    });
+
     // 4. サーバーの起動
     app.listen(port, () => {
         console.log(`🚀 Server is running at http://localhost:${port}`);
