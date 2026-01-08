@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/yyyg1114/SYCS">
-      <img src="./client/public/SYCS_Logo.svg" alt="SYCS Logo" width=200>
+      <img src="/SYCS_Logo.svg" alt="SYCS Logo" width=200>
   </a>
 <br>
 
