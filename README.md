@@ -12,6 +12,7 @@
 > [!TIP]
 > このリポジトリは [yyyg1114/SYCS](https://github.com/yyyg1114/SYCS) からの派生です。
 > 構築が楽なのが特徴です。
+> `npm`はインストールしていることが必須です。
 
 > [!IMPORTANT]
 > This application is Work in Progress!
