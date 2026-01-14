@@ -27,7 +27,12 @@ const props = defineProps<{
   currentThread: any
 }>()
 
-const emit = defineEmits(['reply', 'delete-message'])
+const emit = defineEmits(['reply', 'delete-message', 'show-profile'])
+
+// アバタークリック
+const handleAvatarClick = () => {
+  emit('show-profile', props.message.sender_id)
+}
 
 // 権限チェック: 自分のメッセージ、またはスレッド作成者
 const canDelete = computed(() => {
@@ -144,7 +149,11 @@ const handleImageClick = (url: string) => {
       <div class="msg-main">
         <!-- コンパクトでない場合のみアバターを表示 -->
         <div v-if="!message.isCompact" class="avatar-wrapper">
-          <img :src="message.avatar_url || '/default-avatar.svg'" class="msg-avatar" />
+          <img 
+            :src="message.avatar_url || '/default-avatar.svg'" 
+            class="msg-avatar" 
+            @click="handleAvatarClick"
+          />
         </div>
         <!-- コンパクトな場合は左端にホバー用の隠し時刻エリア -->
         <div v-else class="msg-time-spacer">{{ formattedTime }}</div>
@@ -235,6 +244,7 @@ const handleImageClick = (url: string) => {
           :current-thread="currentThread"
           @reply="$emit('reply', $event)"
           @delete-message="$emit('delete-message', $event)"
+          @show-profile="$emit('show-profile', $event)"
         />
       </div>
   </div>

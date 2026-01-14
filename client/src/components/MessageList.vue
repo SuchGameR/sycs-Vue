@@ -9,6 +9,8 @@ const props = defineProps<{
   currentThread: any
 }>()
 
+const emit = defineEmits(['show-profile'])
+
 const socket = io('http://localhost:3000') // Socket.io 接続
 
 onUnmounted(() => {
@@ -226,6 +228,7 @@ onMounted(fetchMessages)
         :current-thread="currentThread"
         @reply="(m) => replyingTo = m"
         @delete-message="fetchMessages"
+        @show-profile="(userId) => emit('show-profile', userId)"
       />
     </div>
 

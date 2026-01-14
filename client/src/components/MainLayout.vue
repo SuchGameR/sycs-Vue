@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import ThreadNavigation from './ThreadNavigation.vue'
 import MessageList from './MessageList.vue'
+import FriendHub from './FriendHub.vue'
+import DMChat from './DMChat.vue'
+import UserProfileModal from './UserProfileModal.vue'
 
 const props = defineProps<{
   user: { id: number, uuid: string, username: string, avatar_url?: string }
@@ -242,6 +245,68 @@ const handleSelectThread = (thread: any) => {
 }
 const isSidebarOpen = ref(false)
 const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value }
+
+// --- DM & Profile 管理 ---
+const dmView = ref<'hub' | 'chat'>('hub')
+const currentDMChannel = ref<number | null>(null)
+const currentDMFriend = ref<any>(null)
+const profileModalUserId = ref<number | null>(null)
+
+// DM開始
+const handleOpenDM = async (friendId: number) => {
+  try {
+    // チャンネル取得/作成
+    const response = await fetch('http://localhost:3000/api/dm/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: props.user.id, friend_id: friendId })
+    })
+    const data = await response.json()
+    
+    // フレンド情報取得
+    const friendsRes = await fetch(`http://localhost:3000/api/friends?user_id=${props.user.id}`)
+    const friends = await friendsRes.json()
+    const friend = friends.find((f: any) => f.id === friendId)
+    
+    if (friend) {
+      currentDMChannel.value = data.channel_id
+      currentDMFriend.value = friend
+      dmView.value = 'chat'
+    }
+  } catch (error) {
+    console.error('Failed to open DM:', error)
+  }
+}
+
+// DM戻る
+const handleBackToDMHub = () => {
+  dmView.value = 'hub'
+  currentDMChannel.value = null
+  currentDMFriend.value = null
+}
+
+// プロフィール表示
+const handleOpenProfile = (userId: number) => {
+  profileModalUserId.value = userId
+}
+
+// ブロック処理
+const handleBlockUser = async (userId: number) => {
+  if (!confirm('このユーザーをブロックしますか?')) return
+  
+  try {
+    await fetch('http://localhost:3000/api/users/block', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocker_id: props.user.id, blocked_id: userId })
+    })
+    
+    // DM画面から戻る
+    handleBackToDMHub()
+  } catch (error) {
+    console.error('Failed to block user:', error)
+  }
+}
 </script>
 
 <template>
@@ -314,8 +379,29 @@ const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value }
           @edit-thread="handleOpenThreadSettings(currentThread)"
         />
         <div class="message-area-wrapper">
-          <MessageList :thread-id="currentThread.id" :current-user="user" :current-thread="currentThread" />
+          <MessageList 
+            :thread-id="currentThread.id" 
+            :current-user="user" 
+            :current-thread="currentThread"
+            @show-profile="handleOpenProfile"
+          />
         </div>
+      </div>
+      <div v-else-if="activeTab === 'dm'" class="dm-view-container">
+        <FriendHub 
+          v-if="dmView === 'hub'" 
+          :current-user="user"
+          @open-dm="handleOpenDM"
+          @open-profile="handleOpenProfile"
+        />
+        <DMChat 
+          v-else-if="dmView === 'chat' && currentDMChannel && currentDMFriend"
+          :channel-id="currentDMChannel"
+          :current-user="user"
+          :friend-info="currentDMFriend"
+          @back="handleBackToDMHub"
+          @block-user="handleBlockUser"
+        />
       </div>
       <div v-else class="empty-view">
         <div class="empty-state">
@@ -325,6 +411,17 @@ const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value }
         </div>
       </div>
     </main>
+
+    <!-- ユーザープロフィールモーダル -->
+    <UserProfileModal 
+      v-if="profileModalUserId !== null"
+      :user-id="profileModalUserId"
+      :current-user-id="user.id"
+      @close="profileModalUserId = null"
+      @friend-request-sent="profileModalUserId = null"
+      @blocked="profileModalUserId = null"
+      @message="handleOpenDM"
+    />
 
     <!-- スレッド作成モーダル (2ステップ / 中央配置) -->
     <Transition name="modal">
