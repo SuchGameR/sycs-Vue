@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { authFetch } from '../utils/api'
 import ThreadNavigation from './ThreadNavigation.vue'
 import MessageList from './MessageList.vue'
 import FriendHub from './FriendHub.vue'
@@ -37,9 +38,10 @@ const handleFileUpload = async (file: File) => {
   formData.append('avatar', file)
 
   try {
-    const response = await fetch('http://localhost:3000/api/upload/avatar', {
+    const response = await authFetch('http://localhost:3000/api/upload/avatar', {
       method: 'POST',
-      body: formData
+      body: formData,
+      headers: {}
     })
     if (response.ok) {
       const data = await response.json()
@@ -67,9 +69,8 @@ const onFileSelect = (e: Event) => {
 const handleSaveSettings = async () => {
   isUpdating.value = true
   try {
-    const response = await fetch(`http://localhost:3000/api/users/${props.user.id}/profile`, {
+    const response = await authFetch(`http://localhost:3000/api/users/${props.user.id}/profile`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: settingsForm.value.username,
         avatar_url: settingsForm.value.avatarUrl
@@ -99,8 +100,11 @@ const statusList = [
 ]
 const toggleStatus = () => {
   const currentIndex = statusList.findIndex(s => s.id === userStatus.value)
-  const nextIndex = (currentIndex + 1) % statusList.length
-  userStatus.value = statusList[nextIndex].id
+  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % statusList.length
+  const nextStatus = statusList[nextIndex]
+  if (nextStatus) {
+    userStatus.value = nextStatus.id
+  }
 }
 
 // --- スレッド作成・管理 ---
@@ -134,10 +138,9 @@ const handleThreadCreateClick = () => {
 const handleCreateThread = async () => {
   isThreadUpdating.value = true
   try {
-    const response = await fetch('http://localhost:3000/api/threads', {
+    const response = await authFetch('http://localhost:3000/api/threads', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...threadForm.value, creator_id: props.user.id })
+      body: JSON.stringify({ ...threadForm.value })
     })
     if (response.ok) {
       const newThread = await response.json()
@@ -157,9 +160,10 @@ const handleThreadIconUpload = async (file: File) => {
   formData.append('file', file)
   isThreadUpdating.value = true
   try {
-    const response = await fetch('http://localhost:3000/api/upload/file', {
+    const response = await authFetch('http://localhost:3000/api/upload/file', {
       method: 'POST',
-      body: formData
+      body: formData,
+      headers: {}
     })
     if (response.ok) {
       const data = await response.json()
@@ -177,9 +181,10 @@ const handleThreadIconUploadForEdit = async (file: File) => {
   formData.append('file', file)
   isThreadUpdating.value = true
   try {
-    const response = await fetch('http://localhost:3000/api/upload/file', {
+    const response = await authFetch('http://localhost:3000/api/upload/file', {
       method: 'POST',
-      body: formData
+      body: formData,
+      headers: {}
     })
     if (response.ok) {
       const data = await response.json()
@@ -204,10 +209,9 @@ const handleOpenThreadSettings = (thread: any) => {
 const handleUpdateThread = async () => {
   isThreadUpdating.value = true
   try {
-    const response = await fetch(`http://localhost:3000/api/threads/${threadSettingsForm.value.id}`, {
+    const response = await authFetch(`http://localhost:3000/api/threads/${threadSettingsForm.value.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...threadSettingsForm.value, user_id: props.user.id })
+      body: JSON.stringify({ ...threadSettingsForm.value })
     })
     if (response.ok) {
       const updated = await response.json()
@@ -224,10 +228,9 @@ const handleUpdateThread = async () => {
 const handleDeleteThread = async () => {
   if (!confirm('スレッドを削除しますか？内容もすべて失われます。')) return
   try {
-    const response = await fetch(`http://localhost:3000/api/threads/${threadSettingsForm.value.id}`, {
+    const response = await authFetch(`http://localhost:3000/api/threads/${threadSettingsForm.value.id}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: props.user.id })
+      body: JSON.stringify({})
     })
     if (response.ok) {
       location.reload()
@@ -244,7 +247,6 @@ const handleSelectThread = (thread: any) => {
   currentThread.value = thread
 }
 const isSidebarOpen = ref(false)
-const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value }
 
 // --- DM & Profile 管理 ---
 const dmView = ref<'hub' | 'chat'>('hub')
@@ -256,15 +258,14 @@ const profileModalUserId = ref<number | null>(null)
 const handleOpenDM = async (friendId: number) => {
   try {
     // チャンネル取得/作成
-    const response = await fetch('http://localhost:3000/api/dm/channels', {
+    const response = await authFetch('http://localhost:3000/api/dm/channels', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: props.user.id, friend_id: friendId })
+      body: JSON.stringify({ friend_id: friendId })
     })
     const data = await response.json()
     
-    // フレンド情報取得
-    const friendsRes = await fetch(`http://localhost:3000/api/friends?user_id=${props.user.id}`)
+    // フレンド情報取得 (本来はストア等で管理すべきだが現状は毎時取得)
+    const friendsRes = await authFetch(`http://localhost:3000/api/friends?user_id=${props.user.id}`)
     const friends = await friendsRes.json()
     const friend = friends.find((f: any) => f.id === friendId)
     
@@ -272,6 +273,7 @@ const handleOpenDM = async (friendId: number) => {
       currentDMChannel.value = data.channel_id
       currentDMFriend.value = friend
       dmView.value = 'chat'
+      activeTab.value = 'dm'
     }
   } catch (error) {
     console.error('Failed to open DM:', error)
@@ -281,6 +283,7 @@ const handleOpenDM = async (friendId: number) => {
 // DM戻る
 const handleBackToDMHub = () => {
   dmView.value = 'hub'
+  activeTab.value = 'friends'
   currentDMChannel.value = null
   currentDMFriend.value = null
 }
@@ -295,10 +298,9 @@ const handleBlockUser = async (userId: number) => {
   if (!confirm('このユーザーをブロックしますか?')) return
   
   try {
-    await fetch('http://localhost:3000/api/users/block', {
+    await authFetch('http://localhost:3000/api/users/block', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blocker_id: props.user.id, blocked_id: userId })
+      body: JSON.stringify({ blocked_id: userId })
     })
     
     // DM画面から戻る
@@ -307,30 +309,98 @@ const handleBlockUser = async (userId: number) => {
     console.error('Failed to block user:', error)
   }
 }
+const touchStartX = ref(0)
+const touchStartY = ref(0)
+const isSwiping = ref(false)
+const swipeX = ref(0) // 0 (閉) 〜 280 (開)
+const dragStartX = ref(0)
+
+const handleTouchStart = (e: TouchEvent) => {
+  if (e.touches && e.touches[0]) {
+    touchStartX.value = e.touches[0].clientX
+    touchStartY.value = e.touches[0].clientY
+    
+    // スワイプ開始判定
+    if (!isSidebarOpen.value) {
+      isSwiping.value = true
+      swipeX.value = 0
+      dragStartX.value = touchStartX.value
+    } else if (isSidebarOpen.value) {
+      isSwiping.value = true
+      swipeX.value = 280
+      dragStartX.value = touchStartX.value
+    }
+  }
+}
+
+const handleTouchMove = (e: TouchEvent) => {
+  if (!isSwiping.value || !e.touches[0]) return
+  
+  const currentX = e.touches[0].clientX
+  const deltaX = currentX - dragStartX.value
+  
+  if (isSidebarOpen.value) {
+    swipeX.value = Math.max(0, Math.min(280, 280 + deltaX))
+  } else {
+    swipeX.value = Math.max(0, Math.min(280, deltaX))
+  }
+}
+
+const handleTouchEnd = () => {
+  if (!isSwiping.value) return
+  isSwiping.value = false
+  
+  if (swipeX.value > 140) {
+    isSidebarOpen.value = true
+    swipeX.value = 280
+  } else {
+    isSidebarOpen.value = false
+    swipeX.value = 0
+  }
+}
 </script>
 
 <template>
-  <div class="main-layout">
-    <!-- モバイル用ハンバーガーボタン -->
-    <!-- <button class="menu-button" @click="toggleSidebar" aria-label="メニュー">
-      <span></span><span></span><span></span>
-    </button> -->
+  <div 
+    class="main-layout" 
+    @touchstart="handleTouchStart" 
+    @touchmove="handleTouchMove"
+    @touchend="handleTouchEnd"
+  >
+    <!-- モバイル用ハンバーガーボタンはスワイプ機能に置き換えるため削除 -->
 
     <!-- サイドバー -->
-    <aside :class="{ 'is-open': isSidebarOpen }">
+    <aside 
+      :class="{ 'is-open': isSidebarOpen, 'is-swiping': isSwiping }"
+      :style="(isSwiping || isSidebarOpen) ? { transform: `translateX(${swipeX - 280}px)` } : {}"
+    >
       <div class="sidebar-header">
         <img src="../assets/Logo.svg" alt="SYCS Logo" class="logo">
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="compose-btn" @click="handleThreadCreateClick">
+          <i class='bx bx-plus'></i>
+          <span>スレッドを作成</span>
+        </button>
       </div>
       
       <nav class="sidebar-nav">
         <button :class="{ active: activeTab === 'threads' }" @click="activeTab = 'threads'; isSidebarOpen = false">
-          <i class='bx bx-chat icon-bx'></i> スレッド
+          <i class='bx bx-chat'></i>
+          <span>スレッド</span>
         </button>
         <button :class="{ active: activeTab === 'dm' }" @click="activeTab = 'dm'; isSidebarOpen = false">
-          <i class='bx bx-envelope icon-bx'></i> DM
+          <i class='bx bx-envelope'></i>
+          <span>メッセージ</span>
+        </button>
+        <button :class="{ active: activeTab === 'friends' }" @click="activeTab = 'friends'; isSidebarOpen = false">
+          <i class='bx bx-group'></i>
+          <span>フレンド</span>
         </button>
         <button :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'; isSidebarOpen = false">
-          <i class='bx bx-star icon-bx'></i> お気に入り
+          <i class='bx bx-star'></i>
+          <span>お気に入り</span>
         </button>
       </nav>
 
@@ -338,12 +408,17 @@ const handleBlockUser = async (userId: number) => {
         <!-- ユーザーメニュー ポップオーバー -->
         <Transition name="popover">
           <div v-if="isUserMenuOpen" class="user-menu-popover">
-            <div class="menu-section">
-                <div class="status-toggle" @click="toggleStatus">
-                    <span class="status-dot" :style="{ backgroundColor: statusList.find(s => s.id === userStatus)?.color || '#ccc' }"></span>
-                    <!-- <span class="status-hint">変更</span> -->
-                    <span class="status-label">{{ statusList.find(s => s.id === userStatus)?.label }}</span>
+            <div class="menu-user-header">
+                <img :src="user.avatar_url || '/defaultAvator.svg'" class="user-avatar-large" />
+                <div class="user-details">
+                    <span class="username">{{ user.username }}</span>
+                    <span class="user-uuid">#{{ user.uuid }}</span>
                 </div>
+            </div>
+            <div class="menu-divider"></div>
+            <div class="status-selector" @click="toggleStatus">
+                <i class='bx bx-bolt-circle' :style="{ color: statusList.find(s => s.id === userStatus)?.color }"></i>
+                <span>ステータス: {{ statusList.find(s => s.id === userStatus)?.label }}</span>
             </div>
             <div class="menu-divider"></div>
             <button class="menu-item" @click="handleSettingsClick(); isUserMenuOpen = false">
@@ -369,7 +444,11 @@ const handleBlockUser = async (userId: number) => {
     </aside>
 
     <!-- メインコンテンツ -->
-    <main class="content-area">
+    <main 
+      class="content-area"
+      :class="{ 'is-swiping': isSwiping }"
+      :style="(isSwiping || isSidebarOpen) ? { transform: `translateX(${swipeX}px)` } : {}"
+    >
       <div v-if="activeTab === 'threads'" class="thread-view-container">
         <ThreadNavigation 
           :current-thread="currentThread" 
@@ -388,19 +467,27 @@ const handleBlockUser = async (userId: number) => {
         </div>
       </div>
       <div v-else-if="activeTab === 'dm'" class="dm-view-container">
-        <FriendHub 
-          v-if="dmView === 'hub'" 
-          :current-user="user"
-          @open-dm="handleOpenDM"
-          @open-profile="handleOpenProfile"
-        />
         <DMChat 
-          v-else-if="dmView === 'chat' && currentDMChannel && currentDMFriend"
+          v-if="currentDMChannel && currentDMFriend"
           :channel-id="currentDMChannel"
           :current-user="user"
           :friend-info="currentDMFriend"
           @back="handleBackToDMHub"
           @block-user="handleBlockUser"
+        />
+        <div v-else class="empty-view">
+           <div class="empty-state">
+              <i class='bx bx-envelope empty-icon'></i>
+              <h2>メッセージ</h2>
+              <p>フレンドを選択してメッセージを開始してください。</p>
+           </div>
+        </div>
+      </div>
+      <div v-else-if="activeTab === 'friends'" class="friends-view-container">
+        <FriendHub 
+          :current-user="user"
+          @open-dm="handleOpenDM"
+          @open-profile="handleOpenProfile"
         />
       </div>
       <div v-else class="empty-view">
@@ -634,7 +721,12 @@ const handleBlockUser = async (userId: number) => {
     </div>
 
     <!-- モバイル用オーバーレイ -->
-    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="isSidebarOpen = false"></div>
+    <div 
+      class="sidebar-overlay" 
+      :class="{ 'is-open': isSidebarOpen || isSwiping, 'is-swiping': isSwiping }"
+      :style="isSwiping ? { display: 'block', opacity: swipeX / 280 } : {}"
+      @click="isSidebarOpen = false"
+    ></div>
   </div>
 </template>
 
@@ -645,115 +737,195 @@ const handleBlockUser = async (userId: number) => {
   width: 100vw;
   overflow: hidden;
   background-color: #1a1a1a;
-  color: #eee;
+  color: #111;
 }
 
 /* アイコン用クラス */
 .icon-bx {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   margin-right: 12px;
 }
 
-/* サイドバー */
+/* 全体レイアウト */
+.main-layout {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--sys-background);
+}
+
+/* サイドバー (Google Apps 風) */
 aside {
-  width: 260px;
-  background-color: #1a1a1a;
+  width: 280px;
+  background-color: var(--sys-surface);
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease;
   z-index: 100;
+  border-right: 1px solid var(--sys-outline);
 }
 
 .sidebar-header {
-  padding: 30px 20px;
-  text-align: center;
+  padding: 24px;
+  display: flex;
+  align-items: center;
 }
 
 .sidebar-header .logo {
-    height: 32px;
-    filter: drop-shadow(0 0 8px rgba(100, 108, 255, 0.4));
+    height: 24px;
+}
+
+.sidebar-actions {
+    padding: 8px 16px 16px 16px;
+}
+
+.compose-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 24px;
+    height: 56px;
+    background-color: var(--sys-surface);
+    border: 1px solid var(--sys-outline);
+    border-radius: 16px;
+    color: var(--sys-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: box-shadow 0.2s, background-color 0.2s;
+    box-shadow: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+}
+
+.compose-btn:hover {
+    box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+    background-color: var(--sys-surface-variant);
+}
+
+.compose-btn i {
+    font-size: 1.5rem;
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 10px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .sidebar-nav button {
   display: flex;
   align-items: center;
-  padding: 14px 18px;
+  padding: 0 24px;
+  height: 48px;
   border: none;
   background: none;
-  border-radius: 16px;
+  border-radius: 24px; /* Pill shape */
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 0.95rem;
-  color: #aaa;
+  transition: background 0.2s;
+  font-size: 0.875rem;
+  color: var(--sys-on-surface);
   font-weight: 500;
 }
 
 .sidebar-nav button:hover {
-  background-color: rgba(255,255,255,0.05);
-  color: #fff;
-  transform: translateX(4px);
+  background-color: var(--sys-surface-variant);
 }
 
 .sidebar-nav button.active {
-  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(83, 91, 242, 0.3);
+  background-color: var(--sys-primary-container);
+  color: var(--sys-on-primary-container);
 }
 
 .sidebar-footer {
-  padding: 20px;
-  position: relative;
+  padding: 16px;
+  border-top: 1px solid var(--sys-outline);
 }
 
-/* ユーザー情報 (Apple風) */
+/* ユーザー情報 (Google Account 風) */
 .user-info {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 20px;
+  padding: 8px 12px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.2s;
 }
 
 .user-info:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.1);
+  background: var(--sys-surface-variant);
 }
 
 .user-avatar-mini {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   object-fit: cover;
-  background: #333;
+}
+
+.user-text {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.username {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.user-uuid {
+    font-size: 0.75rem;
+    color: var(--sys-on-surface-variant);
 }
 
 /* ポップオーバー */
 .user-menu-popover {
   position: absolute;
-  bottom: 85px;
-  left: 20px;
-  width: 230px;
-  background: rgba(28, 28, 30, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-  padding: 10px;
+  bottom: 80px;
+  left: 16px;
+  width: 240px;
+  background: var(--sys-surface);
+  border: 1px solid var(--sys-outline);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 8px;
   z-index: 1000;
+}
+
+.menu-user-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    gap: 12px;
+}
+
+.user-avatar-large {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-details {
+    text-align: center;
+}
+
+.status-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.status-selector:hover {
+    background: var(--sys-surface-variant);
 }
 
 .menu-item {
@@ -761,291 +933,181 @@ aside {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 15px;
+  padding: 10px 12px;
   background: none;
   border: none;
-  border-radius: 12px;
-  color: #eee;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  color: var(--sys-on-surface);
+  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.menu-item i {
-  font-size: 1.2rem;
 }
 
 .menu-item:hover {
-  background: rgba(255,255,255,0.08);
+  background: var(--sys-surface-variant);
 }
 
-.menu-section {
-    margin: 6px;
-    padding: 6px;
-    background-color: #333;
-    border-radius: 50px;
-    text-align: center;
-    cursor: pointer;
-    user-select: none;
+.menu-item.danger {
+    color: var(--sys-error);
 }
 
-/* その他 UI 要素 (共通) */
+.menu-divider {
+    height: 1px;
+    background: var(--sys-outline);
+    margin: 4px 0;
+}
+
+/* メインコンテンツエリア */
+.content-area {
+  flex: 1;
+  background-color: var(--sys-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+/* モーダル (Material Design 3) */
 .modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.main-modal {
+  background: var(--sys-surface);
+  color: var(--sys-on-surface);
+  width: 560px;
+  max-width: 90vw;
+  border-radius: 28px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  padding: 24px;
+}
+
+.modal-header h3 {
+    font-size: 1.5rem;
+    margin: 0 0 16px 0;
+    font-weight: 400;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.input-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--sys-on-surface-variant);
+}
+
+.input-group input {
+    padding: 12px 16px;
+    border: 1px solid var(--sys-outline);
+    border-radius: 8px;
+    font-size: 1rem;
+    outline-color: var(--sys-primary);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 32px;
+}
+
+.next-btn-modern, .save-btn-modern {
+  background: var(--sys-primary);
+  color: white;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-weight: 500;
+  border: none;
+}
+
+.cancel-btn-modern {
+  background: none;
+  color: var(--sys-primary);
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  border: none;
+}
+
+.cancel-btn-modern:hover {
+    background: var(--sys-surface-variant);
+}
+
+/* ステータスバッジ */
+.status-badge {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--sys-surface);
+    position: absolute;
+    bottom: 0;
+    right: 0;
+}
+
+.user-avatar-wrapper {
+    position: relative;
+    display: flex;
+}
+.sidebar-overlay {
+  display: none;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 10px 20px;
+  background: rgba(0,0,0,0.5);
+  z-index: 90;
 }
 
-.modal-header h3 {
-    line-height: 2rem;
-    font-size: 1.5rem;
-    text-align: center;
-    padding: 0;
-    margin: 10px;
-}
+@media (max-width: 768px) {
+  aside {
+    position: fixed;
+    height: 100vh;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+  }
 
-.modal-footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
-    width: calc(100% - 20px);
-    margin: 0 auto;
-}
+  aside.is-swiping {
+    transition: none !important;
+  }
 
-.modal-header span {
-    text-align: center;
-    width: fit-content;
-    padding: 5px 10px;
-    background-color: #ddd;
-    border-radius: 20px;
-    margin: 0 auto;
-    display: flex;
-}
+  aside.is-open {
+    transform: translateX(0);
+  }
 
-.setting-info {
+  .content-area {
+    transition: transform 0.3s ease;
+  }
+
+  .content-area.is-swiping {
+    transition: none !important;
+  }
+
+  .sidebar-overlay {
+    display: none;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay.is-open {
     display: block;
-    flex-direction: column;
-    gap: 12px;
-    line-height: 25px;
-}
-
-.setting-info div i {
-    font-size: 1.2rem;
-    line-height: 25px;
-}
-
-.setting-info div span.label {
-    line-height: 25px;
-}
-
-.step-content {
-    margin: 20px;
-}
-
-.step-content div {
-    display: flex;
-    gap: 10px;
-}
-
-.step-content div span.label {
-    font-weight: bold;
-}
-
-.step-content .desc {
-    color: #797979;
-    font-size: 0.9rem;
-    margin-left: 30px;
-    margin-bottom: 20px;
-}
-
-label.toggle-switch {
-    margin: 0 auto;
-    margin-right: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 20px;
-}
-
-select.modern-select {
-    margin: 0 auto;
-    margin-top: 20px;
-    margin-right: 20px;
-    padding: 5px 10px;
-    border-radius: 20px;
-    width: fit-content;
-    height: fit-content;
-    border: none;
-    cursor: pointer;
-    background-color: #ddd;
-    color: #1a1a1a;
-    font-weight: bold;
-    font-size: 1rem;
-}
-
-.main-modal {
-  background: #fff;
-  color: #1a1a1a;
-  width: 500px;
-  max-width: 90vw;
-  border-radius: 32px;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.4);
-  animation: springUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  overflow: hidden;
-  padding: 20px 10px;
-}
-
-@keyframes springUp {
-  from { opacity: 0; transform: translateY(40px) scale(0.9); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* ...残りのスタイルもモダンに調整... */
-
-.content-area {
-  flex: 1;
-  margin: 8px;
-  background-color: #f2f2f7; /* Apple Grey */
-  border-radius: 24px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: inset 0 0 2px rgba(255,255,255,0.1);
-}
-
-.empty-view {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  background: white;
-}
-
-.empty-state {
-  text-align: center;
-  opacity: 0.3;
-}
-
-.empty-icon {
-  font-size: 5rem;
-  margin-bottom: 20px;
-}
-
-/* スイッチ/トグル */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 28px;
-}
-
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #e9e9eb;
-  transition: .3s;
-  border-radius: 34px;
-}
-
-.avatar-large-preview {
-    width: 100px;
-    height: 100px;
-}
-
-.input-group {
-    margin: 20px 0;
-    padding: 10px 15px;
-    background-color: #eee;
-    border-radius: 30px;
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-    gap: 10px;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: 16px;
-    font-size: 1rem;
-    color: #1a1a1a;
-    background-color: #fff;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 22px; width: 22px;
-  left: 3px; bottom: 3px;
-  background-color: white;
-  transition: .3s;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-input:checked + .slider { background-color: #34c759; }
-input:checked + .slider:before { transform: translateX(22px); }
-
-/* モーダル用ボタン */
-.next-btn-modern, .save-btn-modern {
-  background: #007aff;
-  color: white;
-  padding: 12px 28px;
-  border-radius: 14px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-}
-
-/* モーダル用キャンセルボタン */
-.cancel-btn-modern {
-  background: #eee;
-  color: #1a1a1a;
-  padding: 12px 28px;
-  border-radius: 14px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-}
-
-/* スレッドアイコン D&D エリア */
-.thread-icon-dropzone {
-  position: relative;
-  width: calc(100% - 44px);
-  padding: 20px;
-  background: #f8f8f8;
-  border: 2px dashed #ddd;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  margin: 10px 0;
-  transition: all 0.2s;
-}
-
-.thread-icon-dropzone.active {
-  border-color: #007aff;
-  background: #f0f7ff;
-}
-
-.icon-preview-large {
-  width: 100px;
-  height: 100px;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    pointer-events: auto;
+  }
+  
+  .sidebar-overlay.is-swiping {
+    display: block;
+    pointer-events: auto;
+    transition: none !important;
+  }
 }
 </style>

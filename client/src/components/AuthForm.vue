@@ -49,7 +49,8 @@ const handleFileUpload = async (file: File) => {
   try {
     const response = await fetch('http://localhost:3000/api/upload/avatar', {
       method: 'POST',
-      body: formData
+      body: formData,
+      credentials: 'include'
     })
     if (response.ok) {
       const data = await response.json()
@@ -93,7 +94,8 @@ const handleLoginStep2 = async () => {
     const response = await fetch('http://localhost:3000/api/auth/check-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identity: form.identity })
+      body: JSON.stringify({ identity: form.identity }),
+      credentials: 'include'
     })
     
     if (response.ok) {
@@ -117,12 +119,13 @@ const handleLogin = async () => {
     const response = await fetch('http://localhost:3000/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identity: form.identity, password: form.password })
+      body: JSON.stringify({ identity: form.identity, password: form.password }),
+      credentials: 'include'
     })
     
     if (response.ok) {
-      const user = await response.json()
-      emit('login-success', user)
+      const data = await response.json()
+      emit('login-success', data)
     } else {
       errorMessage.value = 'パスワードが正しくありません。最初からやり直してください。'
       step.value = 1

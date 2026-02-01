@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { io, Socket } from 'socket.io-client'
+import { authFetch } from '../utils/api'
 
 const props = defineProps<{
   channelId: number
@@ -20,7 +21,7 @@ let socket: Socket | null = null
 // メッセージ取得
 const fetchMessages = async () => {
   try {
-    const response = await fetch(`http://localhost:3000/api/dm/${props.channelId}/messages?user_id=${props.currentUser.id}`)
+    const response = await authFetch(`http://localhost:3000/api/dm/${props.channelId}/messages`)
     messages.value = await response.json()
     await nextTick()
     scrollToBottom()
@@ -37,11 +38,9 @@ const sendMessage = async () => {
   if (!content) return
 
   try {
-    const response = await fetch(`http://localhost:3000/api/dm/${props.channelId}/messages`, {
+    const response = await authFetch(`http://localhost:3000/api/dm/${props.channelId}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender_id: props.currentUser.id,
         content,
         parent_id: replyTo.value?.id || null
       })
@@ -62,10 +61,9 @@ const deleteMessage = async (messageId: number, event?: MouseEvent) => {
   if (!skipConfirm && !confirm('メッセージを削除しますか?')) return
 
   try {
-    const response = await fetch(`http://localhost:3000/api/dm/messages/${messageId}`, {
+    const response = await authFetch(`http://localhost:3000/api/dm/messages/${messageId}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: props.currentUser.id })
+      body: JSON.stringify({})
     })
 
     if (!response.ok) {

@@ -1,14 +1,32 @@
 import express from 'express';
+import { Request, Response, NextFunction } from 'express';
+import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
+
+dotenv.config();
+
+// ExpressのRequestインターフェースを拡張して user プロパティを追加
+declare global {
+    namespace Express {
+        interface Request {
+            user?: any;
+        }
+    }
+}
 import cors from 'cors';
 import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import helmet from 'helmet';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-dev-only';
 
 const app = express();
 const port = 3000;
@@ -19,9 +37,17 @@ const io = new Server(httpServer, {
     }
 });
 
-app.use(cors());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" } // アップロードファイル表示のため
+}));
+app.use(cors({
+    origin: "http://localhost:5173", // フロントエンドのURLに制限（Viteのデフォルト）
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+    credentials: true
+}));
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // アップロードされたファイルを公開
+app.use(cookieParser());
+app.use('/uploads', express.static('uploads'));
 
 // --- ファイル保存ディレクトリの準備 ---
 const uploadDirs = ['uploads', 'uploads/avatars', 'uploads/messages'];
@@ -77,6 +103,20 @@ const upload = multer({
 // --- Utility ---
 function generateUUID(): string {
     return crypto.randomBytes(4).toString('hex').toUpperCase(); // 8文字の英数字
+}
+
+// --- Middleware ---
+function authenticateToken(req: any, res: any, next: any) {
+    // クッキーまたはヘッダーからトークンを取得
+    const token = req.cookies?.sycs_token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
+
+    if (!token) return res.sendStatus(401);
+
+    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
 }
 
 // Socket.io の挙動設定
@@ -181,6 +221,18 @@ async function startServer() {
     try { await db.exec(`ALTER TABLE messages ADD COLUMN is_pinned BOOLEAN DEFAULT 0`); } catch (e) { }
     try { await db.exec(`ALTER TABLE messages ADD COLUMN file_url TEXT DEFAULT NULL`); } catch (e) { }
     try { await db.exec(`ALTER TABLE messages ADD COLUMN file_name TEXT DEFAULT NULL`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE messages ADD COLUMN updated_at TIMESTAMP DEFAULT NULL`); } catch (e) { }
+
+    // メッセージ編集履歴テーブル
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS message_edits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL,
+            old_content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+        )
+    `);
 
     // --- Friend & DM System Tables ---
 
@@ -320,9 +372,15 @@ async function startServer() {
     });
 
     // ユーザープロフィール更新 (設定画面用)
-    app.patch('/api/users/:id/profile', async (req, res) => {
+    app.patch('/api/users/:id/profile', authenticateToken, async (req, res) => {
         const { id } = req.params;
         const { username, avatar_url } = req.body;
+
+        // 権限チェック (Token の ID とリクエストの ID が一致するか)
+        if (req.user.id !== parseInt(id)) {
+            return res.status(403).send('Forbidden: Access is denied');
+        }
+
         try {
             await db.run(
                 'UPDATE users SET username = COALESCE(?, username), avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
@@ -358,6 +416,12 @@ async function startServer() {
     // 高度なサインアップ
     app.post('/api/signup', async (req, res) => {
         const { username, email, password, avatar_url } = req.body;
+
+        // 基本的なバリデーション
+        if (!username || !email || !password) {
+            return res.status(400).send('Missing required fields');
+        }
+
         try {
             const hashedPassword = await bcrypt.hash(password, 10);
             const uuid = generateUUID(); // UUID生成
@@ -376,7 +440,7 @@ async function startServer() {
         }
     });
 
-    // 高度なログイン
+    // 高度なログイン (JWT発行)
     app.post('/api/login', async (req, res) => {
         const { identity, password } = req.body;
 
@@ -387,11 +451,28 @@ async function startServer() {
             );
 
             if (user && await bcrypt.compare(password, user.password)) {
+                // トークンの発行
+                const token = jwt.sign(
+                    { id: user.id, username: user.username, uuid: user.uuid },
+                    JWT_SECRET,
+                    { expiresIn: '24h' }
+                );
+
+                // クッキーに保存 (セキュリティ向上のため httpOnly を使用)
+                res.cookie('sycs_token', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    maxAge: 24 * 60 * 60 * 1000 // 24時間
+                });
+
                 res.status(200).json({
-                    id: user.id,
-                    uuid: user.uuid,
-                    username: user.username,
-                    avatar_url: user.avatar_url
+                    user: {
+                        id: user.id,
+                        uuid: user.uuid,
+                        username: user.username,
+                        avatar_url: user.avatar_url
+                    }
                 });
             } else {
                 res.status(401).send('Invalid identity or password');
@@ -402,15 +483,24 @@ async function startServer() {
         }
     });
 
-    // 【デバッグ用】登録されているユーザーを確認するための窓口
-    app.get('/api/debug/users', async (req, res) => {
+    // 現在のユーザー情報を取得 API
+    app.get('/api/me', authenticateToken, async (req, res) => {
         try {
-            const users = await db.all('SELECT id, uuid, username FROM users');
-            res.json(users);
+            const user = await db.get('SELECT id, uuid, username, avatar_url FROM users WHERE id = ?', [req.user.id]);
+            if (!user) return res.status(404).send('User not found');
+            res.json(user);
         } catch (error) {
-            res.status(500).send('Error fetching users');
+            res.status(500).send('Failed to fetch user');
         }
     });
+
+    // ログアウト API
+    app.post('/api/logout', (req, res) => {
+        res.clearCookie('sycs_token');
+        res.status(200).send('Logged out');
+    });
+
+    // デバッグ用エンドポイントは削除しました
 
     // --- スレッド関連 API ---
 
@@ -425,8 +515,9 @@ async function startServer() {
     });
 
     // スレッド作成 (フル設定)
-    app.post('/api/threads', async (req, res) => {
-        const { title, icon_url, creator_id, visibility, spam_check, mod_enabled, allow_msg_delete, allow_attachments } = req.body;
+    app.post('/api/threads', authenticateToken, async (req, res) => {
+        const { title, icon_url, visibility, spam_check, mod_enabled, allow_msg_delete, allow_attachments } = req.body;
+        const creator_id = req.user.id; // トークンから取得
         try {
             const result = await db.run(
                 `INSERT INTO threads (title, icon_url, creator_id, visibility, spam_check, mod_enabled, allow_msg_delete, allow_attachments) 
@@ -442,9 +533,10 @@ async function startServer() {
     });
 
     // スレッド更新 (作成者のみ)
-    app.patch('/api/threads/:id', async (req, res) => {
+    app.patch('/api/threads/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
-        const { title, icon_url, visibility, spam_check, mod_enabled, allow_msg_delete, allow_attachments, user_id } = req.body;
+        const { title, icon_url, visibility, spam_check, mod_enabled, allow_msg_delete, allow_attachments } = req.body;
+        const user_id = req.user.id;
 
         try {
             const thread = await db.get('SELECT creator_id FROM threads WHERE id = ?', [id]);
@@ -471,9 +563,9 @@ async function startServer() {
     });
 
     // スレッド削除 (作成者のみ)
-    app.delete('/api/threads/:id', async (req, res) => {
+    app.delete('/api/threads/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
-        const { user_id } = req.body;
+        const user_id = req.user.id;
 
         try {
             const thread = await db.get('SELECT creator_id FROM threads WHERE id = ?', [id]);
@@ -507,8 +599,10 @@ async function startServer() {
     });
 
     // メッセージ投稿 (リプライ対応 + リアルタイム配信)
-    app.post('/api/messages', async (req, res) => {
-        const { thread_id, sender_id, content, parent_id, file_url, file_name } = req.body;
+    app.post('/api/messages', authenticateToken, async (req, res) => {
+        const { thread_id, content, parent_id, file_url, file_name } = req.body;
+        const sender_id = req.user.id; // トークンから取得
+
         try {
             const result = await db.run(
                 'INSERT INTO messages (thread_id, sender_id, content, parent_id, file_url, file_name) VALUES (?, ?, ?, ?, ?, ?)',
@@ -532,9 +626,9 @@ async function startServer() {
     });
 
     // メッセージ削除 API (権限チェック + リアルタイム反映)
-    app.delete('/api/messages/:id', async (req, res) => {
+    app.delete('/api/messages/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
-        const { user_id } = req.body;
+        const user_id = req.user.id; // トークンから取得
 
         try {
             // メッセージとスレッド設定を取得
@@ -546,10 +640,7 @@ async function startServer() {
 
             if (!message) return res.status(404).send('Message not found');
 
-            // 権限判定:
-            // 1. 本人であること
-            // 2. スレッド作成者であること
-            // かつ、スレッド設定で削除が許可されていること (作成者は強制許可でも良いが、一旦設定に従う)
+            // 権限判定
             const isOwner = message.sender_id === user_id;
             const isThreadCreator = message.creator_id === user_id;
 
@@ -574,11 +665,59 @@ async function startServer() {
         }
     });
 
+    // メッセージ編集 API (本人のみ)
+    app.patch('/api/messages/:id', authenticateToken, async (req, res) => {
+        const { id } = req.params;
+        const { content } = req.body;
+        const user_id = req.user.id;
+
+        if (!content || content.trim().length === 0) {
+            return res.status(400).send('Content cannot be empty');
+        }
+
+        try {
+            const message = await db.get('SELECT * FROM messages WHERE id = ?', [id]);
+            if (!message) return res.status(404).send('Message not found');
+            if (message.sender_id !== user_id) return res.status(403).send('自分のメッセージのみ編集可能です');
+
+            // 編集履歴を保存
+            await db.run('INSERT INTO message_edits (message_id, old_content) VALUES (?, ?)', [id, message.content]);
+
+            await db.run('UPDATE messages SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [content, id]);
+
+            const updatedMessage = await db.get(`
+                SELECT m.*, u.username, u.uuid as user_uuid, u.avatar_url FROM messages m
+                JOIN users u ON m.sender_id = u.id
+                WHERE m.id = ?
+            `, [id]);
+
+            // リアルタイム反映
+            io.to(`thread_${message.thread_id}`).emit('message_updated', updatedMessage);
+
+            res.json(updatedMessage);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send('Failed to update message');
+        }
+    });
+
+    // メッセージ編集履歴取得 API
+    app.get('/api/messages/:id/edits', authenticateToken, async (req, res) => {
+        const { id } = req.params;
+        try {
+            const edits = await db.all('SELECT * FROM message_edits WHERE message_id = ? ORDER BY created_at DESC', [id]);
+            res.json(edits);
+        } catch (error) {
+            res.status(500).send('Failed to fetch edit history');
+        }
+    });
+
     // --- Friend Request API ---
 
     // フレンドリクエスト送信 (UUID/ユーザー名で検索)
-    app.post('/api/friends/request', async (req, res) => {
-        const { sender_id, search_query } = req.body;
+    app.post('/api/friends/request', authenticateToken, async (req, res) => {
+        const { search_query } = req.body;
+        const sender_id = req.user.id;
 
         // 入力検証
         if (!sender_id || !search_query || typeof search_query !== 'string') {
@@ -654,8 +793,9 @@ async function startServer() {
     });
 
     // フレンドリクエスト承認
-    app.post('/api/friends/approve', async (req, res) => {
-        const { request_id, user_id } = req.body;
+    app.post('/api/friends/approve', authenticateToken, async (req, res) => {
+        const { request_id } = req.body;
+        const user_id = req.user.id;
 
         if (!request_id || !user_id) {
             return res.status(400).send('Invalid request');
@@ -695,9 +835,9 @@ async function startServer() {
     });
 
     // フレンドリクエスト拒否/キャンセル
-    app.delete('/api/friends/request/:id', async (req, res) => {
+    app.delete('/api/friends/request/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
-        const { user_id } = req.body;
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -723,8 +863,8 @@ async function startServer() {
     });
 
     // フレンドリクエスト一覧取得 (受信/送信)
-    app.get('/api/friends/requests', async (req, res) => {
-        const { user_id } = req.query;
+    app.get('/api/friends/requests', authenticateToken, async (req, res) => {
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -757,8 +897,8 @@ async function startServer() {
     });
 
     // フレンド一覧取得
-    app.get('/api/friends', async (req, res) => {
-        const { user_id } = req.query;
+    app.get('/api/friends', authenticateToken, async (req, res) => {
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -786,9 +926,9 @@ async function startServer() {
     });
 
     // フレンド削除
-    app.delete('/api/friends/:friend_id', async (req, res) => {
+    app.delete('/api/friends/:friend_id', authenticateToken, async (req, res) => {
         const { friend_id } = req.params;
-        const { user_id } = req.body;
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -814,8 +954,9 @@ async function startServer() {
     // --- Block API ---
 
     // ユーザーブロック
-    app.post('/api/users/block', async (req, res) => {
-        const { blocker_id, blocked_id } = req.body;
+    app.post('/api/users/block', authenticateToken, async (req, res) => {
+        const { blocked_id } = req.body;
+        const blocker_id = req.user.id;
 
         if (!blocker_id || !blocked_id) {
             return res.status(400).send('Invalid request');
@@ -856,9 +997,9 @@ async function startServer() {
     });
 
     // ユーザーブロック解除
-    app.delete('/api/users/block/:blocked_id', async (req, res) => {
+    app.delete('/api/users/block/:blocked_id', authenticateToken, async (req, res) => {
         const { blocked_id } = req.params;
-        const { blocker_id } = req.body;
+        const blocker_id = req.user.id;
 
         if (!blocker_id) {
             return res.status(400).send('Invalid request');
@@ -882,8 +1023,8 @@ async function startServer() {
     });
 
     // ブロックリスト取得
-    app.get('/api/users/blocks', async (req, res) => {
-        const { user_id } = req.query;
+    app.get('/api/users/blocks', authenticateToken, async (req, res) => {
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -908,8 +1049,8 @@ async function startServer() {
     // --- DM API ---
 
     // DMチャンネル一覧取得 (最新メッセージ順)
-    app.get('/api/dm/channels', async (req, res) => {
-        const { user_id } = req.query;
+    app.get('/api/dm/channels', authenticateToken, async (req, res) => {
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -941,8 +1082,9 @@ async function startServer() {
     });
 
     // DMチャンネル取得/作成 (特定ユーザーとの)
-    app.post('/api/dm/channels', async (req, res) => {
-        const { user_id, friend_id } = req.body;
+    app.post('/api/dm/channels', authenticateToken, async (req, res) => {
+        const { friend_id } = req.body;
+        const user_id = req.user.id;
 
         if (!user_id || !friend_id) {
             return res.status(400).send('Invalid request');
@@ -1000,9 +1142,9 @@ async function startServer() {
     });
 
     // DMメッセージ取得
-    app.get('/api/dm/:channelId/messages', async (req, res) => {
+    app.get('/api/dm/:channelId/messages', authenticateToken, async (req, res) => {
         const { channelId } = req.params;
-        const { user_id } = req.query;
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -1035,9 +1177,10 @@ async function startServer() {
     });
 
     // DMメッセージ送信
-    app.post('/api/dm/:channelId/messages', async (req, res) => {
+    app.post('/api/dm/:channelId/messages', authenticateToken, async (req, res) => {
         const { channelId } = req.params;
-        const { sender_id, content, parent_id, file_url, file_name } = req.body;
+        const { content, parent_id, file_url, file_name } = req.body;
+        const sender_id = req.user.id;
 
         if (!sender_id || !content || typeof content !== 'string') {
             return res.status(400).send('Invalid request');
@@ -1104,9 +1247,9 @@ async function startServer() {
     });
 
     // DMメッセージ削除
-    app.delete('/api/dm/messages/:id', async (req, res) => {
+    app.delete('/api/dm/messages/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
-        const { user_id } = req.body;
+        const user_id = req.user.id;
 
         if (!user_id) {
             return res.status(400).send('Invalid request');
@@ -1138,8 +1281,9 @@ async function startServer() {
     });
 
     // ユーザー検索 API (フレンド申請用)
-    app.get('/api/users/search', async (req, res) => {
-        const { query, user_id } = req.query;
+    app.get('/api/users/search', authenticateToken, async (req, res) => {
+        const { query } = req.query;
+        const user_id = req.user.id;
 
         if (!query || typeof query !== 'string' || !user_id) {
             return res.status(400).send('Invalid request');

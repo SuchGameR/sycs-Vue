@@ -107,16 +107,16 @@ onMounted(() => {
 .current-thread-bar {
   display: flex;
   align-items: center;
-  padding: 10px 20px;
-  background: #ffffff;
-  border-bottom: 1px solid #eee;
+  padding: 12px 24px;
+  background: var(--sys-surface);
+  border-bottom: 1px solid var(--sys-outline);
   cursor: pointer;
   transition: background 0.2s;
-  color: #141414;
+  color: var(--sys-on-surface);
 }
 
 .current-thread-bar:hover {
-  background: #f9f9f9;
+  background: var(--sys-surface-variant);
 }
 
 .thread-info {
@@ -126,71 +126,64 @@ onMounted(() => {
 }
 
 .thread-icon-mini {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
   object-fit: cover;
-  background: #eee;
 }
 
 .thread-title {
-  font-weight: 600;
-  font-size: 1.1rem;
+  font-weight: 500;
+  font-size: 1.125rem;
 }
 
-.chevron {
-  font-size: 0.7rem;
-  color: #999;
-  transition: transform 0.3s;
+.dropdown-arrow {
+    margin-left: 8px;
+    font-size: 1.25rem;
+    color: var(--sys-on-surface-variant);
+    transition: transform 0.2s;
 }
 
-.chevron.rotated {
-  transform: rotate(180deg);
+.dropdown-arrow.rotated {
+    transform: rotate(180deg);
 }
 
 /* ドロップダウンメニュー */
 .thread-dropdown {
   position: absolute;
   top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
+  left: 16px;
+  width: 480px;
+  background: var(--sys-surface);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 16px;
   overflow: hidden;
   z-index: 10;
+  margin-top: 8px;
+  border: 1px solid var(--sys-outline);
 }
 
 .dropdown-content {
   display: flex;
-  max-height: 400px;
-  padding: 20px;
-  gap: 30px;
-}
-
-.side-panel {
-  flex: 1;
-  border-right: 1px solid #eee;
-  padding-right: 20px;
-}
-
-.main-panel {
-  flex: 2;
+  flex-direction: column;
+  max-height: 500px;
+  padding: 16px;
+  gap: 16px;
 }
 
 h3 {
-  font-size: 0.9rem;
-  color: #888;
-  margin-bottom: 15px;
+  font-size: 0.75rem;
+  color: var(--sys-on-surface-variant);
+  margin-bottom: 8px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
 .thread-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   overflow-y: auto;
 }
 
@@ -198,56 +191,67 @@ h3 {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
-  border-radius: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
-  color: #141414;
+  transition: background 0.2s;
+  color: var(--sys-on-surface);
+  font-size: 0.875rem;
 }
 
 .thread-item:hover {
-  background: #f0f2ff;
+  background: var(--sys-surface-variant);
 }
 
 .thread-item.active {
-  background: #646cff;
-  color: white;
+  background: var(--sys-primary-container);
+  color: var(--sys-on-primary-container);
+  font-weight: 500;
 }
 
-.thread-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #eee;
+.side-panel {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--sys-outline);
 }
 
 .action-btn {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  background: #646cff;
-  color: white;
-  font-weight: 600;
-  margin-bottom: 10px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--sys-outline);
+  background: var(--sys-surface);
+  color: var(--sys-primary);
+  font-weight: 500;
+  font-size: 0.875rem;
   cursor: pointer;
+  transition: background 0.2s;
 }
 
-.action-btn.secondary {
-  background: #f0f0f0;
-  color: #444;
+.action-btn:hover {
+  background: var(--sys-primary-container);
 }
 
 /* トランジション */
 .slide-enter-active,
 .slide-leave-active {
-  transition: all 0.3s ease-out;
+  transition: all 0.2s ease-out;
 }
 
 .slide-enter-from,
 .slide-leave-to {
-  transform: translateY(-20px);
+  transform: translateY(-10px);
   opacity: 0;
+}
+
+.overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: -1;
 }
 </style>

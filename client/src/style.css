@@ -1,11 +1,22 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Google Material Design 3 Tokens */
+  --sys-primary: #1a73e8;
+  --sys-primary-container: #d2e3fc;
+  --sys-on-primary-container: #0d1c33;
+  --sys-surface: #ffffff;
+  --sys-surface-variant: #f1f3f4;
+  --sys-on-surface: #111;
+  --sys-on-surface-variant: #111111;
+  --sys-outline: #dadce0;
+  --sys-background: #f8f9fa;
+  --sys-error: #d93025;
+
+  font-family: 'Google Sans', 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: var(--sys-on-surface);
+  background-color: var(--sys-background);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,36 +24,70 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background-color: var(--sys-background);
 }
 
 #app {
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  display: flex;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+a {
+  font-weight: 500;
+  color: var(--sys-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Material Design 3 Rounded Corners */
+.rounded-sm {
+  border-radius: 8px;
+}
+
+.rounded-md {
+  border-radius: 12px;
+}
+
+.rounded-lg {
+  border-radius: 16px;
+}
+
+.rounded-xl {
+  border-radius: 24px;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+/* Scrollbar Styling (Google Chrome style) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
 }

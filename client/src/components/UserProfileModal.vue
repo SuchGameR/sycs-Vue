@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { authFetch } from '../utils/api'
 
 const props = defineProps<{
   userId: number
@@ -17,7 +18,7 @@ const isProcessing = ref(false)
 const fetchUserProfile = async () => {
   try {
     // ユーザー基本情報取得
-    const userRes = await fetch(`http://localhost:3000/api/users/${props.userId}`)
+    const userRes = await authFetch(`http://localhost:3000/api/users/${props.userId}`)
     
     if (!userRes.ok) {
       throw new Error('User not found')
@@ -36,8 +37,8 @@ const fetchUserProfile = async () => {
 
 const checkRelationship = async () => {
   try {
-    // フレンドチェック
-    const friendsRes = await fetch(`http://localhost:3000/api/friends?user_id=${props.currentUserId}`)
+    // フレンドチェック (user_id query はバックエンド対応済みなら不要だが一旦残す)
+    const friendsRes = await authFetch(`http://localhost:3000/api/friends?user_id=${props.currentUserId}`)
     const friends = await friendsRes.json()
     if (friends.some((f: any) => f.id === props.userId)) {
       relationshipStatus.value = 'friend'
@@ -45,7 +46,7 @@ const checkRelationship = async () => {
     }
 
     // フレンドリクエストチェック
-    const requestsRes = await fetch(`http://localhost:3000/api/friends/requests?user_id=${props.currentUserId}`)
+    const requestsRes = await authFetch(`http://localhost:3000/api/friends/requests?user_id=${props.currentUserId}`)
     const requests = await requestsRes.json()
     
     if (requests.sent.some((r: any) => r.user_id === props.userId)) {
@@ -59,7 +60,7 @@ const checkRelationship = async () => {
     }
 
     // ブロックチェック
-    const blocksRes = await fetch(`http://localhost:3000/api/users/blocks?user_id=${props.currentUserId}`)
+    const blocksRes = await authFetch(`http://localhost:3000/api/users/blocks?user_id=${props.currentUserId}`)
     const blocks = await blocksRes.json()
     if (blocks.some((b: any) => b.id === props.userId)) {
       relationshipStatus.value = 'blocked'
@@ -76,11 +77,9 @@ const checkRelationship = async () => {
 const sendFriendRequest = async () => {
   isProcessing.value = true
   try {
-    const response = await fetch('http://localhost:3000/api/friends/request', {
+    const response = await authFetch('http://localhost:3000/api/friends/request', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender_id: props.currentUserId,
         search_query: userProfile.value.uuid
       })
     })
@@ -106,11 +105,9 @@ const blockUser = async () => {
 
   isProcessing.value = true
   try {
-    const response = await fetch('http://localhost:3000/api/users/block', {
+    const response = await authFetch('http://localhost:3000/api/users/block', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        blocker_id: props.currentUserId,
         blocked_id: props.userId
       })
     })
@@ -130,10 +127,8 @@ const blockUser = async () => {
 const unblockUser = async () => {
   isProcessing.value = true
   try {
-    const response = await fetch(`http://localhost:3000/api/users/block/${props.userId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blocker_id: props.currentUserId })
+    const response = await authFetch(`http://localhost:3000/api/users/block/${props.userId}`, {
+      method: 'DELETE'
     })
 
     if (response.ok) {
@@ -171,8 +166,10 @@ fetchUserProfile()
 
         <div class="profile-header">
           <img :src="userProfile.avatar_url || '/defaultAvator.svg'" class="profile-avatar" />
-          <h2>{{ userProfile.username }}</h2>
-          <p class="user-uuid">#{{ userProfile.uuid }}</p>
+          <div class="user-id-group">
+            <h2>{{ userProfile.username }}</h2>
+            <p class="user-uuid">#{{ userProfile.uuid }}</p>
+          </div>
         </div>
 
         <div class="profile-actions">
@@ -246,91 +243,41 @@ fetchUserProfile()
 }
 
 .profile-modal {
-  background: #fff;
-  color: #1a1a1a;
-  border-radius: 24px;
+  background: var(--sys-surface);
+  color: var(--sys-on-surface);
+  border-radius: 28px;
   width: 100%;
-  max-width: 450px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
   position: relative;
   overflow: hidden;
-}
-
-.loading-state, .error-state {
-  padding: 60px 40px;
-  text-align: center;
-}
-
-.spinner {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #646cff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.close-btn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,0.05);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  z-index: 10;
-}
-
-.close-btn:hover {
-  background: rgba(0,0,0,0.1);
-  transform: scale(1.1);
-}
-
-.close-btn i {
-  font-size: 24px;
-}
-
-.profile-content {
-  padding: 40px;
+  padding: 32px;
 }
 
 .profile-header {
-  text-align: center;
-  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32px;
 }
 
 .profile-avatar {
-  width: 120px;
-  height: 120px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   object-fit: cover;
-  margin-bottom: 20px;
-  border: 4px solid #f0f0f0;
+  margin-bottom: 16px;
 }
 
 .profile-header h2 {
-  margin: 0 0 8px 0;
-  font-size: 1.8rem;
-  font-weight: 600;
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
 }
 
 .user-uuid {
-  color: #666;
-  font-size: 0.95rem;
-  margin: 0;
+  color: var(--sys-on-surface-variant);
+  font-size: 0.875rem;
 }
 
 .profile-actions {
@@ -344,48 +291,64 @@ fetchUserProfile()
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 24px;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 12px 24px;
+  border-radius: 24px;
+  border: 1px solid var(--sys-outline);
+  background: var(--sys-surface);
+  color: var(--sys-primary);
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-  background: #f0f0f0;
-  color: #1a1a1a;
+  transition: background 0.2s;
 }
 
 .action-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  background: var(--sys-surface-variant);
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
+  background: var(--sys-primary);
   color: white;
-}
-
-.action-btn.primary:hover:not(:disabled) {
-  box-shadow: 0 4px 20px rgba(100, 108, 255, 0.4);
+  border: none;
 }
 
 .action-btn.danger {
-  background: #f04747;
-  color: white;
+  color: var(--sys-error);
 }
 
-.action-btn.danger:hover:not(:disabled) {
-  box-shadow: 0 4px 20px rgba(240, 71, 71, 0.4);
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sys-on-surface-variant);
+  transition: background 0.2s;
 }
 
-.action-btn.disabled {
-  background: #e0e0e0;
-  color: #999;
+.close-btn:hover {
+  background: var(--sys-surface-variant);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--sys-outline);
+  border-top-color: var(--sys-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .action-btn i {

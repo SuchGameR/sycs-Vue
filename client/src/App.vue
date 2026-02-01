@@ -3,41 +3,46 @@ import { ref, onMounted } from 'vue'
 import AuthForm from './components/AuthForm.vue'
 import MainLayout from './components/MainLayout.vue'
 
+import { authFetch } from './utils/api'
+
 // グローバルなログイン状態管理
 const isLoggedIn = ref(false)
 const currentUser = ref<{ id: number, uuid: string, username: string, avatar_url?: string } | null>(null)
 
 // 起動時に保存されたセッションを確認
-onMounted(() => {
-  const savedUser = localStorage.getItem('sycs_user')
-  if (savedUser) {
-    try {
-      currentUser.value = JSON.parse(savedUser)
+onMounted(async () => {
+  try {
+    const response = await authFetch('http://localhost:3000/api/me')
+    if (response.ok) {
+      const user = await response.json()
+      currentUser.value = user
       isLoggedIn.value = true
-    } catch (e) {
-      localStorage.removeItem('sycs_user')
     }
+  } catch (e) {
+    console.error('Failed to auto-login', e)
   }
 })
 
 // ログイン成功時の処理
-const handleLoginSuccess = (user: { id: number, uuid: string, username: string, avatar_url?: string }) => {
+const handleLoginSuccess = (data: { user: { id: number, uuid: string, username: string, avatar_url?: string } }) => {
   isLoggedIn.value = true
-  currentUser.value = user
-  localStorage.setItem('sycs_user', JSON.stringify(user)) // 保存
+  currentUser.value = data.user
 }
 
 // ユーザー情報の更新ハンドラ
 const handleUserUpdate = (updatedUser: any) => {
   currentUser.value = updatedUser
-  localStorage.setItem('sycs_user', JSON.stringify(updatedUser))
 }
 
 // ログアウト処理
-const handleLogout = () => {
+const handleLogout = async () => {
+  try {
+    await authFetch('http://localhost:3000/api/logout', { method: 'POST' })
+  } catch (e) {
+    console.error('Logout failed on server', e)
+  }
   isLoggedIn.value = false
   currentUser.value = null
-  localStorage.removeItem('sycs_user') // 削除
 }
 </script>
 

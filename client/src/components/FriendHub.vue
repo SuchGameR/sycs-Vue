@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { authFetch } from '../utils/api'
 
 const props = defineProps<{
   currentUser: { id: number, uuid: string, username: string, avatar_url?: string }
@@ -20,7 +21,7 @@ const isSearching = ref(false)
 const fetchFriends = async () => {
   isLoading.value = true
   try {
-    const response = await fetch(`http://localhost:3000/api/friends?user_id=${props.currentUser.id}`)
+    const response = await authFetch('http://localhost:3000/api/friends')
     friends.value = await response.json()
   } catch (error) {
     console.error('Failed to fetch friends:', error)
@@ -33,7 +34,7 @@ const fetchFriends = async () => {
 const fetchPendingRequests = async () => {
   isLoading.value = true
   try {
-    const response = await fetch(`http://localhost:3000/api/friends/requests?user_id=${props.currentUser.id}`)
+    const response = await authFetch('http://localhost:3000/api/friends/requests')
     pendingRequests.value = await response.json()
   } catch (error) {
     console.error('Failed to fetch pending requests:', error)
@@ -46,7 +47,7 @@ const fetchPendingRequests = async () => {
 const fetchBlockedUsers = async () => {
   isLoading.value = true
   try {
-    const response = await fetch(`http://localhost:3000/api/users/blocks?user_id=${props.currentUser.id}`)
+    const response = await authFetch('http://localhost:3000/api/users/blocks')
     blockedUsers.value = await response.json()
   } catch (error) {
     console.error('Failed to fetch blocked users:', error)
@@ -64,7 +65,7 @@ const searchUsers = async () => {
 
   isSearching.value = true
   try {
-    const response = await fetch(`http://localhost:3000/api/users/search?query=${encodeURIComponent(searchQuery.value)}&user_id=${props.currentUser.id}`)
+    const response = await authFetch(`http://localhost:3000/api/users/search?query=${encodeURIComponent(searchQuery.value)}`)
     searchResults.value = await response.json()
   } catch (error) {
     console.error('Failed to search users:', error)
@@ -356,60 +357,60 @@ onMounted(() => {
 }
 
 .hub-header {
-  padding: 24px 30px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 24px;
 }
 
 .hub-header h2 {
+  font-size: 1.375rem;
+  font-weight: 400;
   margin: 0;
-  font-size: 1.5rem;
-  color: #1a1a1a;
 }
 
 .hub-tabs {
   display: flex;
   gap: 8px;
-  padding: 16px 20px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  overflow-x: auto;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--sys-outline);
 }
 
 .hub-tabs button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 12px 16px;
   border: none;
   background: none;
-  border-radius: 12px;
+  color: var(--sys-on-surface-variant);
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  color: #666;
-  font-weight: 500;
-  white-space: nowrap;
   position: relative;
 }
 
 .hub-tabs button:hover {
-  background: #f0f0f0;
-  color: #1a1a1a;
+  background: var(--sys-surface-variant);
 }
 
 .hub-tabs button.active {
-  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
-  color: white;
+  color: var(--sys-primary);
 }
 
-.hub-tabs button i {
-  font-size: 1.2rem;
+.hub-tabs button.active::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 8px;
+    right: 8px;
+    height: 3px;
+    background: var(--sys-primary);
+    border-radius: 3px 3px 0 0;
 }
 
 .badge {
-  background: #f04747;
+  background: var(--sys-error);
   color: white;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -418,106 +419,110 @@ onMounted(() => {
 .hub-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
 }
 
 .content-section {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  min-height: 400px;
+  padding: 16px 0;
 }
 
 .subsection {
-  margin-bottom: 30px;
+  margin-bottom: 30px; /* Kept from original, not in provided diff */
 }
 
 .subsection:last-child {
-  margin-bottom: 0;
+  margin-bottom: 0; /* Kept from original, not in provided diff */
 }
 
 .subsection h3 {
-  margin: 0 0 16px 0;
-  font-size: 1.1rem;
-  color: #666;
+  font-size: 0.75rem;
+  color: var(--sys-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 24px 0 8px 16px;
 }
 
-.loading-state, .empty-state {
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: #999;
+  color: #999; /* Kept from original, not in provided diff */
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 0;
+  color: var(--sys-on-surface-variant);
+  text-align: center; /* Kept from original, not in provided diff */
 }
 
 .empty-state i {
-  font-size: 4rem;
+  font-size: 3rem;
   margin-bottom: 16px;
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
 .spinner {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #646cff;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--sys-outline);
+  border-top-color: var(--sys-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
 .user-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .user-item {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px;
+  padding: 12px 16px;
   border-radius: 12px;
-  transition: all 0.2s;
+  transition: background 0.2s;
   cursor: pointer;
+  border-bottom: 1px solid #f1f3f4; /* Kept from original, not in provided diff */
+}
+
+.user-item:last-child {
+    border-bottom: none; /* Kept from original, not in provided diff */
 }
 
 .user-item:hover {
-  background: #f8f8f8;
+  background: var(--sys-surface-variant);
 }
 
 .user-avatar {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  flex-shrink: 0;
-  cursor: pointer;
 }
 
 .user-info {
   flex: 1;
-  min-width: 0;
-  cursor: pointer;
 }
 
 .user-name {
-  display: block;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 4px;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  color: var(--sys-on-surface);
 }
 
 .user-uuid {
-  display: block;
-  font-size: 0.85rem;
-  color: #999;
+  font-size: 0.75rem;
+  color: var(--sys-on-surface-variant);
 }
 
 .user-actions {
@@ -526,61 +531,52 @@ onMounted(() => {
 }
 
 .icon-btn {
+  padding: 8px;
+  border: 1px solid var(--sys-outline);
+  background: var(--sys-surface);
+  border-radius: 50%;
+  color: var(--sys-on-surface-variant);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 8px;
-  background: #f0f0f0;
-  color: #1a1a1a;
-  cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.9rem;
+  cursor: pointer;
 }
 
 .icon-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: var(--sys-surface-variant);
+  color: var(--sys-primary);
 }
 
 .icon-btn i {
-  font-size: 1.2rem;
+  font-size: 1.2rem; /* Kept from original, not in provided diff */
 }
 
-.icon-btn.primary {
-  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
-  color: white;
-}
-
+.icon-btn.primary { color: var(--sys-primary); }
 .icon-btn.success {
-  background: #44b700;
-  color: white;
+  background: #44b700; /* Kept from original, not in provided diff */
+  color: white; /* Kept from original, not in provided diff */
 }
 
-.icon-btn.danger {
-  background: #f04747;
-  color: white;
-}
+.icon-btn.danger { color: var(--sys-error); }
 
 .search-section {
-  padding: 10px 0;
+  padding: 10px 0; /* Kept from original, not in provided diff */
 }
 
 .search-box {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 20px;
-  background: #f8f8f8;
-  border-radius: 12px;
-  margin-bottom: 20px;
+  padding: 12px 20px;
+  background: var(--sys-surface-variant);
+  border-radius: 28px;
+  margin-bottom: 24px;
 }
 
 .search-box i {
-  font-size: 1.4rem;
-  color: #999;
+  font-size: 1.25rem; /* Kept from original, not in provided diff */
+  color: var(--sys-on-surface-variant); /* Kept from original, not in provided diff */
 }
 
 .search-box input {
@@ -589,10 +585,7 @@ onMounted(() => {
   background: none;
   font-size: 1rem;
   outline: none;
-  color: #1a1a1a;
-}
-
-.search-box input::placeholder {
-  color: #999;
+  color: var(--sys-on-surface);
 }
 </style>
+```
