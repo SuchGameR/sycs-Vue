@@ -19,7 +19,10 @@ const props = defineProps<{
     isGroupEnd?: boolean,
     user_uuid?: string,
     replyTo?: any,
-    updated_at?: string // 追加
+    updated_at?: string,
+    decoration?: string,
+    deco_front_url?: string,
+    deco_back_url?: string
   },
   depth: number,
   isLast?: boolean,
@@ -181,11 +184,20 @@ const formatFullDate = (dateStr: string) => {
       <div class="msg-main">
         <!-- アバターエリア -->
         <div v-if="!message.isCompact" class="avatar-column">
-          <img 
-            :src="message.avatar_url || '/default-avatar.svg'" 
-            class="msg-avatar" 
-            @click="handleAvatarClick"
-          />
+          <div 
+            class="msg-avatar-wrapper"
+            :class="[message.decoration ? `deco-${message.decoration}` : '']"
+          >
+             <div class="deco-layer-small back"></div>
+             
+             <img 
+               :src="message.avatar_url || '/default-avatar.svg'" 
+               class="msg-avatar" 
+               @click="handleAvatarClick"
+             />
+
+             <div class="deco-layer-small front"></div>
+          </div>
         </div>
         <div v-else class="compact-time">
           {{ formattedTime }}
@@ -376,17 +388,44 @@ const formatFullDate = (dateStr: string) => {
   padding-top: 2px;
 }
 
+.msg-avatar-wrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
 .msg-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   cursor: pointer;
   transition: transform 0.2s;
+  position: relative;
+  z-index: 5;
 }
 
 .msg-avatar:hover {
   transform: scale(1.05);
 }
+
+/* Decorations for Messages */
+/* Decoration Layers for Messages */
+.deco-layer-small {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  pointer-events: none;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.deco-layer-small.back { z-index: 4; }
+.deco-layer-small.front { z-index: 6; }
+
 
 .compact-time {
   width: 40px;

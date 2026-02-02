@@ -1,15 +1,19 @@
 :root {
-  /* Google Material Design 3 Tokens */
+  /* Google Material Design 3 Tokens - Light (Default) */
   --sys-primary: #1a73e8;
   --sys-primary-container: #d2e3fc;
   --sys-on-primary-container: #0d1c33;
   --sys-surface: #ffffff;
   --sys-surface-variant: #f1f3f4;
   --sys-on-surface: #111;
-  --sys-on-surface-variant: #111111;
+  --sys-on-surface-variant: #444;
   --sys-outline: #dadce0;
   --sys-background: #f8f9fa;
   --sys-error: #d93025;
+
+  /* Discord-like colors for specific sections if needed */
+  --settings-bg: #313338;
+  --sidebar-bg: #2b2d31;
 
   font-family: 'Google Sans', 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
@@ -22,6 +26,38 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme='dark'] {
+  --sys-primary: #8ab4f8;
+  --sys-primary-container: #174ea6;
+  --sys-on-primary-container: #d2e3fc;
+  --sys-surface: #1e1f22;
+  --sys-surface-variant: #2b2d31;
+  --sys-on-surface: #f8f9fa;
+  --sys-on-surface-variant: #dbdee1;
+  --sys-outline: #3f4147;
+  --sys-background: #111214;
+  --sys-error: #f28b82;
+
+  --settings-bg: #313338;
+  --sidebar-bg: #2b2d31;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    /* Auto-detect system dark mode if not explicitly set to light */
+    --sys-primary: #8ab4f8;
+    --sys-primary-container: #174ea6;
+    --sys-on-primary-container: #d2e3fc;
+    --sys-surface: #1e1f22;
+    --sys-surface-variant: #2b2d31;
+    --sys-on-surface: #f8f9fa;
+    --sys-on-surface-variant: #dbdee1;
+    --sys-outline: #3f4147;
+    --sys-background: #111214;
+    --sys-error: #f28b82;
+  }
 }
 
 body {

@@ -167,6 +167,18 @@ async function startServer() {
     try { await db.exec(`ALTER TABLE users ADD COLUMN email TEXT`); } catch (e) { }
     try { await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)`); } catch (e) { }
     try { await db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT '/default-avatar.svg'`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN status_message TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN decoration TEXT DEFAULT 'none'`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'ja'`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'local'`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN banner_url TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN tagline TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN bio TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN location TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN hobbies TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN activity_url TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN deco_front_url TEXT`); } catch (e) { }
+    try { await db.exec(`ALTER TABLE users ADD COLUMN deco_back_url TEXT`); } catch (e) { }
 
     // UUIDがまだ設定されていない既存ユーザーにUUIDを割り当てる
     const usersWithoutUuid = await db.all('SELECT id FROM users WHERE uuid IS NULL');
@@ -374,7 +386,11 @@ async function startServer() {
     // ユーザープロフィール更新 (設定画面用)
     app.patch('/api/users/:id/profile', authenticateToken, async (req, res) => {
         const { id } = req.params;
-        const { username, avatar_url } = req.body;
+        const {
+            username, avatar_url, status_message, decoration, language, timezone,
+            banner_url, tagline, bio, location, hobbies, activity_url,
+            deco_front_url, deco_back_url
+        } = req.body;
 
         // 権限チェック (Token の ID とリクエストの ID が一致するか)
         if (req.user.id !== parseInt(id)) {
@@ -383,12 +399,32 @@ async function startServer() {
 
         try {
             await db.run(
-                'UPDATE users SET username = COALESCE(?, username), avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
-                [username, avatar_url, id]
+                `UPDATE users SET 
+                    username = COALESCE(?, username), 
+                    avatar_url = COALESCE(?, avatar_url),
+                    status_message = COALESCE(?, status_message),
+                    decoration = COALESCE(?, decoration),
+                    language = COALESCE(?, language),
+                    timezone = COALESCE(?, timezone),
+                    banner_url = COALESCE(?, banner_url),
+                    tagline = COALESCE(?, tagline),
+                    bio = COALESCE(?, bio),
+                    location = COALESCE(?, location),
+                    hobbies = COALESCE(?, hobbies),
+                    activity_url = COALESCE(?, activity_url),
+                    deco_front_url = COALESCE(?, deco_front_url),
+                    deco_back_url = COALESCE(?, deco_back_url)
+                WHERE id = ?`,
+                [
+                    username, avatar_url, status_message, decoration, language, timezone,
+                    banner_url, tagline, bio, location, hobbies, activity_url,
+                    deco_front_url, deco_back_url, id
+                ]
             );
-            const user = await db.get('SELECT id, uuid, username, avatar_url FROM users WHERE id = ?', [id]);
+            const user = await db.get('SELECT id, uuid, username, avatar_url, status_message, decoration, language, timezone, banner_url, tagline, bio, location, hobbies, activity_url, deco_front_url, deco_back_url FROM users WHERE id = ?', [id]);
             res.json(user);
         } catch (error) {
+            console.error(error);
             res.status(500).send('Failed to update profile');
         }
     });
@@ -471,7 +507,19 @@ async function startServer() {
                         id: user.id,
                         uuid: user.uuid,
                         username: user.username,
-                        avatar_url: user.avatar_url
+                        avatar_url: user.avatar_url,
+                        status_message: user.status_message,
+                        decoration: user.decoration,
+                        language: user.language,
+                        timezone: user.timezone,
+                        banner_url: user.banner_url,
+                        tagline: user.tagline,
+                        bio: user.bio,
+                        location: user.location,
+                        hobbies: user.hobbies,
+                        activity_url: user.activity_url,
+                        deco_front_url: user.deco_front_url,
+                        deco_back_url: user.deco_back_url
                     }
                 });
             } else {
@@ -486,7 +534,7 @@ async function startServer() {
     // 現在のユーザー情報を取得 API
     app.get('/api/me', authenticateToken, async (req, res) => {
         try {
-            const user = await db.get('SELECT id, uuid, username, avatar_url FROM users WHERE id = ?', [req.user.id]);
+            const user = await db.get('SELECT id, uuid, username, avatar_url, status_message, decoration, language, timezone, banner_url, tagline, bio, location, hobbies, activity_url, deco_front_url, deco_back_url FROM users WHERE id = ?', [req.user.id]);
             if (!user) return res.status(404).send('User not found');
             res.json(user);
         } catch (error) {
@@ -587,7 +635,7 @@ async function startServer() {
         const threadId = req.params.id;
         try {
             const messages = await db.all(`
-                SELECT m.*, u.username, u.uuid as user_uuid, u.avatar_url FROM messages m
+                SELECT m.*, u.username, u.uuid as user_uuid, u.avatar_url, u.decoration, u.deco_front_url, u.deco_back_url FROM messages m
                 JOIN users u ON m.sender_id = u.id
                 WHERE m.thread_id = ?
                 ORDER BY m.is_pinned DESC, m.created_at ASC
@@ -1162,7 +1210,7 @@ async function startServer() {
             }
 
             const messages = await db.all(`
-                SELECT dm.*, u.username, u.uuid as user_uuid, u.avatar_url
+                SELECT dm.*, u.username, u.uuid as user_uuid, u.avatar_url, u.decoration, u.deco_front_url, u.deco_back_url
                 FROM dm_messages dm
                 JOIN users u ON dm.sender_id = u.id
                 WHERE dm.channel_id = ?

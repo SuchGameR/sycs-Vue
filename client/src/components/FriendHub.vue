@@ -77,10 +77,9 @@ const searchUsers = async () => {
 // フレンドリクエスト承認
 const approveRequest = async (requestId: number) => {
   try {
-    const response = await fetch('http://localhost:3000/api/friends/approve', {
+    const response = await authFetch('http://localhost:3000/api/friends/approve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: requestId, user_id: props.currentUser.id })
+      body: JSON.stringify({ request_id: requestId })
     })
 
     if (response.ok) {
@@ -95,10 +94,8 @@ const approveRequest = async (requestId: number) => {
 // フレンドリクエスト拒否/キャンセル
 const rejectRequest = async (requestId: number) => {
   try {
-    const response = await fetch(`http://localhost:3000/api/friends/request/${requestId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: props.currentUser.id })
+    const response = await authFetch(`http://localhost:3000/api/friends/request/${requestId}`, {
+      method: 'DELETE'
     })
 
     if (response.ok) {
@@ -114,10 +111,8 @@ const removeFriend = async (friendId: number) => {
   if (!confirm('フレンドを削除しますか?')) return
 
   try {
-    const response = await fetch(`http://localhost:3000/api/friends/${friendId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: props.currentUser.id })
+    const response = await authFetch(`http://localhost:3000/api/friends/${friendId}`, {
+      method: 'DELETE'
     })
 
     if (response.ok) {
@@ -131,10 +126,8 @@ const removeFriend = async (friendId: number) => {
 // ブロック解除
 const unblockUser = async (userId: number) => {
   try {
-    const response = await fetch(`http://localhost:3000/api/users/block/${userId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blocker_id: props.currentUser.id })
+    const response = await authFetch(`http://localhost:3000/api/users/block/${userId}`, {
+      method: 'DELETE'
     })
 
     if (response.ok) {
@@ -151,8 +144,12 @@ const startDM = (friendId: number) => {
 }
 
 // プロフィール表示
-const showProfile = (userId: number) => {
-  emit('open-profile', userId)
+const showProfile = (userId: number, event?: MouseEvent) => {
+  if (event) {
+    emit('open-profile', { userId, x: event.clientX, y: event.clientY })
+  } else {
+    emit('open-profile', userId)
+  }
 }
 
 // タブ切り替え時のデータ取得
@@ -214,8 +211,8 @@ onMounted(() => {
         </div>
         <div v-else class="user-list">
           <div v-for="friend in friends" :key="friend.id" class="user-item">
-            <img :src="friend.avatar_url || '/defaultAvator.svg'" class="user-avatar" @click="showProfile(friend.id)" />
-            <div class="user-info" @click="showProfile(friend.id)">
+            <img :src="friend.avatar_url || '/defaultAvator.svg'" class="user-avatar" @click="(e) => showProfile(friend.id, e)" />
+            <div class="user-info" @click="(e) => showProfile(friend.id, e)">
               <span class="user-name">{{ friend.username }}</span>
               <span class="user-uuid">#{{ friend.uuid }}</span>
             </div>
@@ -330,8 +327,8 @@ onMounted(() => {
           </div>
           <div v-else-if="searchResults.length > 0" class="user-list">
             <div v-for="user in searchResults" :key="user.id" class="user-item">
-              <img :src="user.avatar_url || '/defaultAvator.svg'" class="user-avatar" @click="showProfile(user.id)" />
-              <div class="user-info" @click="showProfile(user.id)">
+              <img :src="user.avatar_url || '/defaultAvator.svg'" class="user-avatar" @click="(e) => showProfile(user.id, e)" />
+              <div class="user-info" @click="(e) => showProfile(user.id, e)">
                 <span class="user-name">{{ user.username }}</span>
                 <span class="user-uuid">#{{ user.uuid }}</span>
               </div>

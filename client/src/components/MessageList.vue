@@ -287,7 +287,7 @@ onMounted(fetchMessages)
 }
 
 .input-area {
-  padding: 16px 24px 24px 24px;
+  padding: 8px 8px 16px 8px;
   background: var(--sys-surface);
   transition: all 0.2s;
 }

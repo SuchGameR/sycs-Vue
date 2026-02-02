@@ -9,7 +9,7 @@ const props = defineProps<{
   friendInfo: { id: number, username: string, avatar_url?: string }
 }>()
 
-const emit = defineEmits(['back', 'block-user'])
+const emit = defineEmits(['back', 'block-user', 'show-profile'])
 
 const messages = ref<any[]>([])
 const messageInput = ref('')
@@ -147,8 +147,8 @@ onUnmounted(() => {
       <button class="back-btn" @click="emit('back')">
         <i class='bx bx-arrow-back'></i>
       </button>
-      <img :src="friendInfo.avatar_url || '/defaultAvator.svg'" class="friend-avatar" />
-      <div class="friend-info">
+      <img :src="friendInfo.avatar_url || '/defaultAvator.svg'" class="friend-avatar" @click="(e) => emit('show-profile', { userId: friendInfo.id, x: e.clientX, y: e.clientY })" />
+      <div class="friend-info" @click="(e) => emit('show-profile', { userId: friendInfo.id, x: e.clientX, y: e.clientY })">
         <span class="friend-name">{{ friendInfo.username }}</span>
       </div>
       <button class="icon-btn danger" @click="emit('block-user', friendInfo.id)" title="ブロック">
@@ -178,18 +178,19 @@ onUnmounted(() => {
             }
           ]"
         >
-          <!-- アバター (グループ化されていない場合のみ表示) -->
+          <!-- アバター (自分自身のメッセージ、またはグループ化されている場合は非表示) -->
           <img 
-            v-if="!shouldGroupWithPrevious(message, index)" 
+            v-if="!shouldGroupWithPrevious(message, index) && message.sender_id !== currentUser.id" 
             :src="message.avatar_url || '/defaultAvator.svg'" 
             class="message-avatar"
+            @click="(e) => emit('show-profile', { userId: message.sender_id, x: e.clientX, y: e.clientY })"
           />
           <div v-else class="message-avatar-placeholder"></div>
 
           <div class="message-content-wrapper">
-            <!-- ヘッダー (グループ化されていない場合のみ表示) -->
-            <div v-if="!shouldGroupWithPrevious(message, index)" class="message-header">
-              <span class="message-author">{{ message.username }}</span>
+            <!-- ヘッダー (自分自身のメッセージ、またはグループ化されている場合は非表示) -->
+            <div v-if="!shouldGroupWithPrevious(message, index) && message.sender_id !== currentUser.id" class="message-header">
+              <span class="message-author" @click="(e) => emit('show-profile', { userId: message.sender_id, x: e.clientX, y: e.clientY })">{{ message.username }}</span>
               <span class="message-time">{{ new Date(message.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }}</span>
             </div>
 

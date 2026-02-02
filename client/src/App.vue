@@ -7,7 +7,7 @@ import { authFetch } from './utils/api'
 
 // グローバルなログイン状態管理
 const isLoggedIn = ref(false)
-const currentUser = ref<{ id: number, uuid: string, username: string, avatar_url?: string } | null>(null)
+const currentUser = ref<{ id: number, uuid: string, username: string, avatar_url?: string, theme?: string, decoration?: string, status_message?: string } | null>(null)
 
 // 起動時に保存されたセッションを確認
 onMounted(async () => {
@@ -24,7 +24,7 @@ onMounted(async () => {
 })
 
 // ログイン成功時の処理
-const handleLoginSuccess = (data: { user: { id: number, uuid: string, username: string, avatar_url?: string } }) => {
+const handleLoginSuccess = (data: { user: { id: number, uuid: string, username: string, avatar_url?: string, theme?: string, decoration?: string, status_message?: string } }) => {
   isLoggedIn.value = true
   currentUser.value = data.user
 }

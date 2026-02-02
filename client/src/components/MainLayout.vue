@@ -5,88 +5,37 @@ import ThreadNavigation from './ThreadNavigation.vue'
 import MessageList from './MessageList.vue'
 import FriendHub from './FriendHub.vue'
 import DMChat from './DMChat.vue'
-import UserProfileModal from './UserProfileModal.vue'
+import UserProfilePopover from './UserProfilePopover.vue'
+import SettingsOverlay from './SettingsOverlay.vue'
 
 const props = defineProps<{
-  user: { id: number, uuid: string, username: string, avatar_url?: string }
+  user: { id: number, uuid: string, username: string, avatar_url?: string, theme?: string, decoration?: string }
 }>()
 
 const emit = defineEmits(['logout', 'update-user'])
 
+import { onMounted } from 'vue'
+
+onMounted(() => {
+  // 初期テーマ適用
+  if (props.user.theme && props.user.theme !== 'system') {
+    document.documentElement.setAttribute('data-theme', props.user.theme)
+  }
+})
+
 // --- 設定・ステート管理 ---
 const isSettingsOpen = ref(false)
-const isUpdating = ref(false)
-const isDragging = ref(false)
-const settingsForm = ref({
-  username: props.user.username,
-  avatarUrl: props.user.avatar_url || '/default-avatar.svg'
+const appSettings = ref({
+  splitView: false,
+  glassUi: false
 })
-const fileInputRef = ref<HTMLInputElement | null>(null)
+const activeTab = ref('threads')
+const activeTabSecondary = ref('dm') // 分割時の右側
+const isDragging = ref(false)
 
 // 設定を開く
 const handleSettingsClick = () => {
-  settingsForm.value.username = props.user.username
-  settingsForm.value.avatarUrl = props.user.avatar_url || '/default-avatar.svg'
   isSettingsOpen.value = true
-}
-
-// ファイルアップロード処理 (アバター)
-const handleFileUpload = async (file: File) => {
-  if (!file.type.startsWith('image/')) return
-  isUpdating.value = true
-  const formData = new FormData()
-  formData.append('avatar', file)
-
-  try {
-    const response = await authFetch('http://localhost:3000/api/upload/avatar', {
-      method: 'POST',
-      body: formData,
-      headers: {}
-    })
-    if (response.ok) {
-      const data = await response.json()
-      settingsForm.value.avatarUrl = data.url
-    }
-  } catch (e) {
-    console.error('Upload failed', e)
-  } finally {
-    isUpdating.value = false
-  }
-}
-
-const onDrop = (e: DragEvent) => {
-  isDragging.value = false
-  const file = e.dataTransfer?.files[0]
-  if (file) handleFileUpload(file)
-}
-
-const onFileSelect = (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (file) handleFileUpload(file)
-}
-
-// プロフィール保存
-const handleSaveSettings = async () => {
-  isUpdating.value = true
-  try {
-    const response = await authFetch(`http://localhost:3000/api/users/${props.user.id}/profile`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        username: settingsForm.value.username,
-        avatar_url: settingsForm.value.avatarUrl
-      })
-    })
-
-    if (response.ok) {
-      const updatedUser = await response.json()
-      emit('update-user', updatedUser)
-      isSettingsOpen.value = false
-    }
-  } catch (e) {
-    console.error('Update failed', e)
-  } finally {
-    isUpdating.value = false
-  }
 }
 
 // --- ユーザーメニュー & ステータス ---
@@ -241,7 +190,6 @@ const handleDeleteThread = async () => {
 }
 
 // 共通パーツ管理
-const activeTab = ref('threads')
 const currentThread = ref({ id: 1, title: 'SYCS公式ハブ', icon_url: '/default-thread.svg', creator_id: 0 })
 const handleSelectThread = (thread: any) => {
   currentThread.value = thread
@@ -253,7 +201,7 @@ const dmView = ref<'hub' | 'chat'>('hub')
 const currentDMChannel = ref<number | null>(null)
 const currentDMFriend = ref<any>(null)
 const profileModalUserId = ref<number | null>(null)
-
+const profilePopoverPosition = ref({ top: 0, left: 0 })
 // DM開始
 const handleOpenDM = async (friendId: number) => {
   try {
@@ -262,6 +210,17 @@ const handleOpenDM = async (friendId: number) => {
       method: 'POST',
       body: JSON.stringify({ friend_id: friendId })
     })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      if (response.status === 403) {
+        alert('このユーザーとのDMは現在利用できません。ブロックが解除されているか確認してください。')
+      } else {
+        alert(`DMの作成に失敗しました: ${errorText}`)
+      }
+      return
+    }
+    
     const data = await response.json()
     
     // フレンド情報取得 (本来はストア等で管理すべきだが現状は毎時取得)
@@ -277,6 +236,7 @@ const handleOpenDM = async (friendId: number) => {
     }
   } catch (error) {
     console.error('Failed to open DM:', error)
+    alert('DMの作成中にエラーが発生しました。')
   }
 }
 
@@ -288,9 +248,26 @@ const handleBackToDMHub = () => {
   currentDMFriend.value = null
 }
 
-// プロフィール表示
-const handleOpenProfile = (userId: number) => {
-  profileModalUserId.value = userId
+// プロフィール表示 (イベントから座標を受け取るように拡張)
+const handleOpenProfile = (data: number | { userId: number, x: number, y: number }) => {
+  if (typeof data === 'number') {
+    profileModalUserId.value = data
+    profilePopoverPosition.value = { top: 100, left: 100 } // デフォルト位置
+  } else {
+    profileModalUserId.value = data.userId
+    profilePopoverPosition.value = { top: data.y, left: data.x }
+  }
+}
+
+// プロフィール更新時の処理
+const handleUserProfileUpdate = (data: any) => {
+  if (data.appSettings) {
+    appSettings.value = { ...appSettings.value, ...data.appSettings }
+  }
+  if (data.activeTabSecondary) {
+    activeTabSecondary.value = data.activeTabSecondary
+  }
+  emit('update-user', { ...props.user, ...data })
 }
 
 // ブロック処理
@@ -386,6 +363,7 @@ const handleTouchEnd = () => {
       </div>
       
       <nav class="sidebar-nav">
+        <!-- スレッドタブを復旧 -->
         <button :class="{ active: activeTab === 'threads' }" @click="activeTab = 'threads'; isSidebarOpen = false">
           <i class='bx bx-chat'></i>
           <span>スレッド</span>
@@ -394,7 +372,7 @@ const handleTouchEnd = () => {
           <i class='bx bx-envelope'></i>
           <span>メッセージ</span>
         </button>
-        <button :class="{ active: activeTab === 'friends' }" @click="activeTab = 'friends'; isSidebarOpen = false">
+        <button :class="{ active: activeTab === 'friends' }" @click="activeTab === 'friends' || (activeTab = 'friends'); isSidebarOpen = false">
           <i class='bx bx-group'></i>
           <span>フレンド</span>
         </button>
@@ -446,64 +424,87 @@ const handleTouchEnd = () => {
     <!-- メインコンテンツ -->
     <main 
       class="content-area"
-      :class="{ 'is-swiping': isSwiping }"
+      :class="{ 
+        'is-swiping': isSwiping, 
+        'split-mode': appSettings.splitView,
+        'glass-ui': appSettings.glassUi 
+      }"
       :style="(isSwiping || isSidebarOpen) ? { transform: `translateX(${swipeX}px)` } : {}"
     >
-      <div v-if="activeTab === 'threads'" class="thread-view-container">
-        <ThreadNavigation 
-          :current-thread="currentThread" 
-          :current-user-id="user.id"
-          @select-thread="handleSelectThread"
-          @create-thread="handleThreadCreateClick"
-          @edit-thread="handleOpenThreadSettings(currentThread)"
-        />
-        <div class="message-area-wrapper">
-          <MessageList 
-            :thread-id="currentThread.id" 
-            :current-user="user" 
-            :current-thread="currentThread"
-            @show-profile="handleOpenProfile"
+      <div class="content-pane primary">
+        <div v-if="activeTab === 'threads'" class="thread-view-container">
+          <ThreadNavigation 
+            :current-thread="currentThread" 
+            :current-user-id="user.id"
+            @select-thread="handleSelectThread"
+            @create-thread="handleThreadCreateClick"
+            @edit-thread="handleOpenThreadSettings(currentThread)"
+          />
+          <div class="message-area-wrapper">
+            <MessageList 
+              :thread-id="currentThread.id" 
+              :current-user="user" 
+              :current-thread="currentThread"
+              @show-profile="handleOpenProfile"
+            />
+          </div>
+        </div>
+        <div v-else-if="activeTab === 'dm'" class="dm-view-container">
+          <DMChat 
+            v-if="currentDMChannel && currentDMFriend"
+            :channel-id="currentDMChannel"
+            :current-user="user"
+            :friend-info="currentDMFriend"
+            @back="handleBackToDMHub"
+            @block-user="handleBlockUser"
+          />
+          <div v-else class="empty-view">
+            <div class="empty-state">
+                <i class='bx bx-envelope empty-icon'></i>
+                <h2>メッセージ</h2>
+                <p>フレンドを選択してメッセージを開始してください。</p>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="activeTab === 'friends'" class="friends-view-container">
+          <FriendHub 
+            :current-user="user"
+            @open-dm="handleOpenDM"
+            @open-profile="handleOpenProfile"
           />
         </div>
       </div>
-      <div v-else-if="activeTab === 'dm'" class="dm-view-container">
-        <DMChat 
-          v-if="currentDMChannel && currentDMFriend"
-          :channel-id="currentDMChannel"
-          :current-user="user"
-          :friend-info="currentDMFriend"
-          @back="handleBackToDMHub"
-          @block-user="handleBlockUser"
-        />
-        <div v-else class="empty-view">
-           <div class="empty-state">
-              <i class='bx bx-envelope empty-icon'></i>
-              <h2>メッセージ</h2>
-              <p>フレンドを選択してメッセージを開始してください。</p>
-           </div>
+
+      <!-- 分割ビュー時の二次ペイン -->
+      <div v-if="appSettings.splitView" class="content-pane secondary">
+        <div v-if="activeTabSecondary === 'dm'" class="dm-view-container">
+          <DMChat 
+            v-if="currentDMChannel && currentDMFriend"
+            :channel-id="currentDMChannel"
+            :current-user="user"
+            :friend-info="currentDMFriend"
+            @back="handleBackToDMHub"
+            @block-user="handleBlockUser"
+          />
+          <div v-else class="empty-view">
+             <div class="empty-state">
+                <h2>メッセージ</h2>
+                <p>フレンドを選択...</p>
+             </div>
+          </div>
         </div>
-      </div>
-      <div v-else-if="activeTab === 'friends'" class="friends-view-container">
-        <FriendHub 
-          :current-user="user"
-          @open-dm="handleOpenDM"
-          @open-profile="handleOpenProfile"
-        />
-      </div>
-      <div v-else class="empty-view">
-        <div class="empty-state">
-           <i :class="activeTab === 'dm' ? 'bx bx-envelope' : 'bx bx-star'" class="empty-icon"></i>
-           <h2>{{ activeTab === 'dm' ? 'ダイレクトメッセージ' : 'お気に入り' }}</h2>
-           <p>近日公開予定の機能です。</p>
+        <div v-else-if="activeTabSecondary === 'friends'" class="friends-view-container">
+          <FriendHub :current-user="user" @open-dm="handleOpenDM" @open-profile="handleOpenProfile" />
         </div>
       </div>
     </main>
 
-    <!-- ユーザープロフィールモーダル -->
-    <UserProfileModal 
+    <!-- ユーザープロフィールポップアップ -->
+    <UserProfilePopover 
       v-if="profileModalUserId !== null"
       :user-id="profileModalUserId"
       :current-user-id="user.id"
+      :position="profilePopoverPosition"
       @close="profileModalUserId = null"
       @friend-request-sent="profileModalUserId = null"
       @blocked="profileModalUserId = null"
@@ -675,50 +676,14 @@ const handleTouchEnd = () => {
       </div>
     </Transition>
 
-    <!-- プロフィール設定モーダル -->
-    <div v-if="isSettingsOpen" class="modal-overlay" @click.self="isSettingsOpen = false">
-      <div class="settings-modal main-modal">
-        <div class="modal-header">
-          <h3>ユーザー設定</h3>
-          <button class="close-btn" @click="isSettingsOpen = false"><i class='bx bx-x'></i></button>
-        </div>
-
-        <div class="modal-body">
-          <div 
-            class="avatar-edit-zone-modern"
-            :class="{ active: isDragging }"
-            @dragover.prevent="isDragging = true"
-            @dragleave="isDragging = false"
-            @drop.prevent="onDrop"
-            @click="fileInputRef?.click()"
-          >
-            <div class="avatar-preview-container">
-              <img :src="settingsForm.avatarUrl || '/defaultAvator.svg'" class="avatar-large-preview" />
-              <div v-if="isUpdating" class="upload-spin-overlay">
-                <span class="spinner"></span>
-              </div>
-            </div>
-            <div class="edit-hint">
-              <strong>アバターを変更</strong>
-              <span>D&D またはクリック</span>
-            </div>
-            <input ref="fileInputRef" type="file" style="display: none" accept="image/*" @change="onFileSelect" />
-          </div>
-
-          <div class="settings-input-group">
-            <label>表示名</label>
-            <input v-model="settingsForm.username" type="text" />
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="cancel-btn-modern" @click="isSettingsOpen = false">キャンセル</button>
-          <button class="save-btn-modern" :disabled="isUpdating" @click="handleSaveSettings">
-            {{ isUpdating ? '保存中...' : '変更を保存' }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- ユーザー設定オーバーレイ -->
+    <SettingsOverlay 
+      v-if="isSettingsOpen"
+      :user="user"
+      @close="isSettingsOpen = false"
+      @logout="emit('logout')"
+      @update-profile="handleUserProfileUpdate"
+    />
 
     <!-- モバイル用オーバーレイ -->
     <div 
@@ -772,7 +737,7 @@ aside {
 }
 
 .sidebar-header .logo {
-    height: 24px;
+    height: 35px;
 }
 
 .sidebar-actions {
@@ -838,12 +803,26 @@ aside {
   color: var(--sys-on-primary-container);
 }
 
+.nav-badge {
+    background: var(--sys-error);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid var(--sys-outline);
 }
 
-/* ユーザー情報 (Google Account 風) */
+/* User Info (Google Account 風) Decoration */
+.user-avatar-wrapper {
+  position: relative;
+}
+
+
 .user-info {
   display: flex;
   align-items: center;
@@ -961,7 +940,42 @@ aside {
   flex: 1;
   background-color: var(--sys-surface);
   display: flex;
+  overflow: hidden;
+}
+
+.content-pane {
+  flex: 1;
+  height: 100%;
+  display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.content-pane.primary {
+  min-width: 320px;
+}
+
+.content-pane.secondary {
+  border-left: 1px solid var(--sys-outline);
+  background: linear-gradient(135deg, var(--sys-surface-container-low), var(--sys-surface));
+  max-width: 450px;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  animation: slideLeft 0.3s ease-out;
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Glass UI Theme Extension */
+.content-area.glass-ui {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+}
+
+.content-area.glass-ui .content-pane {
+  background: transparent;
 }
 
 /* モーダル (Material Design 3) */
