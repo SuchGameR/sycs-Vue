@@ -1,1 +1,0 @@
-# SYCS-Vue (About)
