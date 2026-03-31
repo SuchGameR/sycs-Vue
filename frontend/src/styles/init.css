@@ -1,0 +1,50 @@
+:root {
+    --primary: #1e1e1e;
+    --secondary: #2e2e2e;
+    --accent: oklch(0.8288 0.2452 145.82);
+    --light-accent: oklch(0.9235 0.1001 145.82);
+    --background: #f5f5f5;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background);
+    color: var(--text-primary);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary);
+    margin: 0;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+button {
+    background-color: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: var(--accent);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
