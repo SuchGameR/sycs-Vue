@@ -1,6 +1,7 @@
 :root {
   /* commons */
-  --tiny-gap: 2.5px;
+  /* --tiny-gap: 2.5px; */
+  --tiny-gap: 5px;
 
   /* theme */
   --primary: #1e1e1e;

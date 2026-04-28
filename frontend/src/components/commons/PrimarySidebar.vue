@@ -5,6 +5,8 @@ import PrimaryButton from "../commons/PrimaryButton.vue";
 <template>
   <PrimaryButton name="ホーム" ui="Armchair" />
   <PrimaryButton name="メッセージ" ui="MessageCircle" />
+  <PrimaryButton name="通知" ui="BellRing" />
+  <PrimaryButton name="お気に入り" ui="Heart" />
   <hr />
   <PrimaryButton name="サーバー" ui="Plus" />
 </template>

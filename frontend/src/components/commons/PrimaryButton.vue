@@ -13,6 +13,15 @@ const props = defineProps({
   },
   backgroundColor: String,
   textColor: String,
+  fill: {
+    type: String,
+    default: "none",
+    required: false,
+  },
+});
+
+const iconFillColor = computed(() => {
+  return props.fill;
 });
 
 const currentIcon = computed(() => {
@@ -22,7 +31,7 @@ const currentIcon = computed(() => {
 
 <template>
   <div class="button">
-    <component :is="currentIcon" :size="20" />
+    <component :is="currentIcon" :size="20" :fill="iconFillColor" />
     {{ name }}
   </div>
 </template>
