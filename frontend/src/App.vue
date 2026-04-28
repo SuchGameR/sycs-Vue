@@ -17,10 +17,9 @@
   margin-top: 60px;
 }
 
-body, html{
+body,
+html {
   margin: 0;
   background-color: var(--theme-color);
 }
-
-
 </style>
