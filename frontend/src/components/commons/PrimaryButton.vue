@@ -36,7 +36,8 @@ const currentIcon = computed(() => {
   border-radius: 8px;
   cursor: pointer;
   transition: opacity 0.2s;
-  margin: 2.5px;
+  margin-bottom: 2.5px;
+  margin-top: 2.5px;
   user-select: none;
 }
 

@@ -1,8 +1,13 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import Horizontal from "../components/configurations/Horizontal.vue";
+</script>
 
 <template>
-  <Sidebar />
-  <Main />
+  <Horizontal>
+    <Sidebar />
+    <Main />
+    <!-- <List /> -->
+  </Horizontal>
 </template>
 
 <style scoped></style>

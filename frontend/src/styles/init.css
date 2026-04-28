@@ -1,50 +1,95 @@
 :root {
-    --primary: #1e1e1e;
-    --secondary: #2e2e2e;
-    --accent: oklch(0.8288 0.2452 145.82);
-    --light-accent: oklch(0.9235 0.1001 145.82);
-    --background: #f5f5f5;
-    --text-primary: #333333;
-    --text-secondary: #666666;
+  /* commons */
+  --tiny-gap: 2.5px;
+
+  /* theme */
+  --primary: #1e1e1e;
+  --secondary: #2e2e2e;
+  --accent: oklch(0.8288 0.2452 145.82);
+  --light-accent: oklch(0.9235 0.1001 145.82);
+  --background: #f5f5f5;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+
+  /* sidebar */
+  --sidebar-paddingSize: 7px;
 }
 
-body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--background);
-    color: var(--text-primary);
+@font-face {
+  font-family: IBMPlexSansJP-B;
+  src: url(../fonts/IBMPlexSansJP-Bold.ttf);
 }
 
-h1, h2, h3, h4, h5, h6 {
-    color: var(--primary);
-    margin: 0;
+@font-face {
+  font-family: IBMPlexSansJP-R;
+  src: url(../fonts/IBMPlexSansJP-Regular.ttf);
+}
+
+@font-face {
+  font-family: BIZUD;
+  src: url(../fonts/BIZUDGothic-Regular.ttf);
+}
+
+@font-face {
+  font-family: LINESeedJP;
+  src: url(../fonts/LINESeedJP_TTF_Rg.ttf);
+}
+
+body,
+html {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  /* background-color: var(--background); */
+  background-color: rgb(179, 179, 179);
+  color: var(--text-primary);
+}
+
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  /* font-family: BIZUD, sans-serif; */
+  font-family: LINESeedJP, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--primary);
+  margin: 0;
 }
 
 a {
-    color: var(--accent);
-    text-decoration: none;
+  color: var(--accent);
+  text-decoration: none;
 }
 
 a:hover {
-    text-decoration: underline;
+  text-decoration: underline;
 }
 
 button {
-    background-color: var(--primary);
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 4px;
+  background-color: var(--primary);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 4px;
 }
 
 button:hover {
-    background-color: var(--accent);
+  background-color: var(--accent);
 }
 
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
 }

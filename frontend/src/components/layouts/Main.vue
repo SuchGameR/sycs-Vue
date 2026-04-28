@@ -1,13 +1,16 @@
+<script setup>
+import PrimarySidebar from "../commons/PrimarySidebar.vue";
+</script>
+
 <template>
   <aside>
     <p>Main Component</p>
   </aside>
 </template>
 
-<script setup lang="ts">
-// ロジックが必要になったらここに書くよ
-</script>
-
 <style scoped>
-/* スタイル（見た目）はここに書くよ */
+aside {
+  background-color: red;
+  width: 100%;
+}
 </style>
