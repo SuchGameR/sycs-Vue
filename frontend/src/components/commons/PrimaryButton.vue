@@ -18,6 +18,11 @@ const props = defineProps({
     default: "none",
     required: false,
   },
+  url: String,
+});
+
+const url = computed(() => {
+  return props.url;
 });
 
 const iconFillColor = computed(() => {
@@ -30,16 +35,23 @@ const currentIcon = computed(() => {
 </script>
 
 <template>
-  <div class="button">
-    <component :is="currentIcon" :size="20" :fill="iconFillColor" />
-    {{ name }}
-  </div>
+  <router-link :to="url" class="link">
+    <div class="button">
+      <component :is="currentIcon" :size="20" :fill="iconFillColor" />
+      {{ name }}
+    </div>
+  </router-link>
 </template>
 
 <style scoped>
+.link {
+  display: block;
+  width: 100%;
+}
 .button {
   display: inline-flex;
   align-items: center;
+  width: 100%;
   gap: 10px;
   padding: 8px 10px;
   border-radius: 8px;

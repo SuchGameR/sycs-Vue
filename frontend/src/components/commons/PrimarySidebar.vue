@@ -3,10 +3,10 @@ import PrimaryButton from "../commons/PrimaryButton.vue";
 </script>
 
 <template>
-  <PrimaryButton name="ホーム" ui="Armchair" />
-  <PrimaryButton name="メッセージ" ui="MessageCircle" />
-  <PrimaryButton name="通知" ui="BellRing" />
-  <PrimaryButton name="お気に入り" ui="Heart" />
+  <PrimaryButton name="ホーム" ui="Armchair" url="/" />
+  <PrimaryButton name="メッセージ" ui="MessageCircle" url="message" />
+  <PrimaryButton name="通知" ui="BellRing" url="notice" />
+  <PrimaryButton name="お気に入り" ui="Heart" url="favorite" />
   <hr />
   <PrimaryButton name="サーバー" ui="Plus" />
 </template>
