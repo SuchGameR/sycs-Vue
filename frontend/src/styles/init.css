@@ -68,8 +68,8 @@ h6 {
 }
 
 a {
-  color: var(--accent);
-  text-decoration: none;
+  color: var(--primary);
+  text-decoration: none !important;
 }
 
 a:hover {

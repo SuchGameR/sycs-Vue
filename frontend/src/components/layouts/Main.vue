@@ -7,10 +7,10 @@ import ModernTab from "../commons/ModernTab.vue";
 <template>
   <Vertical class="mainContainer">
     <section class="optionUtilTabs">
-      <ModernTab name="グローバル" />
-      <ModernTab name="ローカル" />
-      <ModernTab name="フォロー" />
-      <ModernTab name="タイムライン" />
+      <ModernTab name="グローバル" ui="Globe" url="/global" />
+      <ModernTab name="ローカル" ui="GlobeLock" url="/local" />
+      <ModernTab name="フォロー" ui="UserCheck" url="/follow" />
+      <ModernTab name="タイムライン" ui="UtilityPole" url="/timeline" />
     </section>
     <aside>
       <p>Main Component</p>
@@ -23,9 +23,9 @@ import ModernTab from "../commons/ModernTab.vue";
   width: 100%;
 }
 .optionUtilTabs {
-  height: 45px;
+  height: calc(45px - var(--tiny-gap));
   width: calc(100% - var(--tiny-gap));
-  /* background-color: red; */
+  margin-bottom: var(--tiny-gap);
   margin-top: var(--tiny-gap);
   display: flex;
   list-style: none;
@@ -46,7 +46,6 @@ aside {
   position: relative;
 
   /* not include */
-  border-top-left-radius: 0;
   margin-left: 0px;
   margin-top: 0px;
 }
