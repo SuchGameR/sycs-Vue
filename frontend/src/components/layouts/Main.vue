@@ -5,20 +5,29 @@ import ModernTab from "../commons/ModernTab.vue";
 </script>
 
 <template>
-  <Vertical class="mainContainer">
-    <section class="optionUtilTabs">
-      <ModernTab name="グローバル" ui="Globe" url="/global" />
-      <ModernTab name="ローカル" ui="GlobeLock" url="/local" />
-      <ModernTab name="フォロー" ui="UserCheck" url="/follow" />
-      <ModernTab name="タイムライン" ui="UtilityPole" url="/timeline" />
-    </section>
-    <aside>
-      <p>Main Component</p>
-    </aside>
-  </Vertical>
+  <main>
+    <Vertical class="mainContainer">
+      <section class="optionUtilTabs">
+        <ModernTab name="グローバル" ui="Globe" url="/global" />
+        <ModernTab name="ローカル" ui="GlobeLock" url="/local" />
+        <ModernTab name="フォロー" ui="UserCheck" url="/follow" />
+        <ModernTab name="タイムライン" ui="UtilityPole" url="/timeline" />
+      </section>
+      <aside>
+        <p>Main Component</p>
+      </aside>
+    </Vertical>
+  </main>
 </template>
 
 <style scoped>
+main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: var(--background);
+  color: var(--text-primary);
+}
 .mainContainer {
   width: 100%;
 }
@@ -36,7 +45,8 @@ aside {
   /* width: 60px; */
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--tiny-gap) * 2 - 45px);
+  /* height: calc(100vh - var(--tiny-gap) * 2 - 45px); */
+  height: 100vh;
   background-color: var(--background);
   color: var(--text-primary);
   padding: var(--sidebar-paddingSize);

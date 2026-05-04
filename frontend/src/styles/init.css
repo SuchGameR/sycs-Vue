@@ -1,7 +1,7 @@
 :root {
   /* commons */
   /* --tiny-gap: 2.5px; */
-  --tiny-gap: 5px;
+  /* --tiny-gap: 5px; */
 
   /* theme */
   --primary: #1e1e1e;
@@ -15,6 +15,10 @@
 
   /* sidebar */
   --sidebar-paddingSize: 7px;
+
+  /* resizer */
+  --resize-size: 2px;
+  --resize-color: #ccc;
 }
 
 @font-face {
@@ -44,8 +48,8 @@ html {
   margin: 0;
   padding: 0;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  /* background-color: var(--background); */
-  background-color: rgb(179, 179, 179);
+  background-color: var(--background);
+  /* background-color: rgb(179, 179, 179); */
   color: var(--text-primary);
 }
 

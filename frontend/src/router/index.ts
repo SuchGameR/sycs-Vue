@@ -4,6 +4,7 @@ import About from "../pages/About.vue";
 import Message from "../pages/Message.vue";
 import Notice from "../pages/Notice.vue";
 import Favorite from "../pages/Favorite.vue";
+import Server from "../pages/Server.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,6 +14,8 @@ const router = createRouter({
     { path: "/message", component: Message },
     { path: "/notice", component: Notice },
     { path: "/favorite", component: Favorite },
+    { path: "/server/:id", component: Server },
+    { path: "/server/:serverId/channel/:channelId", component: Server },
   ],
 });
 

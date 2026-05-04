@@ -1,0 +1,39 @@
+
+-- 繝ｦ繝ｼ繧ｶ繝ｼ騾包ｽｨ
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    avatar_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- 既存のテーブルを一度削除（開発用）
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS channels;
+DROP TABLE IF EXISTS servers;
+
+-- サーバー用のテーブル
+CREATE TABLE IF NOT EXISTS servers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    icon VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- チャンネル用のテーブル
+CREATE TABLE IF NOT EXISTS channels (
+    id SERIAL PRIMARY KEY,
+    server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- メッセージ用のテーブル
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, author_name VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
