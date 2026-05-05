@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from "vue";
 import PrimaryButton from "../commons/PrimaryButton.vue";
 import CreateServerModal from "../popups/CreateServerModal.vue";
 
@@ -8,7 +8,9 @@ const isCreateModalOpen = ref(false);
 
 const fetchServers = async () => {
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/servers`);
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/servers`,
+    );
     if (res.ok) {
       servers.value = await res.json();
     }
@@ -30,24 +32,27 @@ const handleServerCreated = (newServer) => {
 <template>
   <PrimaryButton name="ホーム" ui="Armchair" url="/" />
   <PrimaryButton name="メッセージ" ui="MessageCircle" url="message" />
-  <PrimaryButton name="通知" ui="BellRing" url="notice" />
+  <PrimaryButton name="通知" ui="Bell" url="notice" />
   <PrimaryButton name="お気に入り" ui="Heart" url="favorite" />
   <hr />
-  
-  <PrimaryButton name="サーバーを追加" ui="HousePlus" @click="isCreateModalOpen = true" />
+
+  <PrimaryButton
+    name="サーバーを追加"
+    ui="HousePlus"
+    @click="isCreateModalOpen = true"
+  />
   <div class="server-list">
-    <PrimaryButton 
-      v-for="server in servers" 
-      :key="server.id" 
-      :name="server.name" 
-      ui="Server" 
-      :url="`/server/${server.id}`" 
+    <PrimaryButton
+      v-for="server in servers"
+      :key="server.id"
+      :name="server.name"
+      ui="Server"
+      :url="`/server/${server.id}`"
     />
   </div>
 
-
-  <CreateServerModal 
-    v-if="isCreateModalOpen" 
+  <CreateServerModal
+    v-if="isCreateModalOpen"
     @close="isCreateModalOpen = false"
     @created="handleServerCreated"
   />

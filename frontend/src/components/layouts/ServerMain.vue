@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { ref, onMounted, watch, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, onMounted, watch, nextTick } from "vue";
+import { useRoute } from "vue-router";
 import Vertical from "../configurations/Vertical.vue";
 
 const route = useRoute();
@@ -8,7 +8,7 @@ const currentServer = ref(null);
 const channels = ref([]);
 const currentChannelId = ref(null);
 const messages = ref([]);
-const newMessage = ref('');
+const newMessage = ref("");
 const messageListRef = ref(null);
 
 const fetchServerInfo = async () => {
@@ -16,20 +16,27 @@ const fetchServerInfo = async () => {
   if (!serverId) return;
 
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/servers`);
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/servers`,
+    );
     if (res.ok) {
       const servers = await res.json();
-      currentServer.value = servers.find(s => String(s.id) === String(serverId)) || null;
+      currentServer.value =
+        servers.find((s) => String(s.id) === String(serverId)) || null;
     }
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 const fetchChannels = async () => {
-  const serverId= route.params.id || route.params.serverId;
+  const serverId = route.params.id || route.params.serverId;
   if (!serverId) return;
 
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/servers/${serverId}/channels`);   
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/servers/${serverId}/channels`,
+    );
     if (res.ok) {
       channels.value = await res.json();
       if (channels.value.length > 0) {
@@ -38,7 +45,9 @@ const fetchChannels = async () => {
         fetchMessages();
       }
     }
-  } catch (e) { console.log(e); }
+  } catch (e) {
+    console.log(e);
+  }
 };
 
 const fetchData = async () => {
@@ -49,34 +58,43 @@ const fetchData = async () => {
 const fetchMessages = async () => {
   if (!currentChannelId.value) return;
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`);
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
+    );
     if (res.ok) {
       messages.value = await res.json();
       scrollToBottom();
     }
-  } catch (e) { console.log(e); }
+  } catch (e) {
+    console.log(e);
+  }
 };
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentChannelId.value) return;
   const content = newMessage.value;
-  newMessage.value = '';
+  newMessage.value = "";
 
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        author_name: 'KiwiBird',
-        content: content
-      })
-    });
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          author_name: "KiwiBird",
+          content: content,
+        }),
+      },
+    );
     if (res.ok) {
       const newMsg = await res.json();
       messages.value.push(newMsg);
       scrollToBottom();
     }
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 const selectChannel = (id) => {
@@ -94,12 +112,15 @@ const scrollToBottom = () => {
 };
 
 onMounted(fetchData);
-watch(() => route.params.id, (newId) => {
-  if (newId) {
-    currentChannelId.value = null;
-    fetchData();
-  }
-});
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) {
+      currentChannelId.value = null;
+      fetchData();
+    }
+  },
+);
 </script>
 
 <template>
@@ -130,7 +151,9 @@ watch(() => route.params.id, (newId) => {
             <div class="msg-content">
               <div class="msg-header">
                 <span class="author">{{ msg.author_name }}</span>
-                <span class="time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
+                <span class="time">{{
+                  new Date(msg.created_at).toLocaleTimeString()
+                }}</span>
               </div>
               <div class="text">{{ msg.content }}</div>
             </div>
@@ -163,7 +186,7 @@ main {
 
 .server-header {
   padding: 10px 20px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .server-header h1 {
@@ -183,7 +206,7 @@ main {
   gap: 4px;
   overflow-x: auto;
   padding: 8 2px 0 20px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .tab-item {
@@ -202,7 +225,7 @@ main {
 }
 
 .tab-item:hover {
-  background-color: rgba(0,0,0,0.05);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .active {
@@ -218,7 +241,7 @@ main {
 .chatArea {
   flex: 1;
   display: flex;
-  flex-direction: column ;
+  flex-direction: column;
   position: relative;
   overflow: hidden;
 }
@@ -228,7 +251,7 @@ main {
   overflow-y: auto;
   padding: 20px;
   display: flex;
-  flex-direction: column ;
+  flex-direction: column;
   gap: 16px;
 }
 
@@ -275,11 +298,14 @@ main {
 }
 
 .inputArea {
-  padding: 20px;
+  padding-bottom: 20px;
+  margin: 0 auto;
+  width: calc(100% - 40px);
+  transform: scale(1.02);
 }
 
 .input-wrapper {
-  background-color: rgba(0,0,0,0.05);
+  background-color: rgba(0, 0, 0, 0.05);
   border-radius: 8px;
   padding: 2px 16px;
 }

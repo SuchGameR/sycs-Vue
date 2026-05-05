@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from "vue";
 import PrimarySidebar from "../commons/PrimarySidebar.vue";
 import PrimaryProfile from "../commons/PrimaryProfile.vue";
 import Settings from "../popups/Settings.vue";
@@ -31,12 +31,11 @@ const isSettingsOpen = ref(false);
 </template>
 
 <style scoped>
-
 @container small (max-width: 100px) {
   .version {
     display: none;
   }
-  
+
   .sidebar-inner {
     overflow: visible !important;
     width: 80px;
@@ -77,7 +76,7 @@ aside {
   max-width: 200px;
   /* width: 60px; */
   display: flex;
-  flex-direction: column ;
+  flex-direction: column;
   /* height: calc(100vh - var(--tiny-gap) * 2); */
   height: 100vh;
   background-color: var(--background);
@@ -87,7 +86,7 @@ aside {
   margin: var(--tiny-gap);
   border-radius: calc(var(--tiny-gap) * 2);
   position: relative;
-  border-right: var(--resize-size) solid var(--resize-color);
+  border-right: solid 1px rgba(0, 0, 0, 0.05);
 }
 
 /* Logo-icon */

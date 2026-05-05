@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 
-// declare module "*.vue" {
-//   import type { DefineComponent } from "vue";
-//   const component: DefineComponent<{}, {}, any>;
-//   export default component;
-// }
+// parse用型定義
+declare module "*.vue" {
+  import type { DefineComponent } from "vue";
+  const component: DefineComponent<{}, {}, any>;
+  export default component;
+}

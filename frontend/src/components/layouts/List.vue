@@ -34,7 +34,7 @@
   border-radius: calc(var(--tiny-gap) * 2);
   /* height: calc(100vh - var(--tiny-gap) * 2); */
   height: 100vh;
-
+  border-left: solid 1px rgba(0, 0, 0, 0.05);
 }
 
 h3 {
@@ -61,7 +61,7 @@ h3 {
 }
 
 .user-item:hover {
-  background-color: rgba(0,0,0,0.05);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .avatar {
@@ -73,7 +73,7 @@ h3 {
 }
 
 .avatar.online::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   right: 0;
@@ -85,7 +85,7 @@ h3 {
 }
 
 .avatar.offline::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   right: 0;
