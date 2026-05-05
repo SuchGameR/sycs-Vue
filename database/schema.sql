@@ -1,67 +1,73 @@
--- 1. UUID生成関数の有効化（PostgreSQL 13未満などの場合）
+-- 1. UUID生成関数の有効化
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. メッセージの種類を定義（列挙型）
+-- 2. メッセージの種類を定義
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'message_scope') THEN
         CREATE TYPE message_scope AS ENUM ('TIMELINE', 'LOCAL', 'GLOBAL', 'DM', 'CHANNEL', 'SERVER');
     END IF;
 END $$;
 
+-- 既存のテーブルを削除（CASCADEを使用して依存関係を解消）
+DROP TABLE IF EXISTS messages CASCADE;
+DROP TABLE IF EXISTS channels CASCADE;
+DROP TABLE IF EXISTS servers CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
 -- 3. ユーザーテーブル (Account)
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    userid VARCHAR(255) UNIQUE,                  -- 追加：String形式のID
-    uid UUID DEFAULT gen_random_uuid() UNIQUE,   -- 追加：UUID-8相当
+    userid VARCHAR(255) UNIQUE,
+    uid UUID DEFAULT gen_random_uuid() UNIQUE,
     username VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     avatar_url VARCHAR(255),
-    attributes JSONB DEFAULT '{}'::jsonb,        -- 追加：拡張属性
+    attributes JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 4. サーバーテーブル (Server)
-CREATE TABLE IF NOT EXISTS servers (
+CREATE TABLE servers (
     id SERIAL PRIMARY KEY,
-    serverid UUID DEFAULT gen_random_uuid() UNIQUE, -- 追加
+    serverid UUID DEFAULT gen_random_uuid() UNIQUE,
     name VARCHAR(255) NOT NULL,
     icon VARCHAR(255),
-    serverowner INTEGER REFERENCES users(id),       -- 追加：所有者
-    serverjoins JSONB DEFAULT '[]'::jsonb,          -- 追加：参加状況
-    serversettings JSONB DEFAULT '{}'::jsonb,       -- 追加：設定
-    attributes JSONB DEFAULT '{}'::jsonb,           -- 追加：拡張属性
+    serverowner INTEGER REFERENCES users(id),
+    serverjoins JSONB DEFAULT '[]'::jsonb,
+    serversettings JSONB DEFAULT '{}'::jsonb,
+    attributes JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. チャンネルテーブル (Channel)
-CREATE TABLE IF NOT EXISTS channels (
+CREATE TABLE channels (
     id SERIAL PRIMARY KEY,
-    channelid UUID DEFAULT gen_random_uuid() UNIQUE, -- 追加
+    channelid UUID DEFAULT gen_random_uuid() UNIQUE,
     server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    channelsettings JSONB DEFAULT '{}'::jsonb,       -- 追加
-    attributes JSONB DEFAULT '{}'::jsonb,            -- 追加
+    channelsettings JSONB DEFAULT '{}'::jsonb,
+    attributes JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 6. メッセージテーブル (Message)
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
-    messageid UUID DEFAULT gen_random_uuid() UNIQUE, -- 追加
+    messageid UUID DEFAULT gen_random_uuid() UNIQUE,
     channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     author_name VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    post_type message_scope DEFAULT 'CHANNEL',       -- 追加：投稿範囲
-    poston UUID,                                     -- 追加：投稿先UUID
-    attachment JSONB DEFAULT '[]'::jsonb,            -- 追加
-    reactions JSONB DEFAULT '{}'::jsonb,             -- 追加
-    edit_history JSONB DEFAULT '[]'::jsonb,          -- 追加
-    attributes JSONB DEFAULT '{}'::jsonb,            -- 追加
+    post_type message_scope DEFAULT 'CHANNEL',
+    poston UUID,
+    attachment JSONB DEFAULT '[]'::jsonb,
+    reactions JSONB DEFAULT '{}'::jsonb,
+    edit_history JSONB DEFAULT '[]'::jsonb,
+    attributes JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 7. インデックス（高速化のお守り）
+-- 7. インデックス
 CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
 CREATE INDEX IF NOT EXISTS idx_messages_poston ON messages(poston);

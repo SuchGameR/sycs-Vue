@@ -7,10 +7,12 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!token.value);
 
+  const API_BASE = `http://${window.location.hostname}:3001/api`;
+
   async function fetchUser() {
     if (!token.value) return;
     try {
-      const response = await fetch("http://localhost:3000/api/auth/me", {
+      const response = await fetch(`${API_BASE}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token.value}`,
         },
@@ -27,7 +29,7 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function signin(email, password) {
-    const response = await fetch("http://localhost:3000/api/auth/signin", {
+    const response = await fetch(`${API_BASE}/auth/signin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -42,7 +44,7 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function signup(username, email, password) {
-    const response = await fetch("http://localhost:3000/api/auth/signup", {
+    const response = await fetch(`${API_BASE}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, email, password }),
@@ -58,7 +60,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function updateSettings(settings) {
     if (!token.value) return;
-    const response = await fetch("http://localhost:3000/api/auth/settings", {
+    const response = await fetch(`${API_BASE}/auth/settings`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
