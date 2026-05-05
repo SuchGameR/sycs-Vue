@@ -54,6 +54,10 @@ onUnmounted(() => {
 function goToSignin() {
   router.push("/signin");
 }
+
+function goToSignup() {
+  router.push("/signup");
+}
 </script>
 
 <template>
@@ -90,7 +94,10 @@ function goToSignin() {
             </div>
           </div>
         </div>
-        <button class="cta-button" @click="goToSignin">今すぐ始める</button>
+        <div class="cta-buttons">
+          <button class="cta-button primary" @click="goToSignin">今すぐ始める</button>
+          <button class="cta-button secondary" @click="goToSignup">サインアップ</button>
+        </div>
       </div>
     </div>
 
@@ -104,7 +111,9 @@ function goToSignin() {
           メッセージがありません
         </div>
         <div v-for="msg in messages" :key="msg.id" class="message-card">
-          <div class="msg-avatar"></div>
+          <div class="msg-avatar">
+            <img :src="msg.avatar_url || '/kiwibird-discord.png'" class="avatar-img" />
+          </div>
           <div class="msg-body">
             <div class="msg-meta">
               <span class="author">{{ msg.author_name }}</span>
@@ -135,18 +144,20 @@ function goToSignin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4rem;
+  padding: 2rem;
   background: linear-gradient(135deg, var(--primary) 0%, #000 100%);
   color: white;
+  overflow-y: auto;
 }
 
 .intro-content {
   max-width: 600px;
+  height: fit-content;
 }
 
 .logo {
   width: 80px;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 h1 {
@@ -158,7 +169,7 @@ h1 {
 .description {
   font-size: 1.2rem;
   line-height: 1.8;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
   opacity: 0.9;
 }
 
@@ -189,11 +200,15 @@ h1 {
   font-size: 0.9rem;
 }
 
+.cta-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
 .cta-button {
   padding: 1rem 2.5rem;
   font-size: 1.1rem;
   font-weight: bold;
-  background-color: var(--accent);
   border: none;
   border-radius: 50px;
   cursor: pointer;
@@ -202,9 +217,23 @@ h1 {
     background-color 0.2s;
 }
 
+.cta-button.primary {
+  background-color: var(--accent);
+  color: white;
+}
+
+.cta-button.secondary {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 2px solid white;
+}
+
 .cta-button:hover {
   transform: scale(1.05);
-  background-color: var(--accent);
+}
+
+.cta-button.secondary:hover {
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .timeline-section {
@@ -251,9 +280,15 @@ h1 {
 .msg-avatar {
   width: 40px;
   height: 40px;
-  background: #ddd;
   border-radius: 50%;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .msg-meta {

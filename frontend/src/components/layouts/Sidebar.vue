@@ -1,15 +1,18 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import PrimarySidebar from "../commons/PrimarySidebar.vue";
 import PrimaryProfile from "../commons/PrimaryProfile.vue";
+import SettingsModal from "../popups/SettingsModal.vue";
 
 const authStore = useAuthStore();
 const router = useRouter();
+const isSettingsOpen = ref(false);
 
 function handleProfileClick() {
   if (authStore.isAuthenticated) {
-    router.push("/settings");
+    isSettingsOpen.value = true;
   } else {
     router.push("/signin");
   }
@@ -22,22 +25,28 @@ function handleProfileClick() {
       <!-- Logo -->
       <div class="logo-icon">
         <img src="/svgLogoOutline.svg" alt="SYCS" />
-        <span class="version">1.2.9</span>
+        <span class="version">1.2.10</span>
       </div>
-      <!-- <p>Sidebar Component</p> -->
+
       <PrimarySidebar />
+
       <!-- Accounts -->
-      <PrimaryProfile
-        v-if="authStore.user"
-        :username="authStore.user.username"
-        :avatar-url="authStore.user.avatar_url"
-        class="profileUtils"
-        @click="handleProfileClick"
-      />
-      <div v-else class="signin-link" @click="handleProfileClick">
-        サインイン
+      <div class="account-section">
+        <PrimaryProfile
+          v-if="authStore.user"
+          :username="authStore.user.username"
+          :avatar-url="authStore.user.avatar_url"
+          class="profileUtils"
+          @click="handleProfileClick"
+        />
+        <div v-else class="signin-link" @click="handleProfileClick">
+          サインイン
+        </div>
       </div>
     </div>
+
+    <!-- Settings Modal -->
+    <SettingsModal :show="isSettingsOpen" @close="isSettingsOpen = false" />
   </aside>
 </template>
 
@@ -85,29 +94,25 @@ aside {
 
   width: 100%;
   max-width: 200px;
-  /* width: 60px; */
   display: flex;
   flex-direction: column;
-  /* height: calc(100vh - var(--tiny-gap) * 2); */
   height: 100vh;
-  background-color: var(--background);
+  background-color: var(--surface);
   color: var(--text-primary);
   padding: var(--sidebar-paddingSize);
-  /* add */
   margin: var(--tiny-gap);
   border-radius: calc(var(--tiny-gap) * 2);
   position: relative;
-  border-right: solid 1px rgba(0, 0, 0, 0.05);
+  border-right: solid 1px var(--border);
 }
 
-/* Logo-icon */
 .logo-icon {
   display: flex;
   align-items: end;
   justify-content: space-between;
   margin: var(--sidebar-paddingSize);
   margin-top: calc(var(--sidebar-paddingSize) * 2);
-  margin-bottom: calc(var(--sidebar-paddingSize) * 2);
+  margin-bottom: calc(var(--sidebar-paddingSize) * 3);
 }
 
 .logo-icon img {
@@ -116,25 +121,27 @@ aside {
 
 .logo-icon .version {
   font-size: 0.6rem;
-  background: #333;
-  color: white;
+  background: var(--secondary);
+  color: var(--text-secondary);
   padding: 2px 8px;
   border-radius: 0.6rem;
   margin: 2.5px;
   user-select: none;
 }
 
+.account-section {
+  margin-top: auto;
+  width: 100%;
+}
+
 .profileUtils {
   display: flex;
   justify-content: center;
   margin: 0 auto;
-  margin-top: auto;
   width: 100%;
   max-width: 200px;
   height: 80px;
-
-  background-color: var(--background);
-  /* border-right: var(--resize-size) solid var(--resize-color); */
+  background-color: transparent;
 }
 
 .signin-link {

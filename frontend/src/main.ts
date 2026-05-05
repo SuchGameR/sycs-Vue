@@ -23,6 +23,9 @@ app.use(router);
 
 // Fetch user if token exists
 const authStore = useAuthStore();
+const savedTheme = localStorage.getItem("theme") || "light";
+document.documentElement.setAttribute("data-theme", savedTheme);
+
 if (authStore.token) {
   authStore.fetchUser();
 }

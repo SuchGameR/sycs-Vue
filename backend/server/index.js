@@ -8,6 +8,9 @@ import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 const { Pool } = pkg;
 
@@ -55,6 +58,31 @@ const pool = new Pool({
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(resolve(__dirname, "uploads")));
+
+// Multer configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, resolve(__dirname, "uploads"));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type"));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
 
 // Auth Middleware (unchanged...)
 const authenticateToken = (req, res, next) => {
@@ -73,6 +101,43 @@ const authenticateToken = (req, res, next) => {
 // ... (Auth Routes: signup, signin, me, settings - unchanged) ...
 
 // --- Auth Routes ---
+
+// Upload Avatar
+app.post("/api/auth/upload-avatar", authenticateToken, upload.single("avatar"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  
+  const avatarUrl = `http://${req.hostname}:${port}/uploads/${req.file.filename}`;
+  
+  try {
+    const result = await pool.query(
+      "UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING avatar_url",
+      [avatarUrl, req.user.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update avatar" });
+  }
+});
+
+// Upload Header
+app.post("/api/auth/upload-header", authenticateToken, upload.single("header"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  
+  const headerUrl = `http://${req.hostname}:${port}/uploads/${req.file.filename}`;
+  
+  try {
+    const result = await pool.query(
+      "UPDATE users SET header_url = $1 WHERE id = $2 RETURNING header_url",
+      [headerUrl, req.user.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update header" });
+  }
+});
+
 app.post("/api/auth/signup", async (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
@@ -86,11 +151,11 @@ app.post("/api/auth/signup", async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, avatar_url",
+      "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, avatar_url, header_url",
       [username, email, hashedPassword]
     );
     const user = result.rows[0];
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "24h" });
+    const token = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: "24h" });
     res.status(201).json({ user, token });
   } catch (err) {
     console.error(err);
@@ -109,9 +174,9 @@ app.post("/api/auth/signin", async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "24h" });
+    const token = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: "24h" });
     res.json({
-      user: { id: user.id, username: user.username, email: user.email, avatar_url: user.avatar_url, attributes: user.attributes },
+      user: { id: user.id, username: user.username, email: user.email, avatar_url: user.avatar_url, header_url: user.header_url, attributes: user.attributes },
       token
     });
   } catch (err) {
@@ -122,7 +187,7 @@ app.post("/api/auth/signin", async (req, res) => {
 
 app.get("/api/auth/me", authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, username, email, avatar_url, attributes FROM users WHERE id = $1", [req.user.id]);
+    const result = await pool.query("SELECT id, username, email, avatar_url, header_url, attributes FROM users WHERE id = $1", [req.user.id]);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user data" });
@@ -130,11 +195,11 @@ app.get("/api/auth/me", authenticateToken, async (req, res) => {
 });
 
 app.put("/api/auth/settings", authenticateToken, async (req, res) => {
-  const { username, avatar_url, attributes } = req.body;
+  const { username, avatar_url, header_url, attributes } = req.body;
   try {
     const result = await pool.query(
-      "UPDATE users SET username = COALESCE($1, username), avatar_url = COALESCE($2, avatar_url), attributes = COALESCE($3, attributes) WHERE id = $4 RETURNING id, username, email, avatar_url, attributes",
-      [username, avatar_url, attributes, req.user.id]
+      "UPDATE users SET username = COALESCE($1, username), avatar_url = COALESCE($2, avatar_url), header_url = COALESCE($3, header_url), attributes = COALESCE($4, attributes) WHERE id = $5 RETURNING id, username, email, avatar_url, header_url, attributes",
+      [username, avatar_url, header_url, attributes, req.user.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -205,7 +270,16 @@ app.post("/api/servers/:serverId/channels", async (req, res) => {
 app.get("/api/channels/:channelId/messages", async (req, res) => {
   const { channelId } = req.params;
   try {
-    const result = await pool.query("SELECT * FROM messages WHERE channel_id = $1 ORDER BY created_at ASC", [channelId]);
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       WHERE m.channel_id = $1 
+       ORDER BY m.created_at ASC`,
+      [channelId]
+    );
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -214,27 +288,203 @@ app.get("/api/channels/:channelId/messages", async (req, res) => {
 });
 
 // Send a message to a channel
-app.post("/api/channels/:channelId/messages", async (req, res) => {
+app.post("/api/channels/:channelId/messages", authenticateToken, async (req, res) => {
   const { channelId } = req.params;
-  const { author_name, content, user_id } = req.body;
-  if (!author_name || !content) return res.status(400).json({ error: "Author name and content are required" });
+  const { content, parent_id } = req.body;
+  const user_id = req.user.id;
+
+  if (!content) return res.status(400).json({ error: "Content is required" });
 
   try {
+    // Fetch author_name from DB to be safe (in case token is old or missing it)
+    const authorResult = await pool.query("SELECT username FROM users WHERE id = $1", [user_id]);
+    const author_name = authorResult.rows[0]?.username || "Unknown";
+
     const result = await pool.query(
-      "INSERT INTO messages (channel_id, author_name, content, user_id) VALUES ($1, $2, $3, $4) RETURNING *",
-      [channelId, author_name, content, user_id || null]
+      "INSERT INTO messages (channel_id, author_name, content, user_id, parent_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [channelId, author_name, content, user_id, parent_id || null]
     );
-    const newMessage = result.rows[0];
     
-    // Emit message to everyone in the channel
+    const userResult = await pool.query("SELECT avatar_url FROM users WHERE id = $1", [user_id]);
+    const avatar_url = userResult.rows[0]?.avatar_url || null;
+    
+    let parent_msg = null;
+    if (parent_id) {
+      const pResult = await pool.query("SELECT author_name, content FROM messages WHERE id = $1", [parent_id]);
+      parent_msg = pResult.rows[0];
+    }
+
+    const newMessage = { ...result.rows[0], avatar_url, parent_msg };
+    
     io.to(`channel-${channelId}`).emit("new-message", newMessage);
-    // Also emit for landing page timeline (optionally)
     io.emit("public-message", newMessage);
 
     res.status(201).json(newMessage);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to send message" });
+  }
+});
+
+// Get global messages (Twitter-like timeline)
+app.get("/api/messages/global", async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  try {
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       ORDER BY m.created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch global messages" });
+  }
+});
+
+// Send a global message
+app.post("/api/messages/global", authenticateToken, async (req, res) => {
+  const { content, parent_id } = req.body;
+  const user_id = req.user.id;
+
+  if (!content) return res.status(400).json({ error: "Content is required" });
+
+  try {
+    // Fetch author_name from DB to be safe
+    const authorResult = await pool.query("SELECT username FROM users WHERE id = $1", [user_id]);
+    const author_name = authorResult.rows[0]?.username || "Unknown";
+
+    const result = await pool.query(
+      "INSERT INTO messages (author_name, content, user_id, post_type, parent_id) VALUES ($1, $2, $3, 'GLOBAL', $4) RETURNING *",
+      [author_name, content, user_id, parent_id || null]
+    );
+
+    const userResult = await pool.query("SELECT avatar_url FROM users WHERE id = $1", [user_id]);
+    const avatar_url = userResult.rows[0]?.avatar_url || null;
+
+    let parent_msg = null;
+    if (parent_id) {
+      const pResult = await pool.query("SELECT author_name, content FROM messages WHERE id = $1", [parent_id]);
+      parent_msg = pResult.rows[0];
+    }
+
+    const newMessage = { ...result.rows[0], avatar_url, parent_msg };
+    
+    io.emit("new-global-message", newMessage);
+    io.emit("public-message", newMessage);
+
+    res.status(201).json(newMessage);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to send global message" });
+  }
+});
+
+// Reaction Route
+app.post("/api/messages/:messageId/reactions", authenticateToken, async (req, res) => {
+  const { messageId } = req.params;
+  const { emoji } = req.body;
+  const userId = req.user.id;
+
+  if (!emoji) return res.status(400).json({ error: "Emoji is required" });
+
+  try {
+    const msgResult = await pool.query("SELECT reactions FROM messages WHERE id = $1", [messageId]);
+    if (msgResult.rows.length === 0) return res.status(404).json({ error: "Message not found" });
+
+    let reactions = msgResult.rows[0].reactions || {};
+    if (!reactions[emoji]) reactions[emoji] = [];
+    
+    const index = reactions[emoji].indexOf(userId);
+    if (index === -1) {
+      reactions[emoji].push(userId);
+    } else {
+      reactions[emoji].splice(index, 1);
+      if (reactions[emoji].length === 0) delete reactions[emoji];
+    }
+
+    const updateResult = await pool.query(
+      "UPDATE messages SET reactions = $1 WHERE id = $2 RETURNING reactions",
+      [JSON.stringify(reactions), messageId]
+    );
+
+    const updatedReactions = updateResult.rows[0].reactions;
+    io.emit("message-reaction", { messageId: parseInt(messageId), reactions: updatedReactions });
+
+    res.json(updatedReactions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update reaction" });
+  }
+});
+
+// Follow a user
+app.post("/api/users/:targetId/follow", authenticateToken, async (req, res) => {
+  const followerId = req.user.id;
+  const followingId = req.params.targetId;
+  try {
+    await pool.query(
+      "INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [followerId, followingId]
+    );
+    res.json({ message: "Followed successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to follow" });
+  }
+});
+
+// Get local timeline (servers joined)
+app.get("/api/messages/local", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  try {
+    // ユーザーが参加しているサーバー（serverjoinsから取得、または簡易的に全サーバーメッセージからフィルタ）
+    // 現在のスキーマではserverjoinsはJSONBなので、そこからサーバーIDを抽出するロジックが必要
+    // 簡易化のため、ここでは「サーバーに関連付けられている全メッセージ」を返す（将来的に参加状況でフィルタ）
+    const result = await pool.query(
+      "SELECT m.* FROM messages m JOIN channels c ON m.channel_id = c.id ORDER BY m.created_at DESC LIMIT $1 OFFSET $2",
+      [limit, offset]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch local messages" });
+  }
+});
+
+// Get follow timeline
+app.get("/api/messages/follow", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  try {
+    const result = await pool.query(
+      "SELECT m.* FROM messages m JOIN follows f ON m.user_id = f.following_id WHERE f.follower_id = $1 ORDER BY m.created_at DESC LIMIT $2 OFFSET $3",
+      [req.user.id, limit, offset]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch follow messages" });
+  }
+});
+
+// Get recommend timeline (Twitter-like "For You")
+app.get("/api/messages/recommend", async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  try {
+    // 簡易的なレコメンドロジック：いいね数（未実装のため作成順）と新着のミックス
+    const result = await pool.query(
+      "SELECT * FROM messages ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+      [limit, offset]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch recommend messages" });
   }
 });
 

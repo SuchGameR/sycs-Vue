@@ -13,6 +13,8 @@ DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS channels CASCADE;
 DROP TABLE IF EXISTS servers CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS follows CASCADE;
+DROP TABLE IF EXISTS message_likes CASCADE;
 
 -- 3. ユーザーテーブル (Account)
 CREATE TABLE users (
@@ -23,6 +25,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     avatar_url VARCHAR(255),
+    header_url VARCHAR(255),
     attributes JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -57,6 +60,7 @@ CREATE TABLE messages (
     messageid UUID DEFAULT gen_random_uuid() UNIQUE,
     channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    parent_id INTEGER REFERENCES messages(id) ON DELETE SET NULL,
     author_name VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     post_type message_scope DEFAULT 'CHANNEL',
@@ -68,6 +72,26 @@ CREATE TABLE messages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 7. インデックス
+-- 7. フォローテーブル
+CREATE TABLE follows (
+    id SERIAL PRIMARY KEY,
+    follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    following_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(follower_id, following_id)
+);
+
+-- 8. いいねテーブル (レコメンド計算用)
+CREATE TABLE message_likes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, message_id)
+);
+
+-- 9. インデックス
 CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
 CREATE INDEX IF NOT EXISTS idx_messages_poston ON messages(poston);
+CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);

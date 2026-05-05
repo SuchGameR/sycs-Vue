@@ -25,7 +25,8 @@
 <style scoped>
 .user-list-sidebar {
   /* display: none; */
-  width: 240px;
+  /* width: 240px; */
+  width: 100%;
   background-color: var(--background);
   color: var(--text-primary);
   padding: 20px;

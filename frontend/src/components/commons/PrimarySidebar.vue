@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import { useAuthStore } from "../../stores/auth";
 import PrimaryButton from "../commons/PrimaryButton.vue";
 import CreateServerModal from "../popups/CreateServerModal.vue";
 
+const authStore = useAuthStore();
 const servers = ref([]);
 const isCreateModalOpen = ref(false);
 
@@ -30,14 +32,14 @@ const handleServerCreated = (newServer) => {
 </script>
 
 <template>
-  <PrimaryButton name="ホーム" ui="Armchair" url="/" />
-  <PrimaryButton name="メッセージ" ui="MessageCircle" url="message" />
-  <PrimaryButton name="通知" ui="Bell" url="notice" />
-  <PrimaryButton name="お気に入り" ui="Heart" url="favorite" />
+  <PrimaryButton :name="authStore.t.home" ui="Armchair" url="/" />
+  <PrimaryButton :name="authStore.t.message" ui="MessageCircle" url="/message" />
+  <PrimaryButton :name="authStore.t.notice" ui="Bell" url="/notice" />
+  <PrimaryButton :name="authStore.t.favorite" ui="Heart" url="/favorite" />
   <hr />
 
   <PrimaryButton
-    name="サーバーを追加"
+    :name="authStore.t.add_server"
     ui="HousePlus"
     @click="isCreateModalOpen = true"
   />

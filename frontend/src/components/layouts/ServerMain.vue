@@ -1,9 +1,11 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { io } from "socket.io-client";
+import { X, Send } from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
 import Vertical from "../configurations/Vertical.vue";
+import MessageItem from "../commons/MessageItem.vue";
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -13,52 +15,37 @@ const currentChannelId = ref(null);
 const messages = ref([]);
 const newMessage = ref("");
 const messageListRef = ref(null);
+const replyingTo = ref(null);
 
 const socket = io(`http://${window.location.hostname}:3001`);
 
-const fetchServerInfo = async () => {
+const fetchData = async () => {
   const serverId = route.params.id || route.params.serverId;
   if (!serverId) return;
 
   try {
-    const res = await fetch(
+    const sRes = await fetch(
       `http://${window.location.hostname}:3001/api/servers`,
     );
-    if (res.ok) {
-      const servers = await res.json();
-      currentServer.value =
-        servers.find((s) => String(s.id) === String(serverId)) || null;
+    const servers = await sRes.json();
+    currentServer.value = servers.find(
+      (s) => String(s.id) === String(serverId),
+    );
+
+    const cRes = await fetch(
+      `http://${window.location.hostname}:3001/api/servers/${serverId}/channels`,
+    );
+    channels.value = await cRes.json();
+
+    if (channels.value.length > 0) {
+      const cid = route.params.channelId || channels.value[0].id;
+      currentChannelId.value = parseInt(cid);
+      fetchMessages();
+      socket.emit("join-channel", currentChannelId.value);
     }
   } catch (e) {
     console.error(e);
   }
-};
-
-const fetchChannels = async () => {
-  const serverId = route.params.id || route.params.serverId;
-  if (!serverId) return;
-
-  try {
-    const res = await fetch(
-      `http://${window.location.hostname}:3001/api/servers/${serverId}/channels`,
-    );
-    if (res.ok) {
-      channels.value = await res.json();
-      if (channels.value.length > 0) {
-        const cid = route.params.channelId || channels.value[0].id;
-        currentChannelId.value = parseInt(cid);
-        fetchMessages();
-        socket.emit("join-channel", currentChannelId.value);
-      }
-    }
-  } catch (e) {
-    console.log(e);
-  }
-};
-
-const fetchData = async () => {
-  await fetchServerInfo();
-  await fetchChannels();
 };
 
 const fetchMessages = async () => {
@@ -67,46 +54,56 @@ const fetchMessages = async () => {
     const res = await fetch(
       `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
     );
-    if (res.ok) {
-      messages.value = await res.json();
-      scrollToBottom();
-    }
+    messages.value = await res.json();
+    scrollToBottom();
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
 };
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentChannelId.value) return;
   const content = newMessage.value;
+  const parent_id = replyingTo.value?.id;
   newMessage.value = "";
-
-  const authorName = authStore.user ? authStore.user.username : "Guest";
-  const userId = authStore.user ? authStore.user.id : null;
+  replyingTo.value = null;
 
   try {
-    const res = await fetch(
+    await fetch(
       `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          author_name: authorName,
-          content: content,
-          user_id: userId
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ content, parent_id }),
       },
     );
-    // リアルタイム通信（socket.emitの受信）でメッセージが追加されるため、ここでは追加しない
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const handleReact = async (messageId, emoji) => {
+  try {
+    await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ emoji }),
+      },
+    );
   } catch (e) {
     console.error(e);
   }
 };
 
 const selectChannel = (id) => {
-  if (currentChannelId.value) {
-    // 以前のチャンネルから抜ける処理（バックエンドで実装が必要な場合は追加）
-  }
   currentChannelId.value = id;
   messages.value = [];
   socket.emit("join-channel", id);
@@ -123,12 +120,17 @@ const scrollToBottom = () => {
 
 onMounted(() => {
   fetchData();
-  
+
   socket.on("new-message", (msg) => {
     if (msg.channel_id === currentChannelId.value) {
       messages.value.push(msg);
       scrollToBottom();
     }
+  });
+
+  socket.on("message-reaction", ({ messageId, reactions }) => {
+    const msg = messages.value.find((m) => m.id === messageId);
+    if (msg) msg.reactions = reactions;
   });
 });
 
@@ -139,10 +141,7 @@ onUnmounted(() => {
 watch(
   () => route.params.id,
   (newId) => {
-    if (newId) {
-      currentChannelId.value = null;
-      fetchData();
-    }
+    if (newId) fetchData();
   },
 );
 </script>
@@ -154,43 +153,48 @@ watch(
         <h1 v-if="currentServer">{{ currentServer.name }}</h1>
         <h1 v-else>Loading...</h1>
       </div>
-      <section class="optionUtilTabs">
+
+      <section class="channel-tabs">
         <div
           v-for="channel in channels"
           :key="channel.id"
-          class="tab-item"
+          class="channel-item"
           :class="{ active: currentChannelId === channel.id }"
           @click="selectChannel(channel.id)"
         >
           <span class="hash">#</span> {{ channel.name }}
         </div>
       </section>
-      <div class="chatArea">
-        <div class="messageList" ref="messageListRef">
-          <div v-if="messages.length === 0" class="empty-chat">
-            Messages will appear here...
-          </div>
-          <div v-for="msg in messages" :key="msg.id" class="message">
-            <div class="avatar-stub"></div>
-            <div class="msg-content">
-              <div class="msg-header">
-                <span class="author">{{ msg.author_name }}</span>
-                <span class="time">{{
-                  new Date(msg.created_at).toLocaleTimeString()
-                }}</span>
-              </div>
-              <div class="text">{{ msg.content }}</div>
-            </div>
-          </div>
+
+      <div class="chat-area">
+        <div class="message-list" ref="messageListRef">
+          <MessageItem
+            v-for="msg in messages"
+            :key="msg.id"
+            :msg="msg"
+            @reply="replyingTo = $event"
+            @react="handleReact"
+          />
         </div>
 
-        <div class="inputArea">
-          <div class="input-wrapper">
+        <div class="input-area">
+          <div v-if="replyingTo" class="reply-bar">
+            <span>{{ replyingTo.author_name }} への返信</span>
+            <button @click="replyingTo = null"><X :size="14" /></button>
+          </div>
+          <div class="input-container">
             <input
               v-model="newMessage"
-              placeholder="Type a message..."
+              :placeholder="
+                currentChannelId
+                  ? `#${channels.find((c) => c.id === currentChannelId)?.name || ''} にメッセージを送信`
+                  : 'メッセージを入力...'
+              "
               @keyup.enter="sendMessage"
             />
+            <button class="send-btn" @click="sendMessage">
+              <Send :size="18" />
+            </button>
           </div>
         </div>
       </div>
@@ -209,13 +213,14 @@ main {
 }
 
 .server-header {
-  padding: 10px 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 1rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .server-header h1 {
   font-size: 1.2rem;
-  margin: 0;
+  font-weight: 800;
 }
 
 .mainContainer {
@@ -223,38 +228,35 @@ main {
   height: 100vh;
 }
 
-.optionUtilTabs {
-  height: 45px;
+.channel-tabs {
+  height: 50px;
   width: 100%;
   display: flex;
-  gap: 4px;
+  gap: 8px;
   overflow-x: auto;
-  padding: 8 2px 0 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 0 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
 }
 
-.tab-item {
-  padding: 0 12px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  background-color: transparent;
-  border-radius: 6px;
+.channel-item {
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-weight: 700;
   color: var(--text-secondary);
   transition: all 0.2s;
-  user-select: none;
   white-space: nowrap;
 }
 
-.tab-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+.channel-item:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
-.active {
-  background-color: var(--primary);
-  color: var(--background);
+.channel-item.active {
+  background: var(--accent);
+  color: white;
 }
 
 .hash {
@@ -262,85 +264,75 @@ main {
   margin-right: 4px;
 }
 
-.chatArea {
+.chat-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  position: relative;
   overflow: hidden;
+  background: var(--surface);
 }
 
-.messageList {
+.message-list {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 1rem 0;
+}
+
+.input-area {
+  padding: 1.5rem;
+  background: var(--surface);
+}
+
+.reply-bar {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 8px 8px 0 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-bottom: none;
 }
 
-.empty-chat {
+.reply-bar button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
   color: var(--text-secondary);
-  text-align: center;
-  margin-top: 40px;
-  font-style: italic;
 }
 
-.message {
+.input-container {
   display: flex;
   gap: 12px;
+  background: var(--surface);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  align-items: center;
 }
 
-.avatar-stub {
-  width: 40px;
+.input-container input {
+  flex: 1;
   height: 40px;
-  background-color: #ddd;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.msg-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.author {
-  font-weight: bold;
-  font-size: 1rem;
-}
-
-.time {
-  font-size: 0.75rem;
-  color: #888;
-}
-
-.text {
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.inputArea {
-  padding-bottom: 20px;
-  margin: 0 auto;
-  width: calc(100% - 40px);
-  transform: scale(1.02);
-}
-
-.input-wrapper {
-  background-color: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  padding: 2px 16px;
-}
-
-.inputArea input {
-  width: 100%;
-  height: 44px;
   background: transparent;
   border: none;
   outline: none;
   font-size: 1rem;
   color: var(--text-primary);
+}
+
+.send-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+
+.send-btn:hover {
+  transform: scale(1.1);
 }
 </style>
