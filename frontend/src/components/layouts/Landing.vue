@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import { io } from "socket.io-client";
 
 const messages = ref([]);
@@ -14,11 +14,15 @@ const fetchPublicTimeline = async () => {
     if (serversRes.ok) {
       const servers = await serversRes.json();
       if (servers.length > 0) {
-        const channelsRes = await fetch(`${API_BASE}/servers/${servers[0].id}/channels`);
+        const channelsRes = await fetch(
+          `${API_BASE}/servers/${servers[0].id}/channels`,
+        );
         if (channelsRes.ok) {
           const channels = await channelsRes.json();
           if (channels.length > 0) {
-            const msgsRes = await fetch(`${API_BASE}/channels/${channels[0].id}/messages`);
+            const msgsRes = await fetch(
+              `${API_BASE}/channels/${channels[0].id}/messages`,
+            );
             if (msgsRes.ok) {
               messages.value = await msgsRes.json();
             }
@@ -33,7 +37,7 @@ const fetchPublicTimeline = async () => {
 
 onMounted(() => {
   fetchPublicTimeline();
-  
+
   socket.on("public-message", (msg) => {
     messages.value.push(msg);
     // 最大表示件数を制限する場合（例: 最新20件）
@@ -48,7 +52,7 @@ onUnmounted(() => {
 });
 
 function goToSignin() {
-  router.push('/signin');
+  router.push("/signin");
 }
 </script>
 
@@ -57,31 +61,39 @@ function goToSignin() {
     <div class="intro-section">
       <div class="intro-content">
         <img src="/svgLogoOutline.svg" alt="SYCS" class="logo" />
-        <h1>SYCSへようこそ</h1>
+        <h1>つなげよう、今を。</h1>
         <p class="description">
-          SYCS（シクス）は、シンプルで高速な次世代コミュニケーションプラットフォームです。<br>
-          サーバーを作り、チャンネルを整え、仲間とリアルタイムに繋がることができます。
+          SYCSは SYCS PROJECT が提供する <br />
+          シンプルで高速かつモダンなマルチSNSです。<br />
+          場所を作り、発見し、仲間と繋がることができます。
         </p>
         <div class="features">
           <div class="feature-item">
             <span class="icon">🚀</span>
             <div>
-              <h3>高速なレスポンス</h3>
-              <p>ストレスのないチャット体験を提供します。</p>
+              <h3>高速レスポンス</h3>
+              <p>低遅延、低通信な速さ。</p>
             </div>
           </div>
           <div class="feature-item">
             <span class="icon">🛡️</span>
             <div>
-              <h3>安全な設計</h3>
+              <h3>セキュアな設定</h3>
               <p>あなたのプライバシーを第一に考えています。</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="icon">🧩</span>
+            <div>
+              <h3>カスタマイズ可能</h3>
+              <p>あなた好みに改造可能。</p>
             </div>
           </div>
         </div>
         <button class="cta-button" @click="goToSignin">今すぐ始める</button>
       </div>
     </div>
-    
+
     <div class="timeline-section">
       <div class="timeline-header">
         <h2>パブリック・タイムライン</h2>
@@ -96,7 +108,9 @@ function goToSignin() {
           <div class="msg-body">
             <div class="msg-meta">
               <span class="author">{{ msg.author_name }}</span>
-              <span class="time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
+              <span class="time">{{
+                new Date(msg.created_at).toLocaleTimeString()
+              }}</span>
             </div>
             <div class="content">{{ msg.content }}</div>
           </div>
@@ -136,7 +150,7 @@ function goToSignin() {
 }
 
 h1 {
-  font-size: 3.5rem;
+  font-size: 2.5rem;
   margin-bottom: 1.5rem;
   color: white;
 }
@@ -183,12 +197,14 @@ h1 {
   border: none;
   border-radius: 50px;
   cursor: pointer;
-  transition: transform 0.2s, background-color 0.2s;
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
 }
 
 .cta-button:hover {
   transform: scale(1.05);
-  background-color: var(--light-accent);
+  background-color: var(--accent);
 }
 
 .timeline-section {
@@ -196,12 +212,12 @@ h1 {
   display: flex;
   flex-direction: column;
   background: white;
-  border-left: 1px solid rgba(0,0,0,0.1);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .timeline-header {
   padding: 2rem;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .timeline-header h2 {
@@ -229,7 +245,7 @@ h1 {
   padding: 1rem;
   background: #f8f9fa;
   border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.03);
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 .msg-avatar {
@@ -273,7 +289,8 @@ h1 {
     flex-direction: column;
     overflow-y: auto;
   }
-  .intro-section, .timeline-section {
+  .intro-section,
+  .timeline-section {
     flex: none;
     height: auto;
   }
