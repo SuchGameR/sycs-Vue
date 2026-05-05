@@ -4,6 +4,10 @@ const profileData = defineProps({
     type: String,
     required: true,
   },
+  avatarUrl: {
+    type: String,
+    default: "/kiwibird-discord.png",
+  },
 });
 </script>
 
@@ -13,7 +17,7 @@ const profileData = defineProps({
       <div class="profile_avatar_container">
         <div class="profile_status_rings"></div>
         <img
-          src="/kiwibird-discord.png"
+          :src="avatarUrl || '/kiwibird-discord.png'"
           :alt="username"
           class="profile_avatar"
         />

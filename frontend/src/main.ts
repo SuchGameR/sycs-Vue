@@ -3,6 +3,7 @@ import { createPinia } from "pinia";
 
 import App from "./App.vue";
 import router from "./router";
+import { useAuthStore } from "./stores/auth";
 
 const app = createApp(App);
 
@@ -16,7 +17,14 @@ app.component("Main", Main);
 app.component("Sidebar", Sidebar);
 app.component("List", List);
 
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
 app.use(router);
+
+// Fetch user if token exists
+const authStore = useAuthStore();
+if (authStore.token) {
+  authStore.fetchUser();
+}
 
 app.mount("#app");

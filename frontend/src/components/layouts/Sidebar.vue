@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "../../stores/auth";
 import PrimarySidebar from "../commons/PrimarySidebar.vue";
 import PrimaryProfile from "../commons/PrimaryProfile.vue";
-import Settings from "../popups/Settings.vue";
 
-const isSettingsOpen = ref(false);
+const authStore = useAuthStore();
+const router = useRouter();
+
+function handleProfileClick() {
+  if (authStore.isAuthenticated) {
+    router.push("/settings");
+  } else {
+    router.push("/signin");
+  }
+}
 </script>
 
 <template>
@@ -13,18 +22,20 @@ const isSettingsOpen = ref(false);
       <!-- Logo -->
       <div class="logo-icon">
         <img src="/svgLogoOutline.svg" alt="SYCS" />
-        <span class="version">1.2.4</span>
+        <span class="version">1.2.6</span>
       </div>
       <!-- <p>Sidebar Component</p> -->
       <PrimarySidebar />
       <!-- Accounts -->
       <PrimaryProfile
-        username="KiwiBird"
+        v-if="authStore.user"
+        :username="authStore.user.username"
+        :avatar-url="authStore.user.avatar_url"
         class="profileUtils"
-        @click="isSettingsOpen = true"
+        @click="handleProfileClick"
       />
-      <div class="settings">
-        <Settings v-if="isSettingsOpen" @close="isSettingsOpen = false" />
+      <div v-else class="signin-link" @click="handleProfileClick">
+        サインイン
       </div>
     </div>
   </aside>
@@ -124,5 +135,20 @@ aside {
 
   background-color: var(--background);
   /* border-right: var(--resize-size) solid var(--resize-color); */
+}
+
+.signin-link {
+  margin-top: auto;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  background: var(--primary);
+  color: white;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.signin-link:hover {
+  background: var(--accent);
 }
 </style>
