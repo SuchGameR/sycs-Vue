@@ -85,6 +85,14 @@ const sendMessage = async () => {
   }
 };
 
+const handleKeydown = (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    if (e.isComposing) return;
+    e.preventDefault();
+    sendMessage();
+  }
+};
+
 const handleReact = async (messageId, emoji) => {
   try {
     await fetch(
@@ -230,15 +238,16 @@ watch(
             <button @click="replyingTo = null"><X :size="14" /></button>
           </div>
           <div class="input-container">
-            <input
+            <textarea
               v-model="newMessage"
               :placeholder="
                 currentChannelId
                   ? `#${channels.find((c) => c.id === currentChannelId)?.name || ''} にメッセージを送信`
                   : 'メッセージを入力...'
               "
-              @keyup.enter="sendMessage"
-            />
+              rows="1"
+              @keydown.enter="handleKeydown"
+            ></textarea>
             <button class="send-btn" @click="sendMessage">
               <Send :size="18" />
             </button>
@@ -381,15 +390,17 @@ main {
   }
 }
 
-.input-container input {
-  container-name: small;
+.input-container textarea {
   flex: 1;
-  height: 40px;
+  min-height: 40px;
+  max-height: 200px;
   background: transparent;
   border: none;
   outline: none;
   font-size: 1rem;
   color: var(--text-primary);
+  resize: none;
+  padding: 8px 0;
 }
 
 .send-btn {

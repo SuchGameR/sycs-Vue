@@ -217,7 +217,7 @@ function handleLogout() {
             <div class="preview-info">
               <div class="preview-avatar-box">
                 <img
-                  :src="avatar_url || '/kiwibird-discord.png'"
+                  :src="avatar_url || '/default-avatar.png'"
                   class="preview-avatar"
                 />
               </div>

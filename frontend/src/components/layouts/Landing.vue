@@ -2,7 +2,13 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { io } from "socket.io-client";
-import { Rocket, Shield, Puzzle, ArrowRight, MessageCircle } from 'lucide-vue-next';
+import {
+  Rocket,
+  Shield,
+  Puzzle,
+  ArrowRight,
+  MessageCircle,
+} from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
 
 const authStore = useAuthStore();
@@ -51,13 +57,17 @@ function goToSignup() {
         <img src="/svgLogoOutline.svg" class="hero-logo" alt="SYCS" />
         <h1 class="catchphrase">{{ authStore.t.description }}</h1>
         <h2 class="sub-catchphrase">{{ authStore.t.now_happening }}</h2>
-        
+
         <div class="cta-buttons">
-          <button class="cta-button primary" @click="goToSignup">{{ authStore.t.start_now }}</button>
+          <button class="cta-button primary" @click="goToSignup">
+            {{ authStore.t.start_now }}
+          </button>
           <div class="divider">
             <span>または</span>
           </div>
-          <button class="cta-button secondary" @click="goToSignin">{{ authStore.t.signin }}</button>
+          <button class="cta-button secondary" @click="goToSignin">
+            {{ authStore.t.signin }}
+          </button>
         </div>
       </div>
 
@@ -83,13 +93,20 @@ function goToSignup() {
           {{ authStore.t.now_loading }}
         </div>
         <div v-for="msg in messages" :key="msg.id" class="message-card">
-          <img :src="msg.avatar_url || '/kiwibird-discord.png'" class="msg-avatar" />
+          <img
+            :src="msg.avatar_url || '/kiwibird-discord.png'"
+            class="msg-avatar"
+          />
           <div class="msg-body">
             <div class="msg-meta">
               <span class="author">{{ msg.author_name }}</span>
-              <span v-if="msg.author_handle" class="handle">@{{ msg.author_handle }}</span>
+              <span v-if="msg.author_handle" class="handle"
+                >@{{ msg.author_handle }}</span
+              >
               <span class="dot">·</span>
-              <span class="time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
+              <span class="time">{{
+                new Date(msg.created_at).toLocaleTimeString()
+              }}</span>
             </div>
             <div class="msg-content">{{ msg.content }}</div>
           </div>
@@ -110,6 +127,7 @@ function goToSignup() {
 }
 
 .intro-section {
+  overflow: auto;
   flex: 1.2;
   display: flex;
   flex-direction: column;
@@ -183,7 +201,8 @@ function goToSignup() {
   font-size: 0.9rem;
 }
 
-.divider::before, .divider::after {
+.divider::before,
+.divider::after {
   content: "";
   flex: 1;
   height: 1px;
@@ -268,7 +287,9 @@ function goToSignup() {
   color: var(--text-primary);
 }
 
-.handle, .time, .dot {
+.handle,
+.time,
+.dot {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
@@ -284,10 +305,51 @@ function goToSignup() {
   color: var(--text-secondary);
 }
 
+@media screen and (max-width: 1310px) {
+  .catchphrase {
+    font-size: 3.2rem;
+    line-height: 4rem;
+  }
+}
 @media (max-width: 1100px) {
-  .landing { flex-direction: column; overflow-y: auto; }
-  .intro-section { padding: 4rem 2rem; flex: none; height: auto; }
-  .timeline-section { border-left: none; border-top: 1px solid var(--border); flex: none; height: auto; min-height: 500px; }
-  .catchphrase { font-size: 3rem; }
+  .hero-logo {
+    margin: 0 auto;
+    margin-top: 0px;
+    margin-bottom: 3rem;
+  }
+  .hero {
+    align-items: center;
+    text-align: center;
+  }
+  .cta-buttons,
+  .features-grid {
+    margin: 0 auto;
+  }
+  .landing {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .intro-section {
+    padding: 4rem 2rem;
+    flex: none;
+    height: auto;
+  }
+  .timeline-section {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex: none;
+    height: auto;
+    min-height: 500px;
+  }
+  .catchphrase {
+    font-size: 3rem;
+    width: 100%;
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 1.5rem;
+  }
+  .sub-catchphrase {
+    text-align: center;
+  }
 }
 </style>

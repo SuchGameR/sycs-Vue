@@ -61,6 +61,7 @@ CREATE TABLE messages (
     channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     parent_id INTEGER REFERENCES messages(id) ON DELETE SET NULL,
+    retweet_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
     author_name VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     post_type message_scope DEFAULT 'CHANNEL',
@@ -69,6 +70,7 @@ CREATE TABLE messages (
     reactions JSONB DEFAULT '{}'::jsonb,
     edit_history JSONB DEFAULT '[]'::jsonb,
     attributes JSONB DEFAULT '{}'::jsonb,
+    views_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -90,7 +92,16 @@ CREATE TABLE message_likes (
     UNIQUE(user_id, message_id)
 );
 
--- 9. インデックス
+-- 9. ブックマークテーブル
+CREATE TABLE bookmarks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, message_id)
+);
+
+-- 10. インデックス
 CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
 CREATE INDEX IF NOT EXISTS idx_messages_poston ON messages(poston);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);

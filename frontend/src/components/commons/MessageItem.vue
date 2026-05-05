@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, onUnmounted } from 'vue';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { computed, ref, onMounted, watch, onUnmounted } from "vue";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { 
   Reply, 
   Smile, 
@@ -11,14 +11,21 @@ import {
   Check,
   Pencil,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Heart,
+  Repeat2,
+  Share,
+  BarChart3,
+  Info
 } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/auth';
 import { createHighlighter } from 'shiki';
+import MessageDetailsModal from '../popups/MessageDetailsModal.vue';
 
 const props = defineProps<{
   msg: any;
   isReply?: boolean;
+  variant?: 'discord' | 'twitter';
 }>();
 
 const emit = defineEmits(['reply', 'react', 'edit', 'delete']);
@@ -27,6 +34,8 @@ const authStore = useAuthStore();
 const showEmojiPicker = ref(false);
 const highlightedHtml = ref('');
 const isCopying = ref(false);
+const showDetailsModal = ref(false);
+
 
 // Edit State
 const isEditing = ref(false);
@@ -50,21 +59,33 @@ let highlighter: any = null;
 async function initHighlighter() {
   if (!highlighter) {
     highlighter = await createHighlighter({
-      themes: ['github-dark', 'github-light'],
-      langs: ['javascript', 'typescript', 'vue', 'css', 'html', 'bash', 'json', 'sql']
+      themes: ["github-dark", "github-light"],
+      langs: [
+        "javascript",
+        "typescript",
+        "vue",
+        "css",
+        "html",
+        "bash",
+        "json",
+        "sql",
+      ],
     });
   }
 }
 
 async function renderContent() {
   await initHighlighter();
-  const escapedContent = escapeHtml(props.msg.content || '');
+  const escapedContent = escapeHtml(props.msg.content || "");
   const renderer = new marked.Renderer();
   renderer.code = ({ text, lang }) => {
-    const theme = authStore.theme === 'light' ? 'github-light' : 'github-dark';
+    const theme = authStore.theme === "light" ? "github-light" : "github-dark";
     try {
-      const html = highlighter.codeToHtml(text, { lang: lang || 'text', theme });
-      return `<div class="code-block-wrapper"><div class="code-lang">${lang || 'text'}</div>${html}</div>`;
+      const html = highlighter.codeToHtml(text, {
+        lang: lang || "text",
+        theme,
+      });
+      return `<div class="code-block-wrapper"><div class="code-lang">${lang || "text"}</div>${html}</div>`;
     } catch (e) {
       return `<pre><code>${text}</code></pre>`;
     }
@@ -75,32 +96,51 @@ async function renderContent() {
 
 onMounted(() => {
   renderContent();
-  window.addEventListener('click', closeMenus);
+  window.addEventListener("click", closeMenus);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('click', closeMenus);
+  window.removeEventListener("click", closeMenus);
 });
 
-watch(() => props.msg.content, () => {
-  renderContent();
-  editContent.value = props.msg.content;
-});
+watch(
+  () => props.msg.content,
+  () => {
+    renderContent();
+    editContent.value = props.msg.content;
+  },
+);
 
-watch(() => authStore.theme, () => {
-  renderContent();
-});
+watch(
+  () => authStore.theme,
+  () => {
+    renderContent();
+  },
+);
 
-const emojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🚀', '✅', '👀', '✨', '🎉', '💯'];
+const emojis = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "😢",
+  "🔥",
+  "🚀",
+  "✅",
+  "👀",
+  "✨",
+  "🎉",
+  "💯",
+];
 
 function handleReact(emoji: string) {
-  emit('react', props.msg.id, emoji);
+  emit("react", props.msg.id, emoji);
   showEmojiPicker.value = false;
   showContextMenu.value = false;
 }
 
 function handleReply() {
-  emit('reply', props.msg);
+  emit("reply", props.msg);
   showContextMenu.value = false;
 }
 
@@ -120,13 +160,13 @@ async function submitEdit() {
     cancelEdit();
     return;
   }
-  emit('edit', props.msg.id, editContent.value);
+  emit("edit", props.msg.id, editContent.value);
   isEditing.value = false;
 }
 
 function handleDelete() {
-  if (confirm('このメッセージを削除しますか？')) {
-    emit('delete', props.msg.id);
+  if (confirm("このメッセージを削除しますか？")) {
+    emit("delete", props.msg.id);
   }
   showContextMenu.value = false;
 }
@@ -146,32 +186,73 @@ function copyToClipboard() {
   navigator.clipboard.writeText(props.msg.content);
   isCopying.value = true;
   showContextMenu.value = false;
-  setTimeout(() => isCopying.value = false, 2000);
+  setTimeout(() => (isCopying.value = false), 2000);
 }
 
 const isAuthor = computed(() => authStore.user?.id === props.msg.user_id);
-const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).includes(authStore.user?.id);
+const hasMyReaction = (emoji: string) =>
+  (props.msg.reactions?.[emoji] || []).includes(authStore.user?.id);
 </script>
 
 <template>
-  <div 
-    class="message-container" 
-    :class="{ 'is-reply': isReply, 'is-editing': isEditing }"
+  <div
+    class="message-container"
+    :class="{
+      'is-reply': isReply,
+      'is-editing': isEditing,
+      'variant-twitter': variant === 'twitter',
+      'variant-discord': variant !== 'twitter',
+    }"
     @contextmenu="openContextMenu"
   >
-    <!-- Action Bar (Top Right) -->
-    <div v-if="!isEditing && !isReply" class="message-actions-bar">
-      <button class="action-btn" @click="handleReply" title="返信"><Reply :size="18" /></button>
+    <!-- Action Bar (Discord Style - Top Right) -->
+    <div
+      v-if="!isEditing && !isReply && variant !== 'twitter'"
+      class="message-actions-bar"
+    >
+      <button class="action-btn" @click="handleReply" title="返信">
+        <Reply :size="18" />
+      </button>
       <div class="emoji-trigger">
-        <button class="action-btn" @click.stop="showEmojiPicker = !showEmojiPicker" title="リアクション"><Smile :size="18" /></button>
+        <button
+          class="action-btn"
+          @click.stop="showEmojiPicker = !showEmojiPicker"
+          title="リアクション"
+        >
+          <Smile :size="18" />
+        </button>
         <div v-if="showEmojiPicker" class="emoji-picker mini">
-          <span v-for="e in emojis.slice(0, 6)" :key="e" @click="handleReact(e)" class="picker-emoji">{{ e }}</span>
-          <button class="more-emojis" @click.stop="showContextMenu = true">...</button>
+          <span
+            v-for="e in emojis.slice(0, 6)"
+            :key="e"
+            @click="handleReact(e)"
+            class="picker-emoji"
+            >{{ e }}</span
+          >
+          <button class="more-emojis" @click.stop="showContextMenu = true">
+            ...
+          </button>
         </div>
       </div>
-      <button v-if="isAuthor" class="action-btn" @click="startEdit" title="編集"><Pencil :size="18" /></button>
-      <button v-if="isAuthor" class="action-btn delete" @click="handleDelete" title="削除"><Trash2 :size="18" /></button>
-      <button class="action-btn" @click.stop="openContextMenu" title="その他"><MoreHorizontal :size="18" /></button>
+      <button
+        v-if="isAuthor"
+        class="action-btn"
+        @click="startEdit"
+        title="編集"
+      >
+        <Pencil :size="18" />
+      </button>
+      <button
+        v-if="isAuthor"
+        class="action-btn delete"
+        @click="handleDelete"
+        title="削除"
+      >
+        <Trash2 :size="18" />
+      </button>
+      <button class="action-btn" @click.stop="openContextMenu" title="その他">
+        <MoreHorizontal :size="18" />
+      </button>
     </div>
 
     <!-- Parent Reply Reference -->
@@ -183,37 +264,129 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
 
     <div class="message-main">
       <div class="avatar-column">
-        <img :src="msg.avatar_url || '/kiwibird-discord.png'" class="author-avatar" />
+        <img
+          :src="msg.avatar_url || '/default-avatar.png'"
+          class="author-avatar"
+        />
       </div>
       <div class="content-column">
         <div class="message-header">
-          <span class="author-name">{{ msg.author_name }}</span>
-          <span v-if="msg.author_handle" class="author-handle">@{{ msg.author_handle }}</span>
-          <span class="timestamp">{{ new Date(msg.created_at).toLocaleString() }}</span>
-          <span v-if="msg.edit_history?.length > 0" class="edited-tag">(編集済)</span>
+          <div class="header-left">
+            <span class="author-name">{{ msg.author_name }}</span>
+            <span v-if="msg.author_handle" class="author-handle"
+              >@{{ msg.author_handle }}</span
+            >
+            <span class="dot">·</span>
+            <span class="timestamp">{{
+              new Date(msg.created_at).toLocaleDateString() ===
+              new Date().toLocaleDateString()
+                ? new Date(msg.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : new Date(msg.created_at).toLocaleDateString()
+            }}</span>
+            <span v-if="msg.edit_history?.length > 0" class="edited-tag"
+              >(編集済)</span
+            >
+          </div>
+          <button
+            v-if="variant === 'twitter'"
+            class="more-btn-twitter"
+            @click.stop="openContextMenu"
+          >
+            <MoreHorizontal :size="18" />
+          </button>
         </div>
-        
+
         <!-- Normal Display -->
-        <div v-if="!isEditing" class="message-body markdown-body" v-html="highlightedHtml"></div>
-        
+        <div
+          v-if="!isEditing"
+          class="message-body markdown-body"
+          v-html="highlightedHtml"
+        ></div>
+
         <!-- Inline Edit UI -->
         <div v-else class="edit-ui">
-          <textarea 
-            ref="editInput" 
-            v-model="editContent" 
+          <textarea
+            ref="editInput"
+            v-model="editContent"
             @keydown.enter.prevent="submitEdit"
             @keydown.esc="cancelEdit"
           ></textarea>
           <div class="edit-controls">
-            <span>Escで<button class="link-btn" @click="cancelEdit">キャンセル</button> • Enterで<button class="link-btn save" @click="submitEdit">保存</button></span>
+            <span
+              >Escで<button class="link-btn" @click="cancelEdit">
+                キャンセル
+              </button>
+              • Enterで<button class="link-btn save" @click="submitEdit">
+                保存
+              </button></span
+            >
           </div>
         </div>
 
-        <!-- Reactions -->
-        <div v-if="msg.reactions && Object.keys(msg.reactions).length > 0" class="reactions-list">
-          <div 
-            v-for="(users, emoji) in msg.reactions" 
-            :key="emoji" 
+        <!-- Twitter Style Actions Row -->
+        <div v-if="variant === 'twitter' && !isEditing" class="tweet-actions">
+          <button
+            class="tweet-action-btn reply"
+            @click.stop="handleReply"
+            title="返信"
+          >
+            <div class="icon-circle"><Reply :size="18" /></div>
+            <span class="action-count" v-if="msg.reply_count">{{
+              msg.reply_count
+            }}</span>
+          </button>
+          <button class="tweet-action-btn retweet" title="リポスト">
+            <div class="icon-circle"><Repeat2 :size="18" /></div>
+            <span class="action-count" v-if="msg.retweet_count">{{
+              msg.retweet_count
+            }}</span>
+          </button>
+          <button
+            class="tweet-action-btn like"
+            :class="{ active: hasMyReaction('❤️') }"
+            @click.stop="handleReact('❤️')"
+            title="いいね"
+          >
+            <div class="icon-circle">
+              <Heart
+                :size="18"
+                :fill="hasMyReaction('❤️') ? 'currentColor' : 'none'"
+              />
+            </div>
+            <span class="action-count" v-if="msg.reactions?.['❤️']?.length">{{
+              msg.reactions["❤️"].length
+            }}</span>
+          </button>
+          <button class="tweet-action-btn views" title="表示件数">
+            <div class="icon-circle"><BarChart3 :size="18" /></div>
+            <span class="action-count">{{
+              Math.floor(Math.random() * 1000)
+            }}</span>
+          </button>
+          <button
+            class="tweet-action-btn share"
+            @click.stop="copyToClipboard"
+            title="共有"
+          >
+            <div class="icon-circle"><Share :size="18" /></div>
+          </button>
+        </div>
+
+        <!-- Reactions (Discord Style) -->
+        <div
+          v-if="
+            variant !== 'twitter' &&
+            msg.reactions &&
+            Object.keys(msg.reactions).length > 0
+          "
+          class="reactions-list"
+        >
+          <div
+            v-for="(users, emoji) in msg.reactions"
+            :key="emoji"
             class="reaction-badge"
             :class="{ active: hasMyReaction(emoji) }"
             @click="handleReact(emoji)"
@@ -227,22 +400,38 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
 
     <!-- Context Menu -->
     <Teleport to="body">
-      <div 
-        v-if="showContextMenu" 
-        class="context-menu" 
+      <div
+        v-if="showContextMenu"
+        class="context-menu"
         :style="{ top: menuPos.y + 'px', left: menuPos.x + 'px' }"
         @click.stop
       >
         <div class="menu-section emoji-strip">
-          <span v-for="e in emojis.slice(0, 8)" :key="e" @click="handleReact(e)" class="menu-emoji">{{ e }}</span>
+          <span
+            v-for="e in emojis.slice(0, 8)"
+            :key="e"
+            @click="handleReact(e)"
+            class="menu-emoji"
+            >{{ e }}</span
+          >
         </div>
-        <div class="menu-item" @click="handleReply"><Reply :size="16" /> 返信</div>
+        <div class="menu-item" @click="handleReply">
+          <Reply :size="16" /> 返信
+        </div>
         <div class="menu-item" @click="copyToClipboard">
-          <component :is="isCopying ? Check : Copy" :size="16" :color="isCopying ? '#2ed573' : undefined" /> 
+          <component
+            :is="isCopying ? Check : Copy"
+            :size="16"
+            :color="isCopying ? '#2ed573' : undefined"
+          />
           メッセージリンクをコピー
         </div>
-        <div v-if="isAuthor" class="menu-item" @click="startEdit"><Pencil :size="16" /> メッセージを編集</div>
-        <div v-if="isAuthor" class="menu-item delete" @click="handleDelete"><Trash2 :size="16" /> メッセージを削除</div>
+        <div v-if="isAuthor" class="menu-item" @click="startEdit">
+          <Pencil :size="16" /> メッセージを編集
+        </div>
+        <div v-if="isAuthor" class="menu-item delete" @click="handleDelete">
+          <Trash2 :size="16" /> メッセージを削除
+        </div>
       </div>
     </Teleport>
   </div>
@@ -277,7 +466,7 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 2px;
   z-index: 10;
   opacity: 0;
@@ -324,29 +513,187 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
   opacity: 0.7;
 }
 
-.reply-author { font-weight: 800; color: var(--accent); }
-.reply-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+.reply-author {
+  font-weight: 800;
+  color: var(--accent);
+}
+.reply-preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
 
-.message-main { display: flex; gap: 16px; }
-.author-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-.content-column { flex: 1; min-width: 0; }
-.message-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.message-main {
+  display: flex;
+  gap: 16px;
+}
+.author-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.content-column {
+  flex: 1;
+  min-width: 0;
+}
+.message-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  overflow: hidden;
+}
+.dot {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
 .author-name {
-  font-weight: 900;
+  font-weight: 800;
   color: var(--text-primary);
-  font-size: 1.05rem;
+  font-size: 1rem;
+  white-space: nowrap;
 }
 
 .author-handle {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.timestamp { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
-.edited-tag { font-size: 0.65rem; color: var(--text-secondary); margin-left: 4px; }
+/* Twitter Variant Specifics */
+.variant-twitter {
+  padding: 12px 16px;
+  cursor: pointer;
+}
 
-.message-body { line-height: 1.6; color: var(--text-primary); word-break: break-word; font-size: 1rem; }
+.variant-twitter:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.variant-twitter .author-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.more-btn-twitter {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+  margin-right: -8px;
+}
+
+.more-btn-twitter:hover {
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
+}
+
+.tweet-actions {
+  display: flex;
+  justify-content: space-between;
+  max-width: 425px;
+  margin-top: 12px;
+  margin-left: -8px;
+}
+
+.tweet-action-btn {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.icon-circle {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.action-count {
+  font-size: 0.8rem;
+}
+
+/* Hover Colors */
+.tweet-action-btn.reply:hover {
+  color: var(--accent);
+}
+.tweet-action-btn.reply:hover .icon-circle {
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.tweet-action-btn.retweet:hover {
+  color: #00ba7c;
+}
+.tweet-action-btn.retweet:hover .icon-circle {
+  background: rgba(0, 186, 124, 0.1);
+}
+
+.tweet-action-btn.like:hover {
+  color: #f91880;
+}
+.tweet-action-btn.like:hover .icon-circle {
+  background: rgba(249, 24, 128, 0.1);
+}
+.tweet-action-btn.like.active {
+  color: #f91880;
+}
+
+.tweet-action-btn.views:hover {
+  color: var(--accent);
+}
+.tweet-action-btn.views:hover .icon-circle {
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.tweet-action-btn.share:hover {
+  color: var(--accent);
+}
+.tweet-action-btn.share:hover .icon-circle {
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.timestamp {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.edited-tag {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.message-body {
+  line-height: 1.6;
+  color: var(--text-primary);
+  word-break: break-word;
+  font-size: 1rem;
+}
 
 /* Edit UI */
 .edit-ui textarea {
@@ -379,8 +726,12 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
   font-weight: 700;
 }
 
-.link-btn:hover { text-decoration: underline; }
-.link-btn.save { color: #2ed573; }
+.link-btn:hover {
+  text-decoration: underline;
+}
+.link-btn.save {
+  color: #2ed573;
+}
 
 /* Context Menu */
 .context-menu {
@@ -388,7 +739,7 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
   padding: 8px;
   min-width: 220px;
   z-index: 9999;
@@ -407,7 +758,9 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
   font-size: 1.4rem;
   transition: transform 0.1s;
 }
-.menu-emoji:hover { transform: scale(1.3); }
+.menu-emoji:hover {
+  transform: scale(1.3);
+}
 
 .menu-item {
   padding: 10px 12px;
@@ -421,19 +774,44 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
   font-size: 0.9rem;
 }
 
-.menu-item:hover { background: var(--accent); color: white; }
-.menu-item.delete { color: #ff4757; }
-.menu-item.delete:hover { background: #ff4757; color: white; }
+.menu-item:hover {
+  background: var(--accent);
+  color: white;
+}
+.menu-item.delete {
+  color: #ff4757;
+}
+.menu-item.delete:hover {
+  background: #ff4757;
+  color: white;
+}
 
 /* Reactions */
-.reactions-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.reaction-badge {
-  display: flex; align-items: center; gap: 6px; padding: 4px 10px;
-  background: var(--secondary); border: 1px solid var(--border); border-radius: 10px;
-  cursor: pointer; transition: all 0.2s; font-size: 0.95rem;
+.reactions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
-.reaction-badge:hover { border-color: var(--accent); }
-.reaction-badge.active { background: rgba(var(--accent-rgb), 0.12); border-color: var(--accent); }
+.reaction-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+.reaction-badge:hover {
+  border-color: var(--accent);
+}
+.reaction-badge.active {
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: var(--accent);
+}
 
 /* Emoji Picker Mini */
 .emoji-picker.mini {
@@ -446,11 +824,15 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
   padding: 4px;
   display: flex;
   gap: 4px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   margin-bottom: 8px;
 }
 
 .more-emojis {
-  background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-weight: 800;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 800;
 }
 </style>

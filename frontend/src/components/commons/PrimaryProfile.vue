@@ -16,7 +16,7 @@ const profileData = defineProps({
     <div class="container">
       <div class="profile_avatar_container">
         <img
-          :src="avatarUrl || '/default_avatar.png'"
+          :src="avatarUrl || '/default-avatar.png'"
           :alt="username"
           class="profile_avatar"
         />

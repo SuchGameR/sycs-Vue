@@ -6,6 +6,8 @@ import { X } from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 import PostModal from "../popups/PostModal.vue";
 import MessageItem from "../commons/MessageItem.vue";
+import InlinePost from "../commons/InlinePost.vue";
+import TweetItem from "../commons/TweetItem.vue";
 
 const authStore = useAuthStore();
 const messages = ref([]);
@@ -80,8 +82,49 @@ const handlePost = async (content) => {
     if (res.ok) {
       showPostModal.value = false;
       replyingTo.value = null;
-      if (activeTab.value === "global") {
-        fetchMessages();
+      fetchMessages();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const handleRetweet = async (msg) => {
+  try {
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${msg.id}/retweet`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+      },
+    );
+    if (res.ok) {
+      fetchMessages();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const handleBookmark = async (msg) => {
+  try {
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${msg.id}/bookmark`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+      },
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const target = messages.value.find((m) => m.id === msg.id);
+      if (target) {
+        target.is_bookmarked = data.bookmarked;
+        target.bookmark_count = (target.bookmark_count || 0) + (data.bookmarked ? 1 : -1);
       }
     }
   } catch (e) {
@@ -90,18 +133,29 @@ const handlePost = async (content) => {
 };
 
 const handleReact = async (messageId, emoji) => {
+  const mid = typeof messageId === 'object' ? messageId.id : messageId;
+  const emojiStr = typeof emoji === 'string' ? emoji : '❤️';
+
   try {
-    await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`,
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${mid}/reactions`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authStore.token}`,
         },
-        body: JSON.stringify({ emoji }),
+        body: JSON.stringify({ emoji: emojiStr }),
       },
     );
+    if (res.ok) {
+      const reactions = await res.json();
+      const msg = messages.value.find((m) => m.id === mid);
+      if (msg) {
+        msg.reactions = reactions;
+        msg.is_liked = (reactions['❤️'] || []).includes(authStore.user?.id);
+      }
+    }
   } catch (e) {
     console.error(e);
   }
@@ -233,17 +287,24 @@ watch(activeTab, () => {
         </div>
       </section>
 
+      <!-- インライン投稿エリア (Twitter風) -->
+      <InlinePost @submit="handlePost" />
+
       <!-- タイムラインエリア -->
       <div class="timeline" ref="messageListRef" @scroll="handleScroll">
-        <MessageItem
-          v-for="msg in messages"
-          :key="msg.id"
-          :msg="msg"
-          @reply="startReply"
-          @react="handleReact"
-          @edit="handleEdit"
-          @delete="handleDelete"
-        />
+  <TweetItem
+    v-for="msg in messages"
+    :key="msg.id"
+    :msg="msg"
+    @reply="startReply"
+    @retweet="handleRetweet"
+    @like="handleReact"
+    @bookmark="handleBookmark"
+    @edit="handleEdit"
+    @delete="handleDelete"
+    @refresh="fetchMessages"
+  />
+
         <div v-if="loading" class="loading">{{ authStore.t.now_loading }}</div>
         <div v-if="!hasMore && messages.length > 0" class="no-more">
           {{ authStore.t.no_more }}
