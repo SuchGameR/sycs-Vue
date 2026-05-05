@@ -1,8 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref } from "vue";
 
-const emit = defineEmits(['close', 'created']);
-const serverName = ref('');
+const emit = defineEmits(["close", "created"]);
+const serverName = ref("");
 const isSubmitting = ref(false);
 
 const createServer = async () => {
@@ -10,20 +10,23 @@ const createServer = async () => {
   isSubmitting.value = true;
   try {
     // 開発サーバーのバックエンドは3001番ポート
-    const res = await fetch(`http://${window.location.hostname}:3001/api/servers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: serverName.value })
-    });
-    
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/servers`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: serverName.value }),
+      },
+    );
+
     if (res.ok) {
       const data = await res.json();
-      emit('created', data);
+      emit("created", data);
     } else {
-      console.error('Failed to create server');
+      console.error("Failed to create server");
     }
   } catch (e) {
-    console.error('Error creating server:', e);
+    console.error("Error creating server:", e);
   } finally {
     isSubmitting.value = false;
   }
@@ -37,14 +40,14 @@ const createServer = async () => {
       <p class="description">
         サーバーはあなたとフレンドが一緒に過ごす場所です。自分だけのサーバーを作って、会話を始めましょう。
       </p>
-      
+
       <div class="input-group">
         <label>サーバー名 <span class="required">*</span></label>
-        <input 
-          v-model="serverName" 
-          type="text" 
-          placeholder="新規サーバー" 
-          @keyup.enter="createServer" 
+        <input
+          v-model="serverName"
+          type="text"
+          placeholder="新規サーバー"
+          @keyup.enter="createServer"
           ref="nameInput"
           autofocus
         />
@@ -52,8 +55,12 @@ const createServer = async () => {
 
       <div class="actions">
         <button class="btn-cancel" @click="$emit('close')">戻る</button>
-        <button class="btn-create" :disabled="isSubmitting || !serverName.trim()" @click="createServer">
-          {{ isSubmitting ? '作成中...' : '新規作成' }}
+        <button
+          class="btn-create"
+          :disabled="isSubmitting || !serverName.trim()"
+          @click="createServer"
+        >
+          {{ isSubmitting ? "作成中..." : "新規作成" }}
         </button>
       </div>
     </div>
@@ -81,7 +88,7 @@ const createServer = async () => {
   width: 440px;
   max-width: 90%;
   padding: 24px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .modal-content h2 {
@@ -89,6 +96,7 @@ const createServer = async () => {
   text-align: center;
   font-size: 24px;
   margin-bottom: 8px;
+  color: var(--text-primary);
 }
 
 .description {
@@ -101,6 +109,7 @@ const createServer = async () => {
 
 .input-group {
   margin-bottom: 24px;
+  color: var(--text-primary);
 }
 
 .input-group label {
@@ -126,10 +135,11 @@ const createServer = async () => {
   box-sizing: border-box;
   font-size: 16px;
   outline: none;
+  background-color: var(--surface);
 }
 
 .input-group input:focus {
-  border-color: #5865F2;
+  border-color: #5865f2;
 }
 
 .actions {
@@ -153,7 +163,7 @@ const createServer = async () => {
 }
 
 .btn-create {
-  background: #5865F2;
+  background: #5865f2;
   color: white;
   border: none;
   padding: 10px 24px;

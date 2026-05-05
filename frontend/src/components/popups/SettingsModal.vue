@@ -162,7 +162,7 @@ function handleLogout() {
       <div class="settings-sidebar">
         <div class="sidebar-header">
           <SettingsIcon :size="20" />
-          <h3>SYCS {{ authStore.t.settings }}</h3>
+          <h3>{{ authStore.t.settings }}</h3>
         </div>
         <div
           class="menu-item"
@@ -422,39 +422,40 @@ function handleLogout() {
 }
 
 .settings-sidebar {
-  width: 280px;
+  width: 100%;
+  max-width: 280px;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 2.5rem 1.5rem;
+  padding: 30px 15px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 5px;
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  margin-bottom: 2.5rem;
-  padding: 0 1rem;
+  gap: 12px;
+  margin-bottom: 30px;
+  padding: 0 10px;
   color: var(--text-primary);
 }
 
 .sidebar-header h3 {
-  font-size: 1.1rem;
+  font-size: 20px;
   font-weight: 800;
   color: var(--text-primary);
 }
 
 .menu-item {
-  padding: 1rem 1.2rem;
-  border-radius: 14px;
+  padding: 12px 20px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 12px;
   transition: all 0.25s;
 }
 

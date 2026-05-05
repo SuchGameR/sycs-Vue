@@ -25,7 +25,7 @@ function handleProfileClick() {
       <!-- Logo -->
       <div class="logo-icon">
         <img src="/svgLogoOutline.svg" alt="SYCS" />
-        <span class="version">1.2.12</span>
+        <span class="version">1.2.13</span>
       </div>
 
       <PrimarySidebar />
@@ -122,7 +122,7 @@ aside {
 .logo-icon .version {
   font-size: 0.6rem;
   background: var(--secondary);
-  color: var(--text-secondary);
+  color: white;
   padding: 2px 8px;
   border-radius: 0.6rem;
   margin: 2.5px;

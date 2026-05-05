@@ -23,25 +23,25 @@ function handleSubmit() {
   <div v-if="show" class="modal-overlay" @click.self="emit('close')">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>{{ title || '新規ポスト' }}</h2>
+        <h2>{{ title || "新規ポスト" }}</h2>
         <button class="close-btn" @click="emit('close')">&times;</button>
       </div>
-      
+
       <slot name="header-extra"></slot>
 
       <textarea
         v-model="content"
-        :placeholder="placeholder || '今どうしてる？'"
+        :placeholder="placeholder || ''"
         autofocus
       ></textarea>
-      
+
       <div class="modal-footer">
         <button
           class="submit-btn"
           :disabled="!content.trim()"
           @click="handleSubmit"
         >
-          {{ btnText || 'ポストする' }}
+          {{ btnText || "ポストする" }}
         </button>
       </div>
     </div>

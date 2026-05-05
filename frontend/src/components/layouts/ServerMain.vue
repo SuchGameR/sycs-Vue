@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { io } from "socket.io-client";
-import { X, Send } from 'lucide-vue-next';
+import { X, Send } from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
@@ -24,13 +24,19 @@ const fetchData = async () => {
   if (!serverId) return;
 
   try {
-    const sRes = await fetch(`http://${window.location.hostname}:3001/api/servers`);
+    const sRes = await fetch(
+      `http://${window.location.hostname}:3001/api/servers`,
+    );
     const servers = await sRes.json();
-    currentServer.value = servers.find(s => String(s.id) === String(serverId));
+    currentServer.value = servers.find(
+      (s) => String(s.id) === String(serverId),
+    );
 
-    const cRes = await fetch(`http://${window.location.hostname}:3001/api/servers/${serverId}/channels`);
+    const cRes = await fetch(
+      `http://${window.location.hostname}:3001/api/servers/${serverId}/channels`,
+    );
     channels.value = await cRes.json();
-    
+
     if (channels.value.length > 0) {
       const cid = route.params.channelId || channels.value[0].id;
       currentChannelId.value = parseInt(cid);
@@ -45,7 +51,9 @@ const fetchData = async () => {
 const fetchMessages = async () => {
   if (!currentChannelId.value) return;
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`);
+    const res = await fetch(
+      `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
+    );
     messages.value = await res.json();
     scrollToBottom();
   } catch (e) {
@@ -61,14 +69,17 @@ const sendMessage = async () => {
   replyingTo.value = null;
 
   try {
-    await fetch(`http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authStore.token}`
+    await fetch(
+      `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ content, parent_id }),
       },
-      body: JSON.stringify({ content, parent_id }),
-    });
+    );
   } catch (e) {
     console.error(e);
   }
@@ -76,14 +87,17 @@ const sendMessage = async () => {
 
 const handleReact = async (messageId, emoji) => {
   try {
-    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authStore.token}`,
+    await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ emoji }),
       },
-      body: JSON.stringify({ emoji }),
-    });
+    );
   } catch (e) {
     console.error(e);
   }
@@ -91,14 +105,17 @@ const handleReact = async (messageId, emoji) => {
 
 const handleEdit = async (messageId, content) => {
   try {
-    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authStore.token}`,
+    await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ content }),
       },
-      body: JSON.stringify({ content }),
-    });
+    );
   } catch (e) {
     console.error(e);
   }
@@ -106,12 +123,15 @@ const handleEdit = async (messageId, content) => {
 
 const handleDelete = async (messageId) => {
   try {
-    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
+    await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
       },
-    });
+    );
   } catch (e) {
     console.error(e);
   }
@@ -134,7 +154,7 @@ const scrollToBottom = () => {
 
 onMounted(() => {
   fetchData();
-  
+
   socket.on("new-message", (msg) => {
     if (msg.channel_id === currentChannelId.value) {
       messages.value.push(msg);
@@ -143,19 +163,19 @@ onMounted(() => {
   });
 
   socket.on("message-reaction", ({ messageId, reactions }) => {
-    const msg = messages.value.find(m => m.id === messageId);
+    const msg = messages.value.find((m) => m.id === messageId);
     if (msg) msg.reactions = reactions;
   });
 
   socket.on("message-updated", (updatedMsg) => {
-    const index = messages.value.findIndex(m => m.id === updatedMsg.id);
+    const index = messages.value.findIndex((m) => m.id === updatedMsg.id);
     if (index !== -1) {
       messages.value[index] = { ...messages.value[index], ...updatedMsg };
     }
   });
 
   socket.on("message-deleted", ({ messageId }) => {
-    messages.value = messages.value.filter(m => m.id !== messageId);
+    messages.value = messages.value.filter((m) => m.id !== messageId);
   });
 });
 
@@ -163,9 +183,12 @@ onUnmounted(() => {
   socket.disconnect();
 });
 
-watch(() => route.params.id, (newId) => {
-  if (newId) fetchData();
-});
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) fetchData();
+  },
+);
 </script>
 
 <template>
@@ -175,7 +198,7 @@ watch(() => route.params.id, (newId) => {
         <h1 v-if="currentServer">{{ currentServer.name }}</h1>
         <h1 v-else>Loading...</h1>
       </div>
-      
+
       <section class="channel-tabs">
         <div
           v-for="channel in channels"
@@ -190,9 +213,9 @@ watch(() => route.params.id, (newId) => {
 
       <div class="chat-area">
         <div class="message-list" ref="messageListRef">
-          <MessageItem 
-            v-for="msg in messages" 
-            :key="msg.id" 
+          <MessageItem
+            v-for="msg in messages"
+            :key="msg.id"
             :msg="msg"
             @reply="replyingTo = $event"
             @react="handleReact"
@@ -209,10 +232,16 @@ watch(() => route.params.id, (newId) => {
           <div class="input-container">
             <input
               v-model="newMessage"
-              :placeholder="currentChannelId ? `#${channels.find(c => c.id === currentChannelId)?.name || ''} にメッセージを送信` : 'メッセージを入力...'"
+              :placeholder="
+                currentChannelId
+                  ? `#${channels.find((c) => c.id === currentChannelId)?.name || ''} にメッセージを送信`
+                  : 'メッセージを入力...'
+              "
               @keyup.enter="sendMessage"
             />
-            <button class="send-btn" @click="sendMessage"><Send :size="18" /></button>
+            <button class="send-btn" @click="sendMessage">
+              <Send :size="18" />
+            </button>
           </div>
         </div>
       </div>
@@ -239,6 +268,7 @@ main {
 .server-header h1 {
   font-size: 1.2rem;
   font-weight: 800;
+  color: var(--text-primary);
 }
 
 .mainContainer {
@@ -277,7 +307,10 @@ main {
   color: white;
 }
 
-.hash { opacity: 0.5; margin-right: 4px; }
+.hash {
+  opacity: 0.5;
+  margin-right: 4px;
+}
 
 .chat-area {
   flex: 1;
@@ -294,18 +327,31 @@ main {
 }
 
 .input-area {
-  padding: 1.5rem;
-  background: var(--surface);
+  padding-bottom: 20px;
+  margin-left: 30px;
+  margin-right: 30px;
+  transform: scale(1.05);
+}
+
+.reply-bar + .input-container {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
 }
 
 .reply-bar {
+  background: var(--surface);
+  line-height: 30px;
   display: flex;
   justify-content: space-between;
   padding: 8px 12px;
-  background: var(--secondary);
-  border-radius: 8px 8px 0 0;
+  padding-right: 4px;
+  z-index: +1;
+  background: var(--surface);
+  border-radius: 12px 12px 0 0;
   font-size: 0.85rem;
   font-weight: 700;
+  height: 40px;
   color: var(--accent);
   border: 1px solid var(--border);
   border-bottom: none;
@@ -321,14 +367,22 @@ main {
 .input-container {
   display: flex;
   gap: 12px;
-  background: var(--secondary);
+  background: var(--surface);
   padding: 8px 16px;
+  padding-right: 4px;
   border-radius: 12px;
   border: 1px solid var(--border);
   align-items: center;
 }
 
+@container small (max-width: 400px) {
+  .send-btn {
+    display: none !important;
+  }
+}
+
 .input-container input {
+  container-name: small;
   flex: 1;
   height: 40px;
   background: transparent;

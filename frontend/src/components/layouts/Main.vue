@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { io } from "socket.io-client";
-import { X } from 'lucide-vue-next';
+import { X } from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 import PostModal from "../popups/PostModal.vue";
 import MessageItem from "../commons/MessageItem.vue";
@@ -71,9 +71,9 @@ const handlePost = async (content) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authStore.token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           content,
-          parent_id: replyingTo.value?.id 
+          parent_id: replyingTo.value?.id,
         }),
       },
     );
@@ -91,14 +91,17 @@ const handlePost = async (content) => {
 
 const handleReact = async (messageId, emoji) => {
   try {
-    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authStore.token}`,
+    await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ emoji }),
       },
-      body: JSON.stringify({ emoji }),
-    });
+    );
   } catch (e) {
     console.error(e);
   }
@@ -106,14 +109,17 @@ const handleReact = async (messageId, emoji) => {
 
 const handleEdit = async (messageId, content) => {
   try {
-    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authStore.token}`,
+    await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ content }),
       },
-      body: JSON.stringify({ content }),
-    });
+    );
   } catch (e) {
     console.error(e);
   }
@@ -121,12 +127,15 @@ const handleEdit = async (messageId, content) => {
 
 const handleDelete = async (messageId) => {
   try {
-    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
+    await fetch(
+      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
       },
-    });
+    );
   } catch (e) {
     console.error(e);
   }
@@ -175,19 +184,19 @@ onMounted(() => {
   });
 
   socket.on("message-reaction", ({ messageId, reactions }) => {
-    const msg = messages.value.find(m => m.id === messageId);
+    const msg = messages.value.find((m) => m.id === messageId);
     if (msg) msg.reactions = reactions;
   });
 
   socket.on("message-updated", (updatedMsg) => {
-    const index = messages.value.findIndex(m => m.id === updatedMsg.id);
+    const index = messages.value.findIndex((m) => m.id === updatedMsg.id);
     if (index !== -1) {
       messages.value[index] = { ...messages.value[index], ...updatedMsg };
     }
   });
 
   socket.on("message-deleted", ({ messageId }) => {
-    messages.value = messages.value.filter(m => m.id !== messageId);
+    messages.value = messages.value.filter((m) => m.id !== messageId);
   });
 });
 
@@ -208,7 +217,7 @@ watch(activeTab, () => {
       <!-- タブ切り替えエリア -->
       <section class="tabs">
         <div
-          v-for="tab in ['global', 'local', 'follow', 'recommend']"
+          v-for="tab in ['recommend', 'follow', 'global', 'local']"
           :key="tab"
           class="tab-item"
           :class="{ active: activeTab === tab }"
@@ -226,9 +235,9 @@ watch(activeTab, () => {
 
       <!-- タイムラインエリア -->
       <div class="timeline" ref="messageListRef" @scroll="handleScroll">
-        <MessageItem 
-          v-for="msg in messages" 
-          :key="msg.id" 
+        <MessageItem
+          v-for="msg in messages"
+          :key="msg.id"
           :msg="msg"
           @reply="startReply"
           @react="handleReact"
@@ -252,16 +261,27 @@ watch(activeTab, () => {
       <!-- 投稿モーダル -->
       <PostModal
         :show="showPostModal"
-        :placeholder="replyingTo ? `${replyingTo.author_name} への返信...` : authStore.t.whats_happening"
+        :placeholder="
+          replyingTo
+            ? `${replyingTo.author_name} への返信...`
+            : authStore.t.whats_happening
+        "
         :btn-text="replyingTo ? '返信する' : authStore.t.post_btn"
         :title="replyingTo ? '返信' : authStore.t.new_post"
-        @close="showPostModal = false; replyingTo = null"
+        @close="
+          showPostModal = false;
+          replyingTo = null;
+        "
         @submit="handlePost"
       >
         <template #header-extra v-if="replyingTo">
           <div class="replying-preview">
-            <span class="replying-to">返信先: {{ replyingTo.author_name }}</span>
-            <button class="clear-reply" @click="replyingTo = null"><X :size="14" /></button>
+            <span class="replying-to"
+              >返信先: {{ replyingTo.author_name }}</span
+            >
+            <button class="clear-reply" @click="replyingTo = null">
+              <X :size="14" />
+            </button>
           </div>
         </template>
       </PostModal>
@@ -312,7 +332,7 @@ main {
 }
 
 .tab-item:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .tab-item.active {

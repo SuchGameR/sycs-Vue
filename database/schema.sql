@@ -19,9 +19,9 @@ DROP TABLE IF EXISTS message_likes CASCADE;
 -- 3. ユーザーテーブル (Account)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    userid VARCHAR(255) UNIQUE,
     uid UUID DEFAULT gen_random_uuid() UNIQUE,
     username VARCHAR(255) NOT NULL,
+    userid VARCHAR(255) UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     avatar_url VARCHAR(255),
