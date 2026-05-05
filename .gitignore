@@ -43,3 +43,5 @@ __screenshots__/
 
 # uploaded files
 /uploads/*
+uploads/
+uploads/*
