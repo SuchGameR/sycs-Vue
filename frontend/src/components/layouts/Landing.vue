@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { io } from "socket.io-client";
 
 const messages = ref([]);
 const API_BASE = `http://${window.location.hostname}:3001/api`;
 const router = useRouter();
+const socket = io(`http://${window.location.hostname}:3001`);
 
 const fetchPublicTimeline = async () => {
   try {
-    // 全サーバーを取得し、最初のサーバーの最初のチャンネルのメッセージを表示する
     const serversRes = await fetch(`${API_BASE}/servers`);
     if (serversRes.ok) {
       const servers = await serversRes.json();
@@ -30,7 +31,21 @@ const fetchPublicTimeline = async () => {
   }
 };
 
-onMounted(fetchPublicTimeline);
+onMounted(() => {
+  fetchPublicTimeline();
+  
+  socket.on("public-message", (msg) => {
+    messages.value.push(msg);
+    // 最大表示件数を制限する場合（例: 最新20件）
+    if (messages.value.length > 20) {
+      messages.value.shift();
+    }
+  });
+});
+
+onUnmounted(() => {
+  socket.disconnect();
+});
 
 function goToSignin() {
   router.push('/signin');

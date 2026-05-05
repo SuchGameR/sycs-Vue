@@ -1,15 +1,20 @@
 ﻿<script setup>
-import { ref, onMounted, watch, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
+import { io } from "socket.io-client";
+import { useAuthStore } from "../../stores/auth";
 import Vertical from "../configurations/Vertical.vue";
 
 const route = useRoute();
+const authStore = useAuthStore();
 const currentServer = ref(null);
 const channels = ref([]);
 const currentChannelId = ref(null);
 const messages = ref([]);
 const newMessage = ref("");
 const messageListRef = ref(null);
+
+const socket = io(`http://${window.location.hostname}:3001`);
 
 const fetchServerInfo = async () => {
   const serverId = route.params.id || route.params.serverId;
@@ -43,6 +48,7 @@ const fetchChannels = async () => {
         const cid = route.params.channelId || channels.value[0].id;
         currentChannelId.value = parseInt(cid);
         fetchMessages();
+        socket.emit("join-channel", currentChannelId.value);
       }
     }
   } catch (e) {
@@ -75,6 +81,9 @@ const sendMessage = async () => {
   const content = newMessage.value;
   newMessage.value = "";
 
+  const authorName = authStore.user ? authStore.user.username : "Guest";
+  const userId = authStore.user ? authStore.user.id : null;
+
   try {
     const res = await fetch(
       `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
@@ -82,24 +91,25 @@ const sendMessage = async () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          author_name: "KiwiBird",
+          author_name: authorName,
           content: content,
+          user_id: userId
         }),
       },
     );
-    if (res.ok) {
-      const newMsg = await res.json();
-      messages.value.push(newMsg);
-      scrollToBottom();
-    }
+    // リアルタイム通信（socket.emitの受信）でメッセージが追加されるため、ここでは追加しない
   } catch (e) {
     console.error(e);
   }
 };
 
 const selectChannel = (id) => {
+  if (currentChannelId.value) {
+    // 以前のチャンネルから抜ける処理（バックエンドで実装が必要な場合は追加）
+  }
   currentChannelId.value = id;
   messages.value = [];
+  socket.emit("join-channel", id);
   fetchMessages();
 };
 
@@ -111,7 +121,21 @@ const scrollToBottom = () => {
   });
 };
 
-onMounted(fetchData);
+onMounted(() => {
+  fetchData();
+  
+  socket.on("new-message", (msg) => {
+    if (msg.channel_id === currentChannelId.value) {
+      messages.value.push(msg);
+      scrollToBottom();
+    }
+  });
+});
+
+onUnmounted(() => {
+  socket.disconnect();
+});
+
 watch(
   () => route.params.id,
   (newId) => {
