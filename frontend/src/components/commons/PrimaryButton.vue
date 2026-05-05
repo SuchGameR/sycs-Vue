@@ -37,20 +37,29 @@ const currentIcon = computed(() => {
 <template>
   <router-link v-if="url" :to="url" class="link">
     <div class="button">
-      <component :is="currentIcon" :size="20" :fill="iconFillColor" class="UIcon" />
+      <component
+        :is="currentIcon"
+        :size="20"
+        :fill="iconFillColor"
+        class="UIcon"
+      />
       <span class="menu-text">{{ name }}</span>
     </div>
   </router-link>
   <div v-else class="link" @click="$emit('click')">
     <div class="button">
-      <component :is="currentIcon" :size="20" :fill="iconFillColor" class="UIcon" />
+      <component
+        :is="currentIcon"
+        :size="20"
+        :fill="iconFillColor"
+        class="UIcon"
+      />
       <span class="menu-text">{{ name }}</span>
     </div>
   </div>
 </template>
 
 <style scoped>
-
 @container small (max-width: 100px) {
   .menu-text {
     display: none;
@@ -102,6 +111,7 @@ const currentIcon = computed(() => {
   width: 100%;
 }
 .button {
+  color: var(--text-primary);
   display: inline-flex;
   align-items: center;
   width: 100%;

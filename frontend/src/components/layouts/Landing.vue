@@ -2,48 +2,31 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { io } from "socket.io-client";
+import { Rocket, Shield, Puzzle, ArrowRight, MessageCircle } from 'lucide-vue-next';
+import { useAuthStore } from "../../stores/auth";
 
+const authStore = useAuthStore();
 const messages = ref([]);
 const API_BASE = `http://${window.location.hostname}:3001/api`;
-const router = useRouter();
 const socket = io(`http://${window.location.hostname}:3001`);
+const router = useRouter();
 
-const fetchPublicTimeline = async () => {
+const fetchPublicMessages = async () => {
   try {
-    const serversRes = await fetch(`${API_BASE}/servers`);
-    if (serversRes.ok) {
-      const servers = await serversRes.json();
-      if (servers.length > 0) {
-        const channelsRes = await fetch(
-          `${API_BASE}/servers/${servers[0].id}/channels`,
-        );
-        if (channelsRes.ok) {
-          const channels = await channelsRes.json();
-          if (channels.length > 0) {
-            const msgsRes = await fetch(
-              `${API_BASE}/channels/${channels[0].id}/messages`,
-            );
-            if (msgsRes.ok) {
-              messages.value = await msgsRes.json();
-            }
-          }
-        }
-      }
+    const res = await fetch(`${API_BASE}/messages/global?limit=10`);
+    if (res.ok) {
+      messages.value = await res.json();
     }
-  } catch (err) {
-    console.error("Failed to fetch timeline:", err);
+  } catch (e) {
+    console.error(e);
   }
 };
 
 onMounted(() => {
-  fetchPublicTimeline();
-
+  fetchPublicMessages();
   socket.on("public-message", (msg) => {
-    messages.value.push(msg);
-    // 最大表示件数を制限する場合（例: 最新20件）
-    if (messages.value.length > 20) {
-      messages.value.shift();
-    }
+    messages.value.unshift(msg);
+    if (messages.value.length > 20) messages.value.pop();
   });
 });
 
@@ -62,66 +45,53 @@ function goToSignup() {
 
 <template>
   <div class="landing">
+    <!-- 左側: メインコンテンツ -->
     <div class="intro-section">
-      <div class="intro-content">
-        <img src="/svgLogoOutline.svg" alt="SYCS" class="logo" />
-        <h1>つなげよう、今を。</h1>
-        <p class="description">
-          SYCSは SYCS PROJECT が提供する <br />
-          シンプルで高速かつモダンなマルチSNSです。<br />
-          場所を作り、発見し、仲間と繋がることができます。
-        </p>
-        <div class="features">
-          <div class="feature-item">
-            <span class="icon">🚀</span>
-            <div>
-              <h3>高速レスポンス</h3>
-              <p>低遅延、低通信な速さ。</p>
-            </div>
-          </div>
-          <div class="feature-item">
-            <span class="icon">🛡️</span>
-            <div>
-              <h3>セキュアな設定</h3>
-              <p>あなたのプライバシーを第一に考えています。</p>
-            </div>
-          </div>
-          <div class="feature-item">
-            <span class="icon">🧩</span>
-            <div>
-              <h3>カスタマイズ可能</h3>
-              <p>あなた好みに改造可能。</p>
-            </div>
-          </div>
-        </div>
+      <div class="hero">
+        <img src="/svgLogoOutline.svg" class="hero-logo" alt="SYCS" />
+        <h1 class="catchphrase">{{ authStore.t.description }}</h1>
+        <h2 class="sub-catchphrase">{{ authStore.t.now_happening }}</h2>
+        
         <div class="cta-buttons">
-          <button class="cta-button primary" @click="goToSignin">今すぐ始める</button>
-          <button class="cta-button secondary" @click="goToSignup">サインアップ</button>
+          <button class="cta-button primary" @click="goToSignup">{{ authStore.t.start_now }}</button>
+          <div class="divider">
+            <span>または</span>
+          </div>
+          <button class="cta-button secondary" @click="goToSignin">{{ authStore.t.signin }}</button>
+        </div>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <MessageCircle class="icon" />
+          <p>リアルタイムな会話</p>
+        </div>
+        <div class="feature-card">
+          <Rocket class="icon" />
+          <p>高速な体験</p>
         </div>
       </div>
     </div>
 
+    <!-- 右側: パブリックタイムライン -->
     <div class="timeline-section">
       <div class="timeline-header">
-        <h2>パブリック・タイムライン</h2>
-        <p>今この瞬間、世界で起きていること</p>
+        <h2>{{ authStore.t.public_timeline }}</h2>
       </div>
       <div class="message-list">
         <div v-if="messages.length === 0" class="no-messages">
-          メッセージがありません
+          {{ authStore.t.now_loading }}
         </div>
         <div v-for="msg in messages" :key="msg.id" class="message-card">
-          <div class="msg-avatar">
-            <img :src="msg.avatar_url || '/kiwibird-discord.png'" class="avatar-img" />
-          </div>
+          <img :src="msg.avatar_url || '/kiwibird-discord.png'" class="msg-avatar" />
           <div class="msg-body">
             <div class="msg-meta">
               <span class="author">{{ msg.author_name }}</span>
-              <span class="time">{{
-                new Date(msg.created_at).toLocaleTimeString()
-              }}</span>
+              <span v-if="msg.author_handle" class="handle">@{{ msg.author_handle }}</span>
+              <span class="dot">·</span>
+              <span class="time">{{ new Date(msg.created_at).toLocaleTimeString() }}</span>
             </div>
-            <div class="content">{{ msg.content }}</div>
+            <div class="msg-content">{{ msg.content }}</div>
           </div>
         </div>
       </div>
@@ -134,7 +104,7 @@ function goToSignup() {
   display: flex;
   height: 100vh;
   width: 100vw;
-  background-color: var(--background);
+  background-color: var(--surface);
   color: var(--text-primary);
   overflow: hidden;
 }
@@ -142,79 +112,47 @@ function goToSignup() {
 .intro-section {
   flex: 1.2;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  background: linear-gradient(135deg, var(--primary) 0%, #000 100%);
-  color: white;
-  overflow-y: auto;
-}
-
-.intro-content {
-  max-width: 600px;
-  height: fit-content;
-}
-
-.logo {
-  width: 80px;
-  margin-bottom: 1rem;
-}
-
-h1 {
-  font-size: 2.5rem;
-  margin-bottom: 1.5rem;
-  color: white;
-}
-
-.description {
-  font-size: 1.2rem;
-  line-height: 1.8;
-  margin-bottom: 1.5rem;
-  opacity: 0.9;
-}
-
-.features {
-  display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  justify-content: center;
+  padding: 0 4rem;
+  background: var(--background);
+}
+
+.hero-logo {
+  width: 60px;
   margin-bottom: 3rem;
 }
 
-.feature-item {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
+.catchphrase {
+  font-size: 4rem;
+  font-weight: 900;
+  margin-bottom: 2rem;
+  line-height: 1.1;
+  letter-spacing: -2px;
 }
 
-.feature-item .icon {
-  font-size: 1.5rem;
-}
-
-.feature-item h3 {
-  color: white;
-  margin-bottom: 0.2rem;
-}
-
-.feature-item p {
-  opacity: 0.7;
-  font-size: 0.9rem;
+.sub-catchphrase {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 3rem;
 }
 
 .cta-buttons {
+  max-width: 320px;
   display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
 .cta-button {
-  padding: 1rem 2.5rem;
-  font-size: 1.1rem;
-  font-weight: bold;
-  border: none;
+  width: 100%;
+  padding: 1rem;
   border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 800;
   cursor: pointer;
-  transition:
-    transform 0.2s,
-    background-color 0.2s;
+  border: none;
+  transition: all 0.2s;
 }
 
 .cta-button.primary {
@@ -222,115 +160,134 @@ h1 {
   color: white;
 }
 
-.cta-button.secondary {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-  border: 2px solid white;
+.cta-button.primary:hover {
+  filter: brightness(1.1);
 }
 
-.cta-button:hover {
-  transform: scale(1.05);
+.cta-button.secondary {
+  background-color: transparent;
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
 }
 
 .cta-button.secondary:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(var(--accent-rgb), 0.05);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.features-grid {
+  display: flex;
+  gap: 2rem;
+  margin-top: 4rem;
+}
+
+.feature-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.feature-card .icon {
+  width: 20px;
+  color: var(--accent);
 }
 
 .timeline-section {
   flex: 0.8;
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: white;
-  border-left: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--surface);
 }
 
 .timeline-header {
-  padding: 2rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .timeline-header h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.timeline-header p {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 1.25rem;
+  font-weight: 800;
 }
 
 .message-list {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
 }
 
 .message-card {
+  padding: 1.2rem;
+  border-bottom: 1px solid var(--border);
   display: flex;
   gap: 1rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  transition: background 0.2s;
+}
+
+.message-card:hover {
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .msg-avatar {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  flex-shrink: 0;
-  overflow: hidden;
+  object-fit: cover;
 }
 
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.msg-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .msg-meta {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.4rem;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 0.2rem;
 }
 
 .author {
-  font-weight: bold;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.handle, .time, .dot {
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
-.time {
-  font-size: 0.75rem;
-  color: #999;
-}
-
-.content {
-  font-size: 0.95rem;
-  line-height: 1.4;
+.msg-content {
+  line-height: 1.5;
   word-break: break-word;
 }
 
 .no-messages {
+  padding: 4rem;
   text-align: center;
-  color: #999;
-  margin-top: 3rem;
+  color: var(--text-secondary);
 }
 
-@media (max-width: 1024px) {
-  .landing {
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  .intro-section,
-  .timeline-section {
-    flex: none;
-    height: auto;
-  }
-  .intro-section {
-    padding: 3rem 2rem;
-  }
+@media (max-width: 1100px) {
+  .landing { flex-direction: column; overflow-y: auto; }
+  .intro-section { padding: 4rem 2rem; flex: none; height: auto; }
+  .timeline-section { border-left: none; border-top: 1px solid var(--border); flex: none; height: auto; min-height: 500px; }
+  .catchphrase { font-size: 3rem; }
 }
 </style>

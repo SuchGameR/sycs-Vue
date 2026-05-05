@@ -33,7 +33,11 @@ const handleServerCreated = (newServer) => {
 
 <template>
   <PrimaryButton :name="authStore.t.home" ui="Armchair" url="/" />
-  <PrimaryButton :name="authStore.t.message" ui="MessageCircle" url="/message" />
+  <PrimaryButton
+    :name="authStore.t.message"
+    ui="MessageCircle"
+    url="/message"
+  />
   <PrimaryButton :name="authStore.t.notice" ui="Bell" url="/notice" />
   <PrimaryButton :name="authStore.t.favorite" ui="Heart" url="/favorite" />
   <hr />
@@ -64,7 +68,7 @@ const handleServerCreated = (newServer) => {
 hr {
   width: calc(100% - var(--sidebar-paddingSize) * 2);
   border: none;
-  border-top: solid 3px var(--primary);
+  border-top: solid 3px var(--text-primary);
   opacity: 0.1;
   border-radius: 3px;
   margin: var(--sidebar-paddingSize);

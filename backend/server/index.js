@@ -150,9 +150,10 @@ app.post("/api/auth/signup", async (req, res) => {
       return res.status(400).json({ error: "User already exists" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
+    const defaultUserId = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
     const result = await pool.query(
-      "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, avatar_url, header_url",
-      [username, email, hashedPassword]
+      "INSERT INTO users (username, email, password_hash, userid) VALUES ($1, $2, $3, $4) RETURNING id, username, email, avatar_url, header_url, userid",
+      [username, email, hashedPassword, defaultUserId]
     );
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: "24h" });
@@ -176,7 +177,7 @@ app.post("/api/auth/signin", async (req, res) => {
     }
     const token = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: "24h" });
     res.json({
-      user: { id: user.id, username: user.username, email: user.email, avatar_url: user.avatar_url, header_url: user.header_url, attributes: user.attributes },
+      user: { id: user.id, username: user.username, email: user.email, avatar_url: user.avatar_url, header_url: user.header_url, userid: user.userid, attributes: user.attributes },
       token
     });
   } catch (err) {
@@ -187,7 +188,7 @@ app.post("/api/auth/signin", async (req, res) => {
 
 app.get("/api/auth/me", authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, username, email, avatar_url, header_url, attributes FROM users WHERE id = $1", [req.user.id]);
+    const result = await pool.query("SELECT id, username, email, avatar_url, header_url, userid, attributes FROM users WHERE id = $1", [req.user.id]);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user data" });
@@ -271,7 +272,7 @@ app.get("/api/channels/:channelId/messages", async (req, res) => {
   const { channelId } = req.params;
   try {
     const result = await pool.query(
-      `SELECT m.*, u.avatar_url,
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
               (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
                FROM messages p WHERE p.id = m.parent_id) as parent_msg
        FROM messages m 
@@ -305,8 +306,9 @@ app.post("/api/channels/:channelId/messages", authenticateToken, async (req, res
       [channelId, author_name, content, user_id, parent_id || null]
     );
     
-    const userResult = await pool.query("SELECT avatar_url FROM users WHERE id = $1", [user_id]);
+    const userResult = await pool.query("SELECT avatar_url, userid FROM users WHERE id = $1", [user_id]);
     const avatar_url = userResult.rows[0]?.avatar_url || null;
+    const author_handle = userResult.rows[0]?.userid || null;
     
     let parent_msg = null;
     if (parent_id) {
@@ -314,7 +316,7 @@ app.post("/api/channels/:channelId/messages", authenticateToken, async (req, res
       parent_msg = pResult.rows[0];
     }
 
-    const newMessage = { ...result.rows[0], avatar_url, parent_msg };
+    const newMessage = { ...result.rows[0], avatar_url, author_handle, parent_msg };
     
     io.to(`channel-${channelId}`).emit("new-message", newMessage);
     io.emit("public-message", newMessage);
@@ -332,7 +334,7 @@ app.get("/api/messages/global", async (req, res) => {
   const offset = parseInt(req.query.offset) || 0;
   try {
     const result = await pool.query(
-      `SELECT m.*, u.avatar_url,
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
               (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
                FROM messages p WHERE p.id = m.parent_id) as parent_msg
        FROM messages m 
@@ -364,17 +366,18 @@ app.post("/api/messages/global", authenticateToken, async (req, res) => {
       "INSERT INTO messages (author_name, content, user_id, post_type, parent_id) VALUES ($1, $2, $3, 'GLOBAL', $4) RETURNING *",
       [author_name, content, user_id, parent_id || null]
     );
+// Get user avatar
+const userResult = await pool.query("SELECT avatar_url, userid FROM users WHERE id = $1", [user_id]);
+const avatar_url = userResult.rows[0]?.avatar_url || null;
+const author_handle = userResult.rows[0]?.userid || null;
 
-    const userResult = await pool.query("SELECT avatar_url FROM users WHERE id = $1", [user_id]);
-    const avatar_url = userResult.rows[0]?.avatar_url || null;
+let parent_msg = null;
+if (parent_id) {
+  const pResult = await pool.query("SELECT author_name, content FROM messages WHERE id = $1", [parent_id]);
+  parent_msg = pResult.rows[0];
+}
 
-    let parent_msg = null;
-    if (parent_id) {
-      const pResult = await pool.query("SELECT author_name, content FROM messages WHERE id = $1", [parent_id]);
-      parent_msg = pResult.rows[0];
-    }
-
-    const newMessage = { ...result.rows[0], avatar_url, parent_msg };
+const newMessage = { ...result.rows[0], avatar_url, author_handle, parent_msg };
     
     io.emit("new-global-message", newMessage);
     io.emit("public-message", newMessage);

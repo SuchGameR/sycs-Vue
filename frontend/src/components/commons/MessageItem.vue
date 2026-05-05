@@ -188,6 +188,7 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
       <div class="content-column">
         <div class="message-header">
           <span class="author-name">{{ msg.author_name }}</span>
+          <span v-if="msg.author_handle" class="author-handle">@{{ msg.author_handle }}</span>
           <span class="timestamp">{{ new Date(msg.created_at).toLocaleString() }}</span>
           <span v-if="msg.edit_history?.length > 0" class="edited-tag">(編集済)</span>
         </div>
@@ -330,7 +331,18 @@ const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).in
 .author-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
 .content-column { flex: 1; min-width: 0; }
 .message-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
-.author-name { font-weight: 900; color: var(--text-primary); font-size: 1.05rem; }
+.author-name {
+  font-weight: 900;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.author-handle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 .timestamp { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
 .edited-tag { font-size: 0.65rem; color: var(--text-secondary); margin-left: 4px; }
 
