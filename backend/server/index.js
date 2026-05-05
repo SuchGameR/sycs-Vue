@@ -424,67 +424,49 @@ app.post("/api/messages/:messageId/reactions", authenticateToken, async (req, re
   }
 });
 
-// Follow a user
-app.post("/api/users/:targetId/follow", authenticateToken, async (req, res) => {
-  const followerId = req.user.id;
-  const followingId = req.params.targetId;
+// Edit message
+app.put("/api/messages/:messageId", authenticateToken, async (req, res) => {
+  const { messageId } = req.params;
+  const { content } = req.body;
+  const userId = req.user.id;
+
+  if (!content) return res.status(400).json({ error: "Content is required" });
+
   try {
-    await pool.query(
-      "INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-      [followerId, followingId]
+    const checkResult = await pool.query("SELECT user_id FROM messages WHERE id = $1", [messageId]);
+    if (checkResult.rows.length === 0) return res.status(404).json({ error: "Message not found" });
+    if (checkResult.rows[0].user_id !== userId) return res.status(403).json({ error: "Unauthorized" });
+
+    const result = await pool.query(
+      "UPDATE messages SET content = $1, edit_history = edit_history || $2::jsonb WHERE id = $3 RETURNING *",
+      [content, JSON.stringify({ content, edited_at: new Date() }), messageId]
     );
-    res.json({ message: "Followed successfully" });
+
+    const updatedMsg = result.rows[0];
+    io.emit("message-updated", updatedMsg);
+    res.json(updatedMsg);
   } catch (err) {
-    res.status(500).json({ error: "Failed to follow" });
+    console.error(err);
+    res.status(500).json({ error: "Failed to update message" });
   }
 });
 
-// Get local timeline (servers joined)
-app.get("/api/messages/local", authenticateToken, async (req, res) => {
-  const limit = parseInt(req.query.limit) || 20;
-  const offset = parseInt(req.query.offset) || 0;
-  try {
-    // ユーザーが参加しているサーバー（serverjoinsから取得、または簡易的に全サーバーメッセージからフィルタ）
-    // 現在のスキーマではserverjoinsはJSONBなので、そこからサーバーIDを抽出するロジックが必要
-    // 簡易化のため、ここでは「サーバーに関連付けられている全メッセージ」を返す（将来的に参加状況でフィルタ）
-    const result = await pool.query(
-      "SELECT m.* FROM messages m JOIN channels c ON m.channel_id = c.id ORDER BY m.created_at DESC LIMIT $1 OFFSET $2",
-      [limit, offset]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch local messages" });
-  }
-});
+// Delete message
+app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
+  const { messageId } = req.params;
+  const userId = req.user.id;
 
-// Get follow timeline
-app.get("/api/messages/follow", authenticateToken, async (req, res) => {
-  const limit = parseInt(req.query.limit) || 20;
-  const offset = parseInt(req.query.offset) || 0;
   try {
-    const result = await pool.query(
-      "SELECT m.* FROM messages m JOIN follows f ON m.user_id = f.following_id WHERE f.follower_id = $1 ORDER BY m.created_at DESC LIMIT $2 OFFSET $3",
-      [req.user.id, limit, offset]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch follow messages" });
-  }
-});
+    const checkResult = await pool.query("SELECT user_id FROM messages WHERE id = $1", [messageId]);
+    if (checkResult.rows.length === 0) return res.status(404).json({ error: "Message not found" });
+    if (checkResult.rows[0].user_id !== userId) return res.status(403).json({ error: "Unauthorized" });
 
-// Get recommend timeline (Twitter-like "For You")
-app.get("/api/messages/recommend", async (req, res) => {
-  const limit = parseInt(req.query.limit) || 20;
-  const offset = parseInt(req.query.offset) || 0;
-  try {
-    // 簡易的なレコメンドロジック：いいね数（未実装のため作成順）と新着のミックス
-    const result = await pool.query(
-      "SELECT * FROM messages ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-      [limit, offset]
-    );
-    res.json(result.rows);
+    await pool.query("DELETE FROM messages WHERE id = $1", [messageId]);
+    io.emit("message-deleted", { messageId: parseInt(messageId) });
+    res.json({ message: "Deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch recommend messages" });
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete message" });
   }
 });
 

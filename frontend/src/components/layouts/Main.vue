@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { io } from "socket.io-client";
-import { X } from "lucide-vue-next";
+import { X } from 'lucide-vue-next';
 import Vertical from "../configurations/Vertical.vue";
 import PostModal from "../popups/PostModal.vue";
 import MessageItem from "../commons/MessageItem.vue";
@@ -71,9 +71,9 @@ const handlePost = async (content) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authStore.token}`,
         },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           content,
-          parent_id: replyingTo.value?.id,
+          parent_id: replyingTo.value?.id 
         }),
       },
     );
@@ -91,17 +91,42 @@ const handlePost = async (content) => {
 
 const handleReact = async (messageId, emoji) => {
   try {
-    await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({ emoji }),
+    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({ emoji }),
+    });
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const handleEdit = async (messageId, content) => {
+  try {
+    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}`,
+      },
+      body: JSON.stringify({ content }),
+    });
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const handleDelete = async (messageId) => {
+  try {
+    await fetch(`http://${window.location.hostname}:3001/api/messages/${messageId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
+      },
+    });
   } catch (e) {
     console.error(e);
   }
@@ -150,8 +175,19 @@ onMounted(() => {
   });
 
   socket.on("message-reaction", ({ messageId, reactions }) => {
-    const msg = messages.value.find((m) => m.id === messageId);
+    const msg = messages.value.find(m => m.id === messageId);
     if (msg) msg.reactions = reactions;
+  });
+
+  socket.on("message-updated", (updatedMsg) => {
+    const index = messages.value.findIndex(m => m.id === updatedMsg.id);
+    if (index !== -1) {
+      messages.value[index] = { ...messages.value[index], ...updatedMsg };
+    }
+  });
+
+  socket.on("message-deleted", ({ messageId }) => {
+    messages.value = messages.value.filter(m => m.id !== messageId);
   });
 });
 
@@ -190,12 +226,14 @@ watch(activeTab, () => {
 
       <!-- タイムラインエリア -->
       <div class="timeline" ref="messageListRef" @scroll="handleScroll">
-        <MessageItem
-          v-for="msg in messages"
-          :key="msg.id"
+        <MessageItem 
+          v-for="msg in messages" 
+          :key="msg.id" 
           :msg="msg"
           @reply="startReply"
           @react="handleReact"
+          @edit="handleEdit"
+          @delete="handleDelete"
         />
         <div v-if="loading" class="loading">{{ authStore.t.now_loading }}</div>
         <div v-if="!hasMore && messages.length > 0" class="no-more">
@@ -214,27 +252,16 @@ watch(activeTab, () => {
       <!-- 投稿モーダル -->
       <PostModal
         :show="showPostModal"
-        :placeholder="
-          replyingTo
-            ? `${replyingTo.author_name} への返信...`
-            : authStore.t.whats_happening
-        "
+        :placeholder="replyingTo ? `${replyingTo.author_name} への返信...` : authStore.t.whats_happening"
         :btn-text="replyingTo ? '返信する' : authStore.t.post_btn"
         :title="replyingTo ? '返信' : authStore.t.new_post"
-        @close="
-          showPostModal = false;
-          replyingTo = null;
-        "
+        @close="showPostModal = false; replyingTo = null"
         @submit="handlePost"
       >
         <template #header-extra v-if="replyingTo">
           <div class="replying-preview">
-            <span class="replying-to"
-              >返信先: {{ replyingTo.author_name }}</span
-            >
-            <button class="clear-reply" @click="replyingTo = null">
-              <X :size="14" />
-            </button>
+            <span class="replying-to">返信先: {{ replyingTo.author_name }}</span>
+            <button class="clear-reply" @click="replyingTo = null"><X :size="14" /></button>
           </div>
         </template>
       </PostModal>
@@ -333,6 +360,7 @@ main {
   background: var(--accent);
   color: white;
   border: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   display: flex;
   justify-content: center;
@@ -342,7 +370,8 @@ main {
 }
 
 .fab:hover {
-  background-color: var(--light-accent);
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
 }
 
 .plus {

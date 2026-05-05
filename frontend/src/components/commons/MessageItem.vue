@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, watch, onUnmounted } from 'vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { 
@@ -8,7 +8,10 @@ import {
   MoreHorizontal,
   CornerDownRight,
   Copy,
-  Check
+  Check,
+  Pencil,
+  Trash2,
+  MoreVertical
 } from 'lucide-vue-next';
 import { useAuthStore } from '../../stores/auth';
 import { createHighlighter } from 'shiki';
@@ -18,14 +21,22 @@ const props = defineProps<{
   isReply?: boolean;
 }>();
 
-const emit = defineEmits(['reply', 'react']);
+const emit = defineEmits(['reply', 'react', 'edit', 'delete']);
 
 const authStore = useAuthStore();
 const showEmojiPicker = ref(false);
 const highlightedHtml = ref('');
 const isCopying = ref(false);
 
-// Escape raw HTML tags so they are shown as text instead of being stripped by DOMPurify
+// Edit State
+const isEditing = ref(false);
+const editContent = ref(props.msg.content);
+const editInput = ref<HTMLTextAreaElement | null>(null);
+
+// Context Menu State
+const showContextMenu = ref(false);
+const menuPos = ref({ x: 0, y: 0 });
+
 function escapeHtml(unsafe: string) {
   return unsafe
     .replace(/&/g, "&amp;")
@@ -35,9 +46,7 @@ function escapeHtml(unsafe: string) {
     .replace(/'/g, "&#039;");
 }
 
-// Shiki highlighter instance
 let highlighter: any = null;
-
 async function initHighlighter() {
   if (!highlighter) {
     highlighter = await createHighlighter({
@@ -49,39 +58,33 @@ async function initHighlighter() {
 
 async function renderContent() {
   await initHighlighter();
-  
-  // 1. Escape HTML first to prevent XSS and tag stripping
   const escapedContent = escapeHtml(props.msg.content || '');
-  
-  // 2. Configure marked to use shiki for code blocks
   const renderer = new marked.Renderer();
   renderer.code = ({ text, lang }) => {
     const theme = authStore.theme === 'light' ? 'github-light' : 'github-dark';
     try {
       const html = highlighter.codeToHtml(text, { lang: lang || 'text', theme });
-      return `
-        <div class="code-block-wrapper">
-          <div class="code-lang">${lang || 'text'}</div>
-          ${html}
-        </div>
-      `;
+      return `<div class="code-block-wrapper"><div class="code-lang">${lang || 'text'}</div>${html}</div>`;
     } catch (e) {
       return `<pre><code>${text}</code></pre>`;
     }
   };
-
   const rawHtml = await marked.parse(escapedContent, { renderer, async: true });
-  
-  // 3. Final sanitize for safety
   highlightedHtml.value = DOMPurify.sanitize(rawHtml);
 }
 
 onMounted(() => {
   renderContent();
+  window.addEventListener('click', closeMenus);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('click', closeMenus);
 });
 
 watch(() => props.msg.content, () => {
   renderContent();
+  editContent.value = props.msg.content;
 });
 
 watch(() => authStore.theme, () => {
@@ -93,22 +96,84 @@ const emojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🚀', '✅',
 function handleReact(emoji: string) {
   emit('react', props.msg.id, emoji);
   showEmojiPicker.value = false;
+  showContextMenu.value = false;
 }
 
-const hasMyReaction = (emoji: string) => {
-  const users = props.msg.reactions?.[emoji] || [];
-  return users.includes(authStore.user?.id);
-};
+function handleReply() {
+  emit('reply', props.msg);
+  showContextMenu.value = false;
+}
+
+function startEdit() {
+  isEditing.value = true;
+  showContextMenu.value = false;
+  setTimeout(() => editInput.value?.focus(), 50);
+}
+
+function cancelEdit() {
+  isEditing.value = false;
+  editContent.value = props.msg.content;
+}
+
+async function submitEdit() {
+  if (!editContent.value.trim() || editContent.value === props.msg.content) {
+    cancelEdit();
+    return;
+  }
+  emit('edit', props.msg.id, editContent.value);
+  isEditing.value = false;
+}
+
+function handleDelete() {
+  if (confirm('このメッセージを削除しますか？')) {
+    emit('delete', props.msg.id);
+  }
+  showContextMenu.value = false;
+}
+
+function openContextMenu(e: MouseEvent) {
+  e.preventDefault();
+  menuPos.value = { x: e.clientX, y: e.clientY };
+  showContextMenu.value = true;
+}
+
+function closeMenus() {
+  showContextMenu.value = false;
+  showEmojiPicker.value = false;
+}
 
 function copyToClipboard() {
   navigator.clipboard.writeText(props.msg.content);
   isCopying.value = true;
+  showContextMenu.value = false;
   setTimeout(() => isCopying.value = false, 2000);
 }
+
+const isAuthor = computed(() => authStore.user?.id === props.msg.user_id);
+const hasMyReaction = (emoji: string) => (props.msg.reactions?.[emoji] || []).includes(authStore.user?.id);
 </script>
 
 <template>
-  <div class="message-container" :class="{ 'is-reply': isReply, 'dim-theme': authStore.theme === 'dim' }">
+  <div 
+    class="message-container" 
+    :class="{ 'is-reply': isReply, 'is-editing': isEditing }"
+    @contextmenu="openContextMenu"
+  >
+    <!-- Action Bar (Top Right) -->
+    <div v-if="!isEditing && !isReply" class="message-actions-bar">
+      <button class="action-btn" @click="handleReply" title="返信"><Reply :size="18" /></button>
+      <div class="emoji-trigger">
+        <button class="action-btn" @click.stop="showEmojiPicker = !showEmojiPicker" title="リアクション"><Smile :size="18" /></button>
+        <div v-if="showEmojiPicker" class="emoji-picker mini">
+          <span v-for="e in emojis.slice(0, 6)" :key="e" @click="handleReact(e)" class="picker-emoji">{{ e }}</span>
+          <button class="more-emojis" @click.stop="showContextMenu = true">...</button>
+        </div>
+      </div>
+      <button v-if="isAuthor" class="action-btn" @click="startEdit" title="編集"><Pencil :size="18" /></button>
+      <button v-if="isAuthor" class="action-btn delete" @click="handleDelete" title="削除"><Trash2 :size="18" /></button>
+      <button class="action-btn" @click.stop="openContextMenu" title="その他"><MoreHorizontal :size="18" /></button>
+    </div>
+
     <!-- Parent Reply Reference -->
     <div v-if="msg.parent_msg && !isReply" class="reply-reference">
       <CornerDownRight :size="14" class="reply-icon" />
@@ -124,9 +189,24 @@ function copyToClipboard() {
         <div class="message-header">
           <span class="author-name">{{ msg.author_name }}</span>
           <span class="timestamp">{{ new Date(msg.created_at).toLocaleString() }}</span>
+          <span v-if="msg.edit_history?.length > 0" class="edited-tag">(編集済)</span>
         </div>
         
-        <div class="message-body markdown-body" v-html="highlightedHtml"></div>
+        <!-- Normal Display -->
+        <div v-if="!isEditing" class="message-body markdown-body" v-html="highlightedHtml"></div>
+        
+        <!-- Inline Edit UI -->
+        <div v-else class="edit-ui">
+          <textarea 
+            ref="editInput" 
+            v-model="editContent" 
+            @keydown.enter.prevent="submitEdit"
+            @keydown.esc="cancelEdit"
+          ></textarea>
+          <div class="edit-controls">
+            <span>Escで<button class="link-btn" @click="cancelEdit">キャンセル</button> • Enterで<button class="link-btn save" @click="submitEdit">保存</button></span>
+          </div>
+        </div>
 
         <!-- Reactions -->
         <div v-if="msg.reactions && Object.keys(msg.reactions).length > 0" class="reactions-list">
@@ -141,35 +221,29 @@ function copyToClipboard() {
             <span class="count">{{ users.length }}</span>
           </div>
         </div>
-
-        <!-- Actions -->
-        <div class="message-actions">
-          <button class="action-btn" @click="emit('reply', msg)" title="返信">
-            <Reply :size="16" />
-          </button>
-          <div class="emoji-trigger">
-            <button class="action-btn" @click="showEmojiPicker = !showEmojiPicker" title="リアクション">
-              <Smile :size="16" />
-            </button>
-            <div v-if="showEmojiPicker" class="emoji-picker">
-              <span 
-                v-for="e in emojis" 
-                :key="e" 
-                @click="handleReact(e)"
-                class="picker-emoji"
-              >{{ e }}</span>
-            </div>
-          </div>
-          <button class="action-btn" @click="copyToClipboard" title="コピー">
-            <Check v-if="isCopying" :size="16" color="#2ed573" />
-            <Copy v-else :size="16" />
-          </button>
-          <button class="action-btn">
-            <MoreHorizontal :size="16" />
-          </button>
-        </div>
       </div>
     </div>
+
+    <!-- Context Menu -->
+    <Teleport to="body">
+      <div 
+        v-if="showContextMenu" 
+        class="context-menu" 
+        :style="{ top: menuPos.y + 'px', left: menuPos.x + 'px' }"
+        @click.stop
+      >
+        <div class="menu-section emoji-strip">
+          <span v-for="e in emojis.slice(0, 8)" :key="e" @click="handleReact(e)" class="menu-emoji">{{ e }}</span>
+        </div>
+        <div class="menu-item" @click="handleReply"><Reply :size="16" /> 返信</div>
+        <div class="menu-item" @click="copyToClipboard">
+          <component :is="isCopying ? Check : Copy" :size="16" :color="isCopying ? '#2ed573' : undefined" /> 
+          メッセージリンクをコピー
+        </div>
+        <div v-if="isAuthor" class="menu-item" @click="startEdit"><Pencil :size="16" /> メッセージを編集</div>
+        <div v-if="isAuthor" class="menu-item delete" @click="handleDelete"><Trash2 :size="16" /> メッセージを削除</div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -180,7 +254,7 @@ function copyToClipboard() {
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
-  transition: background 0.2s;
+  transition: background 0.1s;
   position: relative;
 }
 
@@ -193,6 +267,51 @@ function copyToClipboard() {
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* Action Bar */
+.message-actions-bar {
+  position: absolute;
+  top: -16px;
+  right: 20px;
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 2px;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.message-container:hover .message-actions-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: var(--secondary);
+  color: var(--accent);
+}
+
+.action-btn.delete:hover {
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.1);
+}
+
+/* Reply & Info */
 .reply-reference {
   display: flex;
   align-items: center;
@@ -204,216 +323,122 @@ function copyToClipboard() {
   opacity: 0.7;
 }
 
-.reply-author {
-  font-weight: 800;
-  color: var(--accent);
-}
+.reply-author { font-weight: 800; color: var(--accent); }
+.reply-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
 
-.reply-preview {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 400px;
-}
+.message-main { display: flex; gap: 16px; }
+.author-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+.content-column { flex: 1; min-width: 0; }
+.message-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.author-name { font-weight: 900; color: var(--text-primary); font-size: 1.05rem; }
+.timestamp { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
+.edited-tag { font-size: 0.65rem; color: var(--text-secondary); margin-left: 4px; }
 
-.message-main {
-  display: flex;
-  gap: 16px;
-}
+.message-body { line-height: 1.6; color: var(--text-primary); word-break: break-word; font-size: 1rem; }
 
-.avatar-column {
-  flex-shrink: 0;
-}
-
-.author-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.content-column {
-  flex: 1;
-  min-width: 0;
-}
-
-.message-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.author-name {
-  font-weight: 900;
+/* Edit UI */
+.edit-ui textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--secondary);
   color: var(--text-primary);
-  font-size: 1.05rem;
+  border: 1px solid var(--accent);
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
 }
 
-.timestamp {
+.edit-controls {
+  margin-top: 8px;
   font-size: 0.75rem;
   color: var(--text-secondary);
-  font-weight: 500;
 }
 
-.message-body {
-  line-height: 1.6;
-  color: var(--text-primary);
-  word-break: break-word;
-  font-size: 1rem;
-}
-
-/* Markdown styling - Shiki Integration */
-:deep(.markdown-body p) {
-  margin-bottom: 0.8rem;
-}
-:deep(.markdown-body p:last-child) {
-  margin-bottom: 0;
-}
-
-:deep(.markdown-body pre) {
-  margin: 1rem 0;
-  padding: 1.2rem;
-  border-radius: 12px;
-  overflow-x: auto;
-  font-family: 'Fira Code', 'Cascadia Code', monospace;
-  font-size: 0.9rem;
-  border: 1px solid var(--border);
-}
-
-:deep(.shiki) {
-  background-color: #1e1e1e !important; /* Default fallback */
-}
-
-[data-theme="light"] :deep(.shiki) {
-  background-color: #f6f8fa !important;
-}
-
-:deep(.markdown-body code:not(pre code)) {
-  background: var(--secondary);
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  font-family: monospace;
-  font-weight: 600;
-  font-size: 0.9em;
-  color: var(--accent);
-}
-
-.reactions-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.reaction-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--secondary);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  font-size: 0.95rem;
-  user-select: none;
-}
-
-.reaction-badge:hover {
-  border-color: var(--accent);
-  transform: scale(1.05);
-}
-
-.reaction-badge.active {
-  background: rgba(var(--accent-rgb), 0.12);
-  border-color: var(--accent);
-}
-
-.reaction-badge.active .count {
-  color: var(--accent);
-}
-
-.count {
-  font-weight: 800;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.message-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 12px;
-  opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-  transform: translateY(5px);
-}
-
-.message-container:hover .message-actions {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.action-btn {
+.link-btn {
   background: transparent;
   border: none;
-  padding: 6px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: var(--secondary);
   color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 700;
 }
 
-.emoji-trigger {
-  position: relative;
-}
+.link-btn:hover { text-decoration: underline; }
+.link-btn.save { color: #2ed573; }
 
-.emoji-picker {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
+/* Context Menu */
+.context-menu {
+  position: fixed;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 10px;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-  z-index: 100;
-  margin-bottom: 12px;
-  width: max-content;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  padding: 8px;
+  min-width: 220px;
+  z-index: 9999;
 }
 
-.picker-emoji {
+.emoji-strip {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.menu-emoji {
   cursor: pointer;
   font-size: 1.4rem;
-  padding: 4px;
-  border-radius: 8px;
-  transition: all 0.1s;
+  transition: transform 0.1s;
+}
+.menu-emoji:hover { transform: scale(1.3); }
+
+.menu-item {
+  padding: 10px 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
 }
 
-.picker-emoji:hover {
-  background: var(--secondary);
-  transform: scale(1.2);
+.menu-item:hover { background: var(--accent); color: white; }
+.menu-item.delete { color: #ff4757; }
+.menu-item.delete:hover { background: #ff4757; color: white; }
+
+/* Reactions */
+.reactions-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.reaction-badge {
+  display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+  background: var(--secondary); border: 1px solid var(--border); border-radius: 10px;
+  cursor: pointer; transition: all 0.2s; font-size: 0.95rem;
+}
+.reaction-badge:hover { border-color: var(--accent); }
+.reaction-badge.active { background: rgba(var(--accent-rgb), 0.12); border-color: var(--accent); }
+
+/* Emoji Picker Mini */
+.emoji-picker.mini {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  margin-bottom: 8px;
 }
 
-@media (max-width: 600px) {
-  .message-actions {
-    opacity: 1;
-    transform: none;
-  }
+.more-emojis {
+  background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-weight: 800;
 }
 </style>
