@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Users, 
-  ChevronRight, 
+import {
+  Search,
+  Filter,
+  Plus,
+  Users,
+  ChevronRight,
   X,
   Compass,
-  LayoutGrid
+  LayoutGrid,
 } from "lucide-vue-next";
 import CreateServerModal from "./CreateServerModal.vue";
 
@@ -28,9 +28,9 @@ const isLoading = ref(false);
 const fetchPublicServers = async () => {
   isLoading.value = true;
   try {
-    const url = new URL(`/api/servers`);
+    const url = new URL(`/api/servers`, window.location.origin);
     if (searchQuery.value) url.searchParams.append("search", searchQuery.value);
-    
+
     const res = await fetch(url.toString());
     if (res.ok) {
       publicServers.value = await res.json();
@@ -40,6 +40,14 @@ const fetchPublicServers = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+const isServerJoined = (server: any) => {
+  if (!authStore.user) return false;
+  return (
+    server.serverowner === authStore.user.id ||
+    (server.serverjoins || []).includes(authStore.user.id)
+  );
 };
 
 const joinServer = async (serverId: number) => {
@@ -76,8 +84,9 @@ watch(searchQuery, () => {
   return () => clearTimeout(timeout);
 });
 
-const handleServerCreated = (newServer: any) => {
+const handleServerCreated = async (newServer: any) => {
   isCreatingServer.value = false;
+  await fetchPublicServers();
   emit("joined"); // Trigger sidebar refresh
   emit("close");
 };
@@ -92,15 +101,13 @@ const handleServerCreated = (newServer: any) => {
           <Compass :size="20" />
           <h3>コミュニティ</h3>
         </div>
-        
+
         <button class="btn-create-server" @click="isCreatingServer = true">
           <Plus :size="18" /> サーバーを作成
         </button>
 
         <div class="menu-items">
-          <div class="menu-item active">
-            <LayoutGrid :size="18" /> ホーム
-          </div>
+          <div class="menu-item active"><LayoutGrid :size="18" /> ホーム</div>
           <!-- 将来的にカテゴリなどを追加可能 -->
         </div>
 
@@ -114,10 +121,10 @@ const handleServerCreated = (newServer: any) => {
         <header class="content-header">
           <div class="search-bar">
             <Search :size="18" class="search-icon" />
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              placeholder="サーバーを検索..." 
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="サーバーを検索..."
               @keyup.enter="fetchPublicServers"
             />
           </div>
@@ -133,9 +140,9 @@ const handleServerCreated = (newServer: any) => {
             サーバーが見つかりませんでした
           </div>
           <div v-else class="server-grid">
-            <div 
-              v-for="server in publicServers" 
-              :key="server.id" 
+            <div
+              v-for="server in publicServers"
+              :key="server.id"
               class="server-card"
             >
               <div class="card-header">
@@ -148,17 +155,24 @@ const handleServerCreated = (newServer: any) => {
                 <div class="server-info">
                   <h4 class="server-name">{{ server.name }}</h4>
                   <p class="server-desc">
-                    {{ server.serversettings?.description || 'このサーバーに説明はありません。' }}
+                    {{
+                      server.serversettings?.description ||
+                      "このサーバーに説明はありません。"
+                    }}
                   </p>
                   <div class="server-meta">
                     <span class="members">
-                      <Users :size="14" /> 
+                      <Users :size="14" />
                       {{ (server.serverjoins?.length || 0) + 1 }} メンバー
                     </span>
                   </div>
                 </div>
-                <button class="join-btn" @click="joinServer(server.id)">
-                  参加する
+                <button
+                  class="join-btn"
+                  :disabled="isServerJoined(server)"
+                  @click="joinServer(server.id)"
+                >
+                  {{ isServerJoined(server) ? "参加済み" : "参加する" }}
                 </button>
               </div>
             </div>
@@ -168,9 +182,9 @@ const handleServerCreated = (newServer: any) => {
     </div>
 
     <!-- Sub-modal for server creation -->
-    <CreateServerModal 
-      v-if="isCreatingServer" 
-      @close="isCreatingServer = false" 
+    <CreateServerModal
+      v-if="isCreatingServer"
+      @close="isCreatingServer = false"
       @created="handleServerCreated"
     />
   </div>
@@ -455,11 +469,18 @@ const handleServerCreated = (newServer: any) => {
   transition: background 0.2s;
 }
 
+.join-btn:disabled {
+  background: var(--border);
+  color: var(--text-secondary);
+  cursor: default;
+}
+
 .join-btn:hover {
   background: var(--accent);
 }
 
-.loading, .empty {
+.loading,
+.empty {
   text-align: center;
   padding: 40px;
   color: var(--text-secondary);

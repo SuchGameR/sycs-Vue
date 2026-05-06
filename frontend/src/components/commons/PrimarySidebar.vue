@@ -14,14 +14,11 @@ const fetchMyServers = async () => {
     return;
   }
   try {
-    const res = await fetch(
-      `/api/servers/mine`,
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
+    const res = await fetch(`/api/servers/mine`, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+    });
     if (res.ok) {
       servers.value = await res.json();
     }
@@ -34,9 +31,12 @@ onMounted(() => {
   fetchMyServers();
 });
 
-watch(() => authStore.token, () => {
-  fetchMyServers();
-});
+watch(
+  () => authStore.token,
+  () => {
+    fetchMyServers();
+  },
+);
 
 const handleRefresh = () => {
   fetchMyServers();
@@ -59,6 +59,7 @@ const handleRefresh = () => {
     ui="Compass"
     @click="isCommunityModalOpen = true"
   />
+  <div class="sidebar-section-title">参加中のサーバー</div>
   <div class="server-list">
     <PrimaryButton
       v-for="server in servers"
@@ -67,6 +68,9 @@ const handleRefresh = () => {
       ui="Server"
       :url="`/server/${server.id}`"
     />
+    <div v-if="servers.length === 0" class="server-empty">
+      参加中のサーバーはありません
+    </div>
   </div>
 
   <CommunityModal
@@ -96,5 +100,20 @@ hr {
 .server-list * {
   width: 100%;
   flex: 1;
+}
+
+.sidebar-section-title {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 16px 0 8px;
+  padding-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.server-empty {
+  padding: 12px 8px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
 }
 </style>

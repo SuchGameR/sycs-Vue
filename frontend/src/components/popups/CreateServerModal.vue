@@ -6,6 +6,7 @@ const emit = defineEmits(["close", "created"]);
 const authStore = useAuthStore();
 
 const serverName = ref("");
+const description = ref("");
 const visibility = ref("public");
 const isSubmitting = ref(false);
 
@@ -14,22 +15,20 @@ const createServer = async () => {
   isSubmitting.value = true;
   try {
     // 開発サーバーのバックエンドは3001番ポート
-    const res = await fetch(
-      `/api/servers`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({
-          name: serverName.value,
-          settings: {
-            visibility: visibility.value,
-          },
-        }),
+    const res = await fetch(`/api/servers`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({
+        name: serverName.value,
+        settings: {
+          visibility: visibility.value,
+          description: description.value.trim(),
+        },
+      }),
+    });
 
     if (res.ok) {
       const data = await res.json();
@@ -66,23 +65,41 @@ const createServer = async () => {
       </div>
 
       <div class="input-group">
+        <label>サーバー説明</label>
+        <textarea
+          v-model="description"
+          placeholder="サーバーの目的や案内を入力してください"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="input-group">
         <label>公開設定</label>
         <div class="visibility-options">
-          <label class="radio-card" :class="{ active: visibility === 'public' }">
+          <label
+            class="radio-card"
+            :class="{ active: visibility === 'public' }"
+          >
             <input type="radio" v-model="visibility" value="public" />
             <div class="radio-info">
               <span class="label">公開</span>
               <span class="desc">誰でも見つけて参加できます。</span>
             </div>
           </label>
-          <label class="radio-card" :class="{ active: visibility === 'private' }">
+          <label
+            class="radio-card"
+            :class="{ active: visibility === 'private' }"
+          >
             <input type="radio" v-model="visibility" value="private" />
             <div class="radio-info">
               <span class="label">非公開</span>
               <span class="desc">サーバー一覧に表示されません。</span>
             </div>
           </label>
-          <label class="radio-card" :class="{ active: visibility === 'limited' }">
+          <label
+            class="radio-card"
+            :class="{ active: visibility === 'limited' }"
+          >
             <input type="radio" v-model="visibility" value="limited" />
             <div class="radio-info">
               <span class="label">限定</span>
@@ -164,7 +181,8 @@ const createServer = async () => {
   color: #ed4245;
 }
 
-.input-group input[type="text"] {
+.input-group input[type="text"],
+.input-group textarea {
   width: 100%;
   padding: 10px;
   border-radius: 4px;
@@ -177,7 +195,8 @@ const createServer = async () => {
   background-color: var(--surface);
 }
 
-.input-group input[type="text"]:focus {
+.input-group input[type="text"]:focus,
+.input-group textarea:focus {
   border-color: #5865f2;
 }
 

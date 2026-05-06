@@ -20,7 +20,11 @@ const replyingTo = ref(null);
 const showSettings = ref(false);
 
 const isOwner = computed(() => {
-  return currentServer.value && authStore.user && currentServer.value.serverowner === authStore.user.id;
+  return (
+    currentServer.value &&
+    authStore.user &&
+    currentServer.value.serverowner === authStore.user.id
+  );
 });
 
 const socket = io("/", { path: "/socket.io" });
@@ -30,17 +34,23 @@ const fetchData = async () => {
   if (!serverId) return;
 
   try {
-    const sRes = await fetch(
-      `/api/servers`,
-    );
-    const servers = await sRes.json();
-    currentServer.value = servers.find(
-      (s) => String(s.id) === String(serverId),
-    );
+    const headers = {};
+    if (authStore.isAuthenticated) {
+      headers.Authorization = `Bearer ${authStore.token}`;
+    }
 
-    const cRes = await fetch(
-      `/api/servers/${serverId}/channels`,
-    );
+    const sRes = await fetch(`/api/servers/${serverId}`, {
+      headers,
+    });
+
+    if (!sRes.ok) {
+      console.error("Failed to load server", await sRes.text());
+      return;
+    }
+
+    currentServer.value = await sRes.json();
+
+    const cRes = await fetch(`/api/servers/${serverId}/channels`);
     channels.value = await cRes.json();
 
     if (channels.value.length > 0) {
@@ -57,9 +67,7 @@ const fetchData = async () => {
 const fetchMessages = async () => {
   if (!currentChannelId.value) return;
   try {
-    const res = await fetch(
-      `/api/channels/${currentChannelId.value}/messages`,
-    );
+    const res = await fetch(`/api/channels/${currentChannelId.value}/messages`);
     messages.value = await res.json();
     scrollToBottom();
   } catch (e) {
@@ -75,17 +83,14 @@ const sendMessage = async () => {
   replyingTo.value = null;
 
   try {
-    await fetch(
-      `/api/channels/${currentChannelId.value}/messages`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({ content, parent_id }),
+    await fetch(`/api/channels/${currentChannelId.value}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({ content, parent_id }),
+    });
   } catch (e) {
     console.error(e);
   }
@@ -101,17 +106,14 @@ const handleKeydown = (e) => {
 
 const handleReact = async (messageId, emoji) => {
   try {
-    await fetch(
-      `/api/messages/${messageId}/reactions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({ emoji }),
+    await fetch(`/api/messages/${messageId}/reactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({ emoji }),
+    });
   } catch (e) {
     console.error(e);
   }
@@ -119,17 +121,14 @@ const handleReact = async (messageId, emoji) => {
 
 const handleEdit = async (messageId, content) => {
   try {
-    await fetch(
-      `/api/messages/${messageId}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({ content }),
+    await fetch(`/api/messages/${messageId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({ content }),
+    });
   } catch (e) {
     console.error(e);
   }
@@ -137,15 +136,12 @@ const handleEdit = async (messageId, content) => {
 
 const handleDelete = async (messageId) => {
   try {
-    await fetch(
-      `/api/messages/${messageId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
+    await fetch(`/api/messages/${messageId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+    });
   } catch (e) {
     console.error(e);
   }
@@ -223,7 +219,11 @@ watch(
               <h1>{{ currentServer.name }}</h1>
               <span class="server-id">ID: {{ currentServer.serverid }}</span>
             </div>
-            <button v-if="isOwner" class="settings-trigger" @click="showSettings = true">
+            <button
+              v-if="isOwner"
+              class="settings-trigger"
+              @click="showSettings = true"
+            >
               <SettingsIcon :size="20" />
             </button>
           </div>
@@ -282,9 +282,9 @@ watch(
       </div>
     </Vertical>
 
-    <ServerSettingsModal 
-      :show="showSettings" 
-      :server="currentServer" 
+    <ServerSettingsModal
+      :show="showSettings"
+      :server="currentServer"
       @close="showSettings = false"
       @updated="handleServerUpdated"
     />
@@ -358,16 +358,16 @@ main {
   font-weight: 800;
   color: white;
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .server-id {
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .settings-trigger {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border: none;
   border-radius: 50%;
   width: 36px;
@@ -381,7 +381,7 @@ main {
 }
 
 .settings-trigger:hover {
-  background: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.4);
   transform: rotate(45deg);
 }
 

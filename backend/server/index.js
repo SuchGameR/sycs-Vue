@@ -111,6 +111,18 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const getUserFromToken = (req) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return null;
+
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+};
+
 // ... (Auth Routes: signup, signin, me, settings - unchanged) ...
 
 // --- Auth Routes ---
@@ -279,6 +291,50 @@ app.get("/api/servers", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch public servers" });
+  }
+});
+
+app.get("/api/servers/:serverId", async (req, res) => {
+  const { serverId } = req.params;
+  const user = getUserFromToken(req);
+
+  try {
+    const result = await pool.query("SELECT * FROM servers WHERE id = $1", [
+      serverId,
+    ]);
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Server not found" });
+
+    const server = result.rows[0];
+    const visibility = server.serversettings?.visibility || "public";
+    const joinedUsers = server.serverjoins || [];
+
+    if (visibility === "public") {
+      return res.json(server);
+    }
+
+    if (!user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (visibility === "private") {
+      if (server.serverowner !== user.id) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      return res.json(server);
+    }
+
+    if (visibility === "limited") {
+      if (server.serverowner === user.id || joinedUsers.includes(user.id)) {
+        return res.json(server);
+      }
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    res.json(server);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch server" });
   }
 });
 
