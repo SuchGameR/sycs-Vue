@@ -1,33 +1,45 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import PrimaryButton from "../commons/PrimaryButton.vue";
-import CreateServerModal from "../popups/CreateServerModal.vue";
+import CommunityModal from "../popups/CommunityModal.vue";
 
 const authStore = useAuthStore();
 const servers = ref([]);
-const isCreateModalOpen = ref(false);
+const isCommunityModalOpen = ref(false);
 
-const fetchServers = async () => {
+const fetchMyServers = async () => {
+  if (!authStore.isAuthenticated) {
+    servers.value = [];
+    return;
+  }
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/servers`,
+      `http://${window.location.hostname}:3001/api/servers/mine`,
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+      },
     );
     if (res.ok) {
       servers.value = await res.json();
     }
   } catch (e) {
-    console.error("Failed to fetch servers", e);
+    console.error("Failed to fetch my servers", e);
   }
 };
 
 onMounted(() => {
-  fetchServers();
+  fetchMyServers();
 });
 
-const handleServerCreated = (newServer) => {
-  servers.value.push(newServer);
-  isCreateModalOpen.value = false;
+watch(() => authStore.token, () => {
+  fetchMyServers();
+});
+
+const handleRefresh = () => {
+  fetchMyServers();
 };
 </script>
 
@@ -44,8 +56,8 @@ const handleServerCreated = (newServer) => {
 
   <PrimaryButton
     :name="authStore.t.add_server"
-    ui="HousePlus"
-    @click="isCreateModalOpen = true"
+    ui="Compass"
+    @click="isCommunityModalOpen = true"
   />
   <div class="server-list">
     <PrimaryButton
@@ -57,10 +69,10 @@ const handleServerCreated = (newServer) => {
     />
   </div>
 
-  <CreateServerModal
-    v-if="isCreateModalOpen"
-    @close="isCreateModalOpen = false"
-    @created="handleServerCreated"
+  <CommunityModal
+    :show="isCommunityModalOpen"
+    @close="isCommunityModalOpen = false"
+    @joined="handleRefresh"
   />
 </template>
 
