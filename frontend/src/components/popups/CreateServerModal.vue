@@ -1,8 +1,12 @@
 <script setup>
 import { ref } from "vue";
+import { useAuthStore } from "@/stores/auth";
 
 const emit = defineEmits(["close", "created"]);
+const authStore = useAuthStore();
+
 const serverName = ref("");
+const visibility = ref("public");
 const isSubmitting = ref(false);
 
 const createServer = async () => {
@@ -14,8 +18,16 @@ const createServer = async () => {
       `http://${window.location.hostname}:3001/api/servers`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: serverName.value }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({
+          name: serverName.value,
+          settings: {
+            visibility: visibility.value,
+          },
+        }),
       },
     );
 
@@ -51,6 +63,33 @@ const createServer = async () => {
           ref="nameInput"
           autofocus
         />
+      </div>
+
+      <div class="input-group">
+        <label>公開設定</label>
+        <div class="visibility-options">
+          <label class="radio-card" :class="{ active: visibility === 'public' }">
+            <input type="radio" v-model="visibility" value="public" />
+            <div class="radio-info">
+              <span class="label">公開</span>
+              <span class="desc">誰でも見つけて参加できます。</span>
+            </div>
+          </label>
+          <label class="radio-card" :class="{ active: visibility === 'private' }">
+            <input type="radio" v-model="visibility" value="private" />
+            <div class="radio-info">
+              <span class="label">非公開</span>
+              <span class="desc">サーバー一覧に表示されません。</span>
+            </div>
+          </label>
+          <label class="radio-card" :class="{ active: visibility === 'limited' }">
+            <input type="radio" v-model="visibility" value="limited" />
+            <div class="radio-info">
+              <span class="label">限定</span>
+              <span class="desc">招待された人のみが参加できます。</span>
+            </div>
+          </label>
+        </div>
       </div>
 
       <div class="actions">
@@ -125,7 +164,7 @@ const createServer = async () => {
   color: #ed4245;
 }
 
-.input-group input {
+.input-group input[type="text"] {
   width: 100%;
   padding: 10px;
   border-radius: 4px;
@@ -138,8 +177,53 @@ const createServer = async () => {
   background-color: var(--surface);
 }
 
-.input-group input:focus {
+.input-group input[type="text"]:focus {
   border-color: #5865f2;
+}
+
+.visibility-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border-subtle, #ccc);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--surface);
+}
+
+.radio-card:hover {
+  background: var(--hover-bg, #f9f9f9);
+}
+
+.radio-card.active {
+  border-color: #5865f2;
+  background: rgba(88, 101, 242, 0.05);
+}
+
+.radio-card input {
+  margin-right: 12px;
+}
+
+.radio-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.radio-info .label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.radio-info .desc {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
 }
 
 .actions {

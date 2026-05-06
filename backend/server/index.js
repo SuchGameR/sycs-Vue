@@ -265,14 +265,22 @@ app.get("/api/servers", async (req, res) => {
 });
 
 // Create a new server
-app.post("/api/servers", async (req, res) => {
-  const { name, icon } = req.body;
+app.post("/api/servers", authenticateToken, async (req, res) => {
+  const { name, icon, settings } = req.body;
+  const owner_id = req.user.id;
+
   if (!name) return res.status(400).json({ error: "Server name is required" });
 
   try {
+    const defaultSettings = {
+      visibility: "public", // 'public', 'private', 'limited'
+      allow_invite: true,
+      ...settings,
+    };
+
     const serverResult = await pool.query(
-      "INSERT INTO servers (name, icon) VALUES ($1, $2) RETURNING *",
-      [name, icon || null],
+      "INSERT INTO servers (name, icon, serverowner, serversettings) VALUES ($1, $2, $3, $4) RETURNING *",
+      [name, icon || null, owner_id, JSON.stringify(defaultSettings)],
     );
     const newServer = serverResult.rows[0];
     await pool.query("INSERT INTO channels (server_id, name) VALUES ($1, $2)", [

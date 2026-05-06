@@ -8,13 +8,14 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- 既存のテーブルを削除（CASCADEを使用して依存関係を解消）
+-- 既存のテーブルを削除
 DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS channels CASCADE;
 DROP TABLE IF EXISTS servers CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS follows CASCADE;
 DROP TABLE IF EXISTS message_likes CASCADE;
+DROP TABLE IF EXISTS bookmarks CASCADE;
 
 -- 3. ユーザーテーブル (Account)
 CREATE TABLE users (
@@ -27,7 +28,8 @@ CREATE TABLE users (
     avatar_url VARCHAR(255),
     header_url VARCHAR(255),
     attributes JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 4. サーバーテーブル (Server)
@@ -40,7 +42,8 @@ CREATE TABLE servers (
     serverjoins JSONB DEFAULT '[]'::jsonb,
     serversettings JSONB DEFAULT '{}'::jsonb,
     attributes JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. チャンネルテーブル (Channel)
@@ -51,7 +54,8 @@ CREATE TABLE channels (
     name VARCHAR(255) NOT NULL,
     channelsettings JSONB DEFAULT '{}'::jsonb,
     attributes JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 6. メッセージテーブル (Message)
@@ -71,7 +75,8 @@ CREATE TABLE messages (
     edit_history JSONB DEFAULT '[]'::jsonb,
     attributes JSONB DEFAULT '{}'::jsonb,
     views_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 7. フォローテーブル
@@ -83,7 +88,7 @@ CREATE TABLE follows (
     UNIQUE(follower_id, following_id)
 );
 
--- 8. いいねテーブル (レコメンド計算用)
+-- 8. いいねテーブル
 CREATE TABLE message_likes (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

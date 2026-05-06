@@ -25,7 +25,7 @@ function handleProfileClick() {
       <!-- Logo -->
       <div class="logo-icon">
         <img src="/svgLogoOutline.svg" alt="SYCS" />
-        <span class="version">1.2.14</span>
+        <span class="version">1.2.15</span>
       </div>
 
       <PrimarySidebar />
@@ -88,8 +88,8 @@ aside {
   scrollbar-width: none;
   container-type: inline-size;
   container-name: small;
-
   overflow: visible;
+  overflow-y: scroll;
   min-width: 80px;
 
   width: 100%;
