@@ -294,6 +294,110 @@ app.post("/api/servers", authenticateToken, async (req, res) => {
   }
 });
 
+// Update server settings
+app.put("/api/servers/:serverId", authenticateToken, async (req, res) => {
+  const { serverId } = req.params;
+  const { name, icon, header, settings } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Check if user is owner
+    const checkResult = await pool.query(
+      "SELECT serverowner, serversettings FROM servers WHERE id = $1",
+      [serverId],
+    );
+    if (checkResult.rows.length === 0)
+      return res.status(404).json({ error: "Server not found" });
+    if (checkResult.rows[0].serverowner !== userId)
+      return res.status(403).json({ error: "Unauthorized" });
+
+    const currentSettings = checkResult.rows[0].serversettings || {};
+    const newSettings = { ...currentSettings, ...settings };
+
+    const result = await pool.query(
+      `UPDATE servers 
+       SET name = COALESCE($1, name), 
+           icon = COALESCE($2, icon), 
+           header = COALESCE($3, header),
+           serversettings = $4,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $5 RETURNING *`,
+      [name, icon, header, JSON.stringify(newSettings), serverId],
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update server settings" });
+  }
+});
+
+// Upload Server Icon
+app.post(
+  "/api/servers/:serverId/upload-icon",
+  authenticateToken,
+  upload.single("icon"),
+  async (req, res) => {
+    const { serverId } = req.params;
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const iconUrl = `http://${req.hostname}:${port}/uploads/${req.file.filename}`;
+
+    try {
+      const check = await pool.query(
+        "SELECT serverowner FROM servers WHERE id = $1",
+        [serverId],
+      );
+      if (check.rows.length === 0)
+        return res.status(404).json({ error: "Server not found" });
+      if (check.rows[0].serverowner !== req.user.id)
+        return res.status(403).json({ error: "Unauthorized" });
+
+      const result = await pool.query(
+        "UPDATE servers SET icon = $1 WHERE id = $2 RETURNING icon",
+        [iconUrl, serverId],
+      );
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to update server icon" });
+    }
+  },
+);
+
+// Upload Server Header
+app.post(
+  "/api/servers/:serverId/upload-header",
+  authenticateToken,
+  upload.single("header"),
+  async (req, res) => {
+    const { serverId } = req.params;
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const headerUrl = `http://${req.hostname}:${port}/uploads/${req.file.filename}`;
+
+    try {
+      const check = await pool.query(
+        "SELECT serverowner FROM servers WHERE id = $1",
+        [serverId],
+      );
+      if (check.rows.length === 0)
+        return res.status(404).json({ error: "Server not found" });
+      if (check.rows[0].serverowner !== req.user.id)
+        return res.status(403).json({ error: "Unauthorized" });
+
+      const result = await pool.query(
+        "UPDATE servers SET header = $1 WHERE id = $2 RETURNING header",
+        [headerUrl, serverId],
+      );
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to update server header" });
+    }
+  },
+);
+
 // Get channels for a server
 app.get("/api/servers/:serverId/channels", async (req, res) => {
   const { serverId } = req.params;

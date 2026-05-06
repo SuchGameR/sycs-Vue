@@ -1,11 +1,12 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from "vue";
 import { useRoute } from "vue-router";
 import { io } from "socket.io-client";
-import { X, Send } from "lucide-vue-next";
+import { X, Send, Settings as SettingsIcon } from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
+import ServerSettingsModal from "../popups/ServerSettingsModal.vue";
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -16,6 +17,11 @@ const messages = ref([]);
 const newMessage = ref("");
 const messageListRef = ref(null);
 const replyingTo = ref(null);
+const showSettings = ref(false);
+
+const isOwner = computed(() => {
+  return currentServer.value && authStore.user && currentServer.value.serverowner === authStore.user.id;
+});
 
 const socket = io(`http://${window.location.hostname}:3001`);
 
@@ -160,6 +166,10 @@ const scrollToBottom = () => {
   });
 };
 
+const handleServerUpdated = (updatedServer) => {
+  currentServer.value = { ...currentServer.value, ...updatedServer };
+};
+
 onMounted(() => {
   fetchData();
 
@@ -202,9 +212,25 @@ watch(
 <template>
   <main>
     <Vertical class="mainContainer">
-      <div class="server-header">
-        <h1 v-if="currentServer">{{ currentServer.name }}</h1>
-        <h1 v-else>Loading...</h1>
+      <div class="server-banner" v-if="currentServer">
+        <img :src="currentServer.header || '/image.png'" class="banner-img" />
+        <div class="banner-overlay">
+          <div class="server-info-header">
+            <div class="server-icon-mini">
+              <img :src="currentServer.icon || '/default-avatar.png'" />
+            </div>
+            <div class="server-name-stack">
+              <h1>{{ currentServer.name }}</h1>
+              <span class="server-id">ID: {{ currentServer.serverid }}</span>
+            </div>
+            <button v-if="isOwner" class="settings-trigger" @click="showSettings = true">
+              <SettingsIcon :size="20" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="server-header" v-else>
+        <h1>Loading...</h1>
       </div>
 
       <section class="channel-tabs">
@@ -255,6 +281,13 @@ watch(
         </div>
       </div>
     </Vertical>
+
+    <ServerSettingsModal 
+      :show="showSettings" 
+      :server="currentServer" 
+      @close="showSettings = false"
+      @updated="handleServerUpdated"
+    />
   </main>
 </template>
 
@@ -266,6 +299,90 @@ main {
   background-color: var(--background);
   color: var(--text-primary);
   min-width: 350px;
+}
+
+.server-banner {
+  height: 120px;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+.banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.7);
+}
+
+.banner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: flex-end;
+}
+
+.server-info-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.server-icon-mini {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid white;
+  background: white;
+}
+
+.server-icon-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.server-name-stack {
+  flex: 1;
+  text-align: left;
+}
+
+.server-name-stack h1 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.server-id {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.settings-trigger {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-trigger:hover {
+  background: rgba(255,255,255,0.4);
+  transform: rotate(45deg);
 }
 
 .server-header {
