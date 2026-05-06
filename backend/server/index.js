@@ -24,8 +24,10 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // 開発用。必要に応じてフロントエンドのURLに制限してください
+    // origin: "*",
+    origin: true,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
@@ -56,7 +58,12 @@ const pool = new Pool({
 });
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use("/uploads", express.static(resolve(__dirname, "uploads")));
 
@@ -257,7 +264,8 @@ app.put("/api/auth/settings", authenticateToken, async (req, res) => {
 app.get("/api/servers", async (req, res) => {
   const { search } = req.query;
   try {
-    let query = "SELECT * FROM servers WHERE serversettings->>'visibility' = 'public'";
+    let query =
+      "SELECT * FROM servers WHERE serversettings->>'visibility' = 'public'";
     const params = [];
 
     if (search) {
@@ -298,24 +306,31 @@ app.post("/api/servers/:serverId/join", authenticateToken, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const serverResult = await pool.query("SELECT serverjoins, serversettings FROM servers WHERE id = $1", [serverId]);
-    if (serverResult.rows.length === 0) return res.status(404).json({ error: "Server not found" });
+    const serverResult = await pool.query(
+      "SELECT serverjoins, serversettings FROM servers WHERE id = $1",
+      [serverId],
+    );
+    if (serverResult.rows.length === 0)
+      return res.status(404).json({ error: "Server not found" });
 
     const server = serverResult.rows[0];
     const visibility = server.serversettings?.visibility || "public";
-    
+
     // Check if user is already in server
     let joins = server.serverjoins || [];
     if (joins.includes(userId)) {
       return res.status(400).json({ error: "Already joined this server" });
     }
 
-    if (visibility === 'limited') {
+    if (visibility === "limited") {
       return res.status(403).json({ error: "This server is invite-only" });
     }
 
     joins.push(userId);
-    await pool.query("UPDATE servers SET serverjoins = $1 WHERE id = $2", [JSON.stringify(joins), serverId]);
+    await pool.query("UPDATE servers SET serverjoins = $1 WHERE id = $2", [
+      JSON.stringify(joins),
+      serverId,
+    ]);
 
     res.json({ message: "Joined successfully" });
   } catch (err) {
@@ -617,61 +632,80 @@ app.post("/api/messages/:messageId/views", async (req, res) => {
 });
 
 // Retweet
-app.post("/api/messages/:messageId/retweet", authenticateToken, async (req, res) => {
-  const { messageId } = req.params;
-  const userId = req.user.id;
+app.post(
+  "/api/messages/:messageId/retweet",
+  authenticateToken,
+  async (req, res) => {
+    const { messageId } = req.params;
+    const userId = req.user.id;
 
-  try {
-    // Check if already retweeted
-    const exists = await pool.query(
-      "SELECT id FROM messages WHERE retweet_id = $1 AND user_id = $2",
-      [messageId, userId]
-    );
+    try {
+      // Check if already retweeted
+      const exists = await pool.query(
+        "SELECT id FROM messages WHERE retweet_id = $1 AND user_id = $2",
+        [messageId, userId],
+      );
 
-    if (exists.rows.length > 0) {
-      // Undo retweet
-      await pool.query("DELETE FROM messages WHERE id = $1", [exists.rows[0].id]);
-      return res.json({ retweeted: false });
+      if (exists.rows.length > 0) {
+        // Undo retweet
+        await pool.query("DELETE FROM messages WHERE id = $1", [
+          exists.rows[0].id,
+        ]);
+        return res.json({ retweeted: false });
+      }
+
+      const authorResult = await pool.query(
+        "SELECT username FROM users WHERE id = $1",
+        [userId],
+      );
+      const authorName = authorResult.rows[0].username;
+
+      const result = await pool.query(
+        "INSERT INTO messages (author_name, content, user_id, post_type, retweet_id) VALUES ($1, '', $2, 'GLOBAL', $3) RETURNING *",
+        [authorName, userId, messageId],
+      );
+
+      res.status(201).json({ ...result.rows[0], retweeted: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to retweet" });
     }
-
-    const authorResult = await pool.query("SELECT username FROM users WHERE id = $1", [userId]);
-    const authorName = authorResult.rows[0].username;
-
-    const result = await pool.query(
-      "INSERT INTO messages (author_name, content, user_id, post_type, retweet_id) VALUES ($1, '', $2, 'GLOBAL', $3) RETURNING *",
-      [authorName, userId, messageId]
-    );
-
-    res.status(201).json({ ...result.rows[0], retweeted: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to retweet" });
-  }
-});
+  },
+);
 
 // Bookmark
-app.post("/api/messages/:messageId/bookmark", authenticateToken, async (req, res) => {
-  const { messageId } = req.params;
-  const userId = req.user.id;
+app.post(
+  "/api/messages/:messageId/bookmark",
+  authenticateToken,
+  async (req, res) => {
+    const { messageId } = req.params;
+    const userId = req.user.id;
 
-  try {
-    const exists = await pool.query(
-      "SELECT 1 FROM bookmarks WHERE user_id = $1 AND message_id = $2",
-      [userId, messageId]
-    );
+    try {
+      const exists = await pool.query(
+        "SELECT 1 FROM bookmarks WHERE user_id = $1 AND message_id = $2",
+        [userId, messageId],
+      );
 
-    if (exists.rows.length > 0) {
-      await pool.query("DELETE FROM bookmarks WHERE user_id = $1 AND message_id = $2", [userId, messageId]);
-      return res.json({ bookmarked: false });
+      if (exists.rows.length > 0) {
+        await pool.query(
+          "DELETE FROM bookmarks WHERE user_id = $1 AND message_id = $2",
+          [userId, messageId],
+        );
+        return res.json({ bookmarked: false });
+      }
+
+      await pool.query(
+        "INSERT INTO bookmarks (user_id, message_id) VALUES ($1, $2)",
+        [userId, messageId],
+      );
+      res.json({ bookmarked: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to bookmark" });
     }
-
-    await pool.query("INSERT INTO bookmarks (user_id, message_id) VALUES ($1, $2)", [userId, messageId]);
-    res.json({ bookmarked: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to bookmark" });
-  }
-});
+  },
+);
 
 // Send a global message
 app.post("/api/messages/global", authenticateToken, async (req, res) => {

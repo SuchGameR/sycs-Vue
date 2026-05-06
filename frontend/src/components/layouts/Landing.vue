@@ -13,8 +13,8 @@ import { useAuthStore } from "../../stores/auth";
 
 const authStore = useAuthStore();
 const messages = ref([]);
-const API_BASE = `http://${window.location.hostname}:3001/api`;
-const socket = io(`http://${window.location.hostname}:3001`);
+const API_BASE = `/api`;
+const socket = io("/", { path: "/socket.io" });
 const router = useRouter();
 
 const fetchPublicMessages = async () => {

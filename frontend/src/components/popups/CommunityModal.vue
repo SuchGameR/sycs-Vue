@@ -28,7 +28,7 @@ const isLoading = ref(false);
 const fetchPublicServers = async () => {
   isLoading.value = true;
   try {
-    const url = new URL(`http://${window.location.hostname}:3001/api/servers`);
+    const url = new URL(`/api/servers`);
     if (searchQuery.value) url.searchParams.append("search", searchQuery.value);
     
     const res = await fetch(url.toString());
@@ -48,7 +48,7 @@ const joinServer = async (serverId: number) => {
     return;
   }
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/servers/${serverId}/join`, {
+    const res = await fetch(`/api/servers/${serverId}/join`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${authStore.token}`,

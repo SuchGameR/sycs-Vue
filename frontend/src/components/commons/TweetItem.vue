@@ -97,7 +97,7 @@ async function incrementViews() {
   try {
     const targetId = props.msg.retweet_id || props.msg.id;
     await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${targetId}/views`,
+      `/api/messages/${targetId}/views`,
       {
         method: "POST",
       },

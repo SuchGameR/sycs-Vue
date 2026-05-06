@@ -23,7 +23,7 @@ const isOwner = computed(() => {
   return currentServer.value && authStore.user && currentServer.value.serverowner === authStore.user.id;
 });
 
-const socket = io(`http://${window.location.hostname}:3001`);
+const socket = io("/", { path: "/socket.io" });
 
 const fetchData = async () => {
   const serverId = route.params.id || route.params.serverId;
@@ -31,7 +31,7 @@ const fetchData = async () => {
 
   try {
     const sRes = await fetch(
-      `http://${window.location.hostname}:3001/api/servers`,
+      `/api/servers`,
     );
     const servers = await sRes.json();
     currentServer.value = servers.find(
@@ -39,7 +39,7 @@ const fetchData = async () => {
     );
 
     const cRes = await fetch(
-      `http://${window.location.hostname}:3001/api/servers/${serverId}/channels`,
+      `/api/servers/${serverId}/channels`,
     );
     channels.value = await cRes.json();
 
@@ -58,7 +58,7 @@ const fetchMessages = async () => {
   if (!currentChannelId.value) return;
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
+      `/api/channels/${currentChannelId.value}/messages`,
     );
     messages.value = await res.json();
     scrollToBottom();
@@ -76,7 +76,7 @@ const sendMessage = async () => {
 
   try {
     await fetch(
-      `http://${window.location.hostname}:3001/api/channels/${currentChannelId.value}/messages`,
+      `/api/channels/${currentChannelId.value}/messages`,
       {
         method: "POST",
         headers: {
@@ -102,7 +102,7 @@ const handleKeydown = (e) => {
 const handleReact = async (messageId, emoji) => {
   try {
     await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${messageId}/reactions`,
+      `/api/messages/${messageId}/reactions`,
       {
         method: "POST",
         headers: {
@@ -120,7 +120,7 @@ const handleReact = async (messageId, emoji) => {
 const handleEdit = async (messageId, content) => {
   try {
     await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      `/api/messages/${messageId}`,
       {
         method: "PUT",
         headers: {
@@ -138,7 +138,7 @@ const handleEdit = async (messageId, content) => {
 const handleDelete = async (messageId) => {
   try {
     await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      `/api/messages/${messageId}`,
       {
         method: "DELETE",
         headers: {

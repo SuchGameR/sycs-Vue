@@ -89,7 +89,7 @@ async function handleCrop() {
         formData.append(fieldName, file);
 
         const endpoint = cropTarget.value === "icon" ? "upload-icon" : "upload-header";
-        const res = await fetch(`http://${window.location.hostname}:3001/api/servers/${props.server.id}/${endpoint}`, {
+        const res = await fetch(`/api/servers/${props.server.id}/${endpoint}`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${authStore.token}`,
@@ -123,7 +123,7 @@ function closeCropper() {
 
 async function handleUpdate() {
   try {
-    const res = await fetch(`http://${window.location.hostname}:3001/api/servers/${props.server.id}`, {
+    const res = await fetch(`/api/servers/${props.server.id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

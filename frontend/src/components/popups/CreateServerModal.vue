@@ -15,7 +15,7 @@ const createServer = async () => {
   try {
     // 開発サーバーのバックエンドは3001番ポート
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/servers`,
+      `/api/servers`,
       {
         method: "POST",
         headers: {

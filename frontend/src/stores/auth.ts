@@ -155,7 +155,8 @@ export const useAuthStore = defineStore("auth", () => {
   const isAuthenticated = computed(() => !!token.value);
   const t = computed(() => translations[lang.value] || translations.ja);
 
-  const API_BASE = `http://${window.location.hostname}:3001/api`;
+  // const API_BASE = `/api`;
+  const API_BASE = `/api`;
 
   function setLang(newLang: string) {
     lang.value = newLang;

@@ -20,7 +20,7 @@ const activeTab = ref("global");
 const showPostModal = ref(false);
 const replyingTo = ref(null);
 
-const socket = io(`http://${window.location.hostname}:3001`);
+const socket = io("/", { path: "/socket.io" });
 
 const fetchMessages = async (isLoadMore = false) => {
   if (
@@ -38,7 +38,7 @@ const fetchMessages = async (isLoadMore = false) => {
 
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${activeTab.value}?limit=${limit}&offset=${offset.value}`,
+      `/api/messages/${activeTab.value}?limit=${limit}&offset=${offset.value}`,
       {
         headers: authStore.token
           ? { Authorization: `Bearer ${authStore.token}` }
@@ -66,7 +66,7 @@ const fetchMessages = async (isLoadMore = false) => {
 const handlePost = async (content) => {
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/messages/global`,
+      `/api/messages/global`,
       {
         method: "POST",
         headers: {
@@ -92,7 +92,7 @@ const handlePost = async (content) => {
 const handleRetweet = async (msg) => {
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${msg.id}/retweet`,
+      `/api/messages/${msg.id}/retweet`,
       {
         method: "POST",
         headers: {
@@ -111,7 +111,7 @@ const handleRetweet = async (msg) => {
 const handleBookmark = async (msg) => {
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${msg.id}/bookmark`,
+      `/api/messages/${msg.id}/bookmark`,
       {
         method: "POST",
         headers: {
@@ -138,7 +138,7 @@ const handleReact = async (messageId, emoji) => {
 
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${mid}/reactions`,
+      `/api/messages/${mid}/reactions`,
       {
         method: "POST",
         headers: {
@@ -164,7 +164,7 @@ const handleReact = async (messageId, emoji) => {
 const handleEdit = async (messageId, content) => {
   try {
     await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      `/api/messages/${messageId}`,
       {
         method: "PUT",
         headers: {
@@ -182,7 +182,7 @@ const handleEdit = async (messageId, content) => {
 const handleDelete = async (messageId) => {
   try {
     await fetch(
-      `http://${window.location.hostname}:3001/api/messages/${messageId}`,
+      `/api/messages/${messageId}`,
       {
         method: "DELETE",
         headers: {

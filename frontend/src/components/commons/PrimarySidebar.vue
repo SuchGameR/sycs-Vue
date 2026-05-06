@@ -15,7 +15,7 @@ const fetchMyServers = async () => {
   }
   try {
     const res = await fetch(
-      `http://${window.location.hostname}:3001/api/servers/mine`,
+      `/api/servers/mine`,
       {
         headers: {
           Authorization: `Bearer ${authStore.token}`,
