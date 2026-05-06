@@ -38,6 +38,7 @@ CREATE TABLE servers (
     serverid UUID DEFAULT gen_random_uuid() UNIQUE,
     name VARCHAR(255) NOT NULL,
     icon VARCHAR(255),
+    header VARCHAR(255),
     serverowner INTEGER REFERENCES users(id),
     serverjoins JSONB DEFAULT '[]'::jsonb,
     serversettings JSONB DEFAULT '{}'::jsonb,

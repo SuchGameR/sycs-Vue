@@ -253,14 +253,74 @@ app.put("/api/auth/settings", authenticateToken, async (req, res) => {
 
 // --- Server & Message Routes ---
 
-// Get all servers
+// Get public servers (Discovery)
 app.get("/api/servers", async (req, res) => {
+  const { search } = req.query;
   try {
-    const result = await pool.query("SELECT * FROM servers ORDER BY id ASC");
+    let query = "SELECT * FROM servers WHERE serversettings->>'visibility' = 'public'";
+    const params = [];
+
+    if (search) {
+      query += " AND name ILIKE $1";
+      params.push(`%${search}%`);
+    }
+
+    query += " ORDER BY created_at DESC";
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch servers" });
+    res.status(500).json({ error: "Failed to fetch public servers" });
+  }
+});
+
+// Get user's joined/owned servers
+app.get("/api/servers/mine", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM servers 
+       WHERE serverowner = $1 
+       OR serverjoins @> $2::jsonb 
+       ORDER BY id ASC`,
+      [userId, JSON.stringify([userId])],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch your servers" });
+  }
+});
+
+// Join a server
+app.post("/api/servers/:serverId/join", authenticateToken, async (req, res) => {
+  const { serverId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const serverResult = await pool.query("SELECT serverjoins, serversettings FROM servers WHERE id = $1", [serverId]);
+    if (serverResult.rows.length === 0) return res.status(404).json({ error: "Server not found" });
+
+    const server = serverResult.rows[0];
+    const visibility = server.serversettings?.visibility || "public";
+    
+    // Check if user is already in server
+    let joins = server.serverjoins || [];
+    if (joins.includes(userId)) {
+      return res.status(400).json({ error: "Already joined this server" });
+    }
+
+    if (visibility === 'limited') {
+      return res.status(403).json({ error: "This server is invite-only" });
+    }
+
+    joins.push(userId);
+    await pool.query("UPDATE servers SET serverjoins = $1 WHERE id = $2", [JSON.stringify(joins), serverId]);
+
+    res.json({ message: "Joined successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to join server" });
   }
 });
 
