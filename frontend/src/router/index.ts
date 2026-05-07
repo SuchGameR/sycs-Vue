@@ -7,6 +7,7 @@ import Favorite from "../pages/Favorite.vue";
 import Server from "../pages/Server.vue";
 import Signup from "../pages/Signup.vue";
 import Signin from "../pages/Signin.vue";
+import UserProfile from "../pages/UserProfile.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,6 +19,7 @@ const router = createRouter({
     { path: "/favorite", component: Favorite },
     { path: "/server/:id", component: Server },
     { path: "/server/:serverId/channel/:channelId", component: Server },
+    { path: "/user/:handle", component: UserProfile },
     { path: "/signup", component: Signup },
     { path: "/signin", component: Signin },
   ],

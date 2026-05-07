@@ -21,6 +21,8 @@ import {
 import { useAuthStore } from '../../stores/auth';
 import { createHighlighter } from 'shiki';
 import MessageDetailsModal from '../popups/MessageDetailsModal.vue';
+import { useRouter } from 'vue-router';
+import UserProfileCard from './UserProfileCard.vue';
 
 const props = defineProps<{
   msg: any;
@@ -31,10 +33,42 @@ const props = defineProps<{
 const emit = defineEmits(['reply', 'react', 'edit', 'delete']);
 
 const authStore = useAuthStore();
+const router = useRouter();
 const showEmojiPicker = ref(false);
 const highlightedHtml = ref('');
 const isCopying = ref(false);
 const showDetailsModal = ref(false);
+
+// Hover Profile Card State
+const showProfileCard = ref(false);
+const cardPosition = ref({ top: 0, left: 0 });
+let hoverTimer: any = null;
+
+function handleMouseEnter(e: MouseEvent) {
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => {
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    cardPosition.value = {
+      top: rect.bottom + 5,
+      left: rect.left,
+    };
+    showProfileCard.value = true;
+  }, 400);
+}
+
+function handleMouseLeave() {
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => {
+    showProfileCard.value = false;
+  }, 300);
+}
+
+function goToProfile() {
+  const handle = props.msg.author_handle || props.msg.email?.split('@')[0];
+  if (handle) {
+    router.push(`/user/${handle}`);
+  }
+}
 
 
 // Edit State
@@ -295,12 +329,20 @@ const hasMyReaction = (emoji: string) =>
         <img
           :src="msg.avatar_url || '/default-avatar.png'"
           class="author-avatar"
+          @mouseenter="handleMouseEnter"
+          @mouseleave="handleMouseLeave"
+          @click.stop="goToProfile"
         />
       </div>
       <div class="content-column">
         <div class="message-header">
           <div class="header-left">
-            <span class="author-name">{{ msg.author_name }}</span>
+            <span 
+              class="author-name"
+              @mouseenter="handleMouseEnter"
+              @mouseleave="handleMouseLeave"
+              @click.stop="goToProfile"
+            >{{ msg.author_name }}</span>
             <span v-if="msg.author_handle" class="author-handle"
               >@{{ msg.author_handle }}</span
             >

@@ -17,6 +17,8 @@ import {
 } from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
 import { createHighlighter } from "shiki";
+import { useRouter } from "vue-router";
+import UserProfileCard from "./UserProfileCard.vue";
 
 const props = defineProps<{
   msg: any;
@@ -33,6 +35,7 @@ const emit = defineEmits([
 ]);
 
 const authStore = useAuthStore();
+const router = useRouter();
 const highlightedHtml = ref("");
 const highlightedOrigHtml = ref("");
 const isCopying = ref(false);
@@ -40,6 +43,37 @@ const showContextMenu = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
 const currentTime = ref(Date.now());
 let timer: any = null;
+
+// Hover Profile Card State
+const showProfileCard = ref(false);
+const cardPosition = ref({ top: 0, left: 0 });
+let hoverTimer: any = null;
+
+function handleMouseEnter(e: MouseEvent) {
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => {
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    cardPosition.value = {
+      top: rect.bottom + 10,
+      left: rect.left,
+    };
+    showProfileCard.value = true;
+  }, 400); // 400ms delay like Discord
+}
+
+function handleMouseLeave() {
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => {
+    showProfileCard.value = false;
+  }, 300);
+}
+
+function goToProfile() {
+  const handle = props.msg.author_handle || props.msg.email?.split("@")[0];
+  if (handle) {
+    router.push(`/user/${handle}`);
+  }
+}
 
 function startTimer() {
   if (timer) return;
@@ -313,12 +347,20 @@ const formattedTime = computed(() => {
         <img
           :src="displayAuthor.avatar || '/default-avatar.png'"
           class="author-avatar"
+          @mouseenter="handleMouseEnter"
+          @mouseleave="handleMouseLeave"
+          @click.stop="goToProfile"
         />
       </div>
       <div class="content-col">
         <div class="tweet-header">
           <div class="author-info">
-            <span class="author-name">{{ displayAuthor.name }}</span>
+            <span
+              class="author-name"
+              @mouseenter="handleMouseEnter"
+              @mouseleave="handleMouseLeave"
+              @click.stop="goToProfile"
+            >{{ displayAuthor.name }}</span>
             <span class="author-handle">@{{ displayAuthor.handle }}</span>
             <span v-if="authStore.timeDisplayMode !== 'none'" class="dot">·</span>
             <span class="timestamp">{{ formattedTime }}</span>
@@ -419,6 +461,15 @@ const formattedTime = computed(() => {
         </div>
       </div>
     </div>
+
+    <!-- User Profile Hover Card -->
+    <UserProfileCard 
+      :user="msg" 
+      :show="showProfileCard" 
+      :position="cardPosition"
+      @mouseenter="clearTimeout(hoverTimer)"
+      @mouseleave="handleMouseLeave"
+    />
 
     <!-- Context Menu (Simplified for brevity, but functional) -->
     <Teleport to="body">
