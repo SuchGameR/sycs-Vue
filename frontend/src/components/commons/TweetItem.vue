@@ -34,9 +34,24 @@ const emit = defineEmits([
 
 const authStore = useAuthStore();
 const highlightedHtml = ref("");
+const highlightedOrigHtml = ref("");
 const isCopying = ref(false);
 const showContextMenu = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
+const currentTime = ref(Date.now());
+let timer: any = null;
+
+function startTimer() {
+  if (timer) return;
+  timer = setInterval(() => {
+    currentTime.value = Date.now();
+    const date = new Date(props.msg.created_at);
+    if ((Date.now() - date.getTime()) / 1000 > 60) stopTimer();
+  }, 1000);
+}
+function stopTimer() {
+  if (timer) { clearInterval(timer); timer = null; }
+}
 
 // Shiki Highlighter
 let highlighter: any = null;
@@ -60,9 +75,9 @@ async function initHighlighter() {
 
 async function renderContent() {
   await initHighlighter();
-  const contentToRender = props.msg.retweet_id
-    ? props.msg.orig_content
-    : props.msg.content;
+  // リポストの場合は自身のコンテンツ（通常は空）を表示し、
+  // オリジナルのコンテンツは別途引用枠で表示するようにする
+  const contentToRender = props.msg.content;
   const escapedContent = (contentToRender || "").replace(
     /[&<>"']/g,
     (m) =>
@@ -92,6 +107,39 @@ async function renderContent() {
   highlightedHtml.value = DOMPurify.sanitize(rawHtml);
 }
 
+// 引用されたコンテンツのレンダリング用
+async function renderOrigContent() {
+  if (!props.msg.retweet_id) return;
+  await initHighlighter();
+  const escapedContent = (props.msg.orig_content || "").replace(
+    /[&<>"']/g,
+    (m) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      })[m] || m,
+  );
+
+  const renderer = new marked.Renderer();
+  renderer.code = ({ text, lang }) => {
+    const theme = authStore.theme === "light" ? "github-light" : "github-dark";
+    try {
+      const html = highlighter.codeToHtml(text, {
+        lang: lang || "text",
+        theme,
+      });
+      return `<div class="code-block-wrapper"><div class="code-lang">${lang || "text"}</div>${html}</div>`;
+    } catch (e) {
+      return `<pre><code>${text}</code></pre>`;
+    }
+  };
+  const rawHtml = await marked.parse(escapedContent, { renderer, async: true });
+  highlightedOrigHtml.value = DOMPurify.sanitize(rawHtml);
+}
+
 // Increment view count on mount
 async function incrementViews() {
   try {
@@ -109,11 +157,23 @@ async function incrementViews() {
 
 onMounted(() => {
   renderContent();
+  renderOrigContent();
   incrementViews();
+  const date = new Date(props.msg.created_at);
+  if ((Date.now() - date.getTime()) / 1000 < 60) startTimer();
+});
+
+import { onUnmounted } from "vue";
+onUnmounted(() => {
+  stopTimer();
 });
 
 watch(() => props.msg.content, renderContent);
-watch(() => authStore.theme, renderContent);
+watch(() => props.msg.orig_content, renderOrigContent);
+watch(() => authStore.theme, () => {
+  renderContent();
+  renderOrigContent();
+});
 
 function handleAction(type: string) {
   emit(type as any, props.msg);
@@ -132,26 +192,25 @@ function copyToClipboard() {
 }
 
 const isAuthor = computed(() => authStore.user?.id === props.msg.user_id);
-const displayAuthor = computed(() =>
-  props.msg.retweet_id
-    ? {
-        name: props.msg.orig_author_name,
-        handle: props.msg.orig_author_handle,
-        avatar: props.msg.orig_avatar_url,
-      }
-    : {
-        name: props.msg.author_name,
-        handle: props.msg.author_handle,
-        avatar: props.msg.avatar_url,
-      },
-);
+const displayAuthor = computed(() => ({
+  name: props.msg.author_name,
+  handle: props.msg.author_handle,
+  avatar: props.msg.avatar_url,
+}));
+
+const totalLikes = computed(() => {
+  if (!props.msg.reactions) return 0;
+  // ハートリアクションのみ、または全リアクションの合計を返す
+  const likes = props.msg.reactions['❤️'] || [];
+  return likes.length;
+});
 
 const formattedTime = computed(() => {
   const date = new Date(props.msg.created_at);
-  const now = new Date();
-  const diff = (now.getTime() - date.getTime()) / 1000;
+  const diff = (currentTime.value - date.getTime()) / 1000;
 
-  if (diff < 60) return "今";
+  if (diff < 1) return "今";
+  if (diff < 60) return Math.floor(diff) + "秒";
   if (diff < 3600) return Math.floor(diff / 60) + "分";
   if (diff < 86400) return Math.floor(diff / 3600) + "時間";
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
@@ -186,7 +245,17 @@ const formattedTime = computed(() => {
           </button>
         </div>
 
-        <div class="tweet-body markdown-body" v-html="highlightedHtml"></div>
+        <div v-if="msg.content" class="tweet-body markdown-body" v-html="highlightedHtml"></div>
+
+        <!-- Quoted Post Box -->
+        <div v-if="msg.retweet_id" class="quoted-post">
+          <div class="quoted-header">
+            <img :src="msg.orig_avatar_url || '/default-avatar.png'" class="quoted-avatar" />
+            <span class="quoted-author-name">{{ msg.orig_author_name }}</span>
+            <span class="quoted-author-handle">@{{ msg.orig_author_handle }}</span>
+          </div>
+          <div class="quoted-body markdown-body" v-html="highlightedOrigHtml"></div>
+        </div>
 
         <div class="tweet-actions">
           <!-- Reply -->
@@ -229,9 +298,9 @@ const formattedTime = computed(() => {
             </div>
             <span
               class="count"
-              v-if="msg.likes_count || Object.keys(msg.reactions || {}).length"
+              v-if="totalLikes"
             >
-              {{ msg.likes_count || Object.keys(msg.reactions || {}).length }}
+              {{ totalLikes }}
             </span>
           </button>
 
@@ -399,6 +468,49 @@ const formattedTime = computed(() => {
   line-height: 1.5;
   color: var(--text-primary);
   word-break: break-word;
+}
+
+/* Quoted Post */
+.quoted-post {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  transition: background 0.2s;
+}
+
+.quoted-post:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.quoted-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.quoted-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.quoted-author-name {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.quoted-author-handle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.quoted-body {
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text-primary);
 }
 
 .tweet-actions {

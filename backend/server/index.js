@@ -648,12 +648,15 @@ app.get("/api/messages/global", authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+      `SELECT m.id, m.messageid, m.channel_id, m.user_id, m.parent_id, m.retweet_id, m.author_name, m.content, m.post_type, m.poston, m.attachment, m.reactions, m.edit_history, m.attributes, m.views_count,
+              m.created_at AT TIME ZONE 'UTC' as created_at,
+              m.updated_at AT TIME ZONE 'UTC' as updated_at,
+              u.avatar_url, u.userid as author_handle,
               (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
                FROM messages p WHERE p.id = m.parent_id) as parent_msg,
               (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
               (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
-              EXISTS(SELECT 1 FROM message_likes l WHERE l.message_id = m.id AND l.user_id = $3) as is_liked,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int) as is_liked,
               EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $3) as is_retweeted,
               EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $3) as is_bookmarked,
               orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle

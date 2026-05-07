@@ -28,8 +28,8 @@ CREATE TABLE users (
     avatar_url VARCHAR(255),
     header_url VARCHAR(255),
     attributes JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 4. サーバーテーブル (Server)
@@ -43,8 +43,8 @@ CREATE TABLE servers (
     serverjoins JSONB DEFAULT '[]'::jsonb,
     serversettings JSONB DEFAULT '{}'::jsonb,
     attributes JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. チャンネルテーブル (Channel)
@@ -55,8 +55,8 @@ CREATE TABLE channels (
     name VARCHAR(255) NOT NULL,
     channelsettings JSONB DEFAULT '{}'::jsonb,
     attributes JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 6. メッセージテーブル (Message)
@@ -76,8 +76,8 @@ CREATE TABLE messages (
     edit_history JSONB DEFAULT '[]'::jsonb,
     attributes JSONB DEFAULT '{}'::jsonb,
     views_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 7. フォローテーブル
@@ -85,7 +85,7 @@ CREATE TABLE follows (
     id SERIAL PRIMARY KEY,
     follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     following_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(follower_id, following_id)
 );
 
@@ -94,7 +94,7 @@ CREATE TABLE message_likes (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, message_id)
 );
 
@@ -103,7 +103,7 @@ CREATE TABLE bookmarks (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, message_id)
 );
 
