@@ -14,6 +14,7 @@ import {
   Layout,
   X,
   Crop as CropIcon,
+  Clock,
 } from "lucide-vue-next";
 import { Cropper, CircleStencil } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
@@ -34,6 +35,7 @@ const header_url = ref("");
 const timelineMode = ref(authStore.timelineMode);
 const lang = ref(authStore.lang);
 const theme = ref(authStore.theme);
+const timeDisplayMode = ref(authStore.timeDisplayMode);
 const error = ref("");
 const message = ref("");
 
@@ -128,6 +130,9 @@ function updateLang() {
 function updateTheme() {
   authStore.setTheme(theme.value);
 }
+function updateTimeDisplayMode() {
+  authStore.setTimeDisplayMode(timeDisplayMode.value);
+}
 
 async function handleUpdate() {
   try {
@@ -191,6 +196,13 @@ function handleLogout() {
           @click="activeMenu = 'language'"
         >
           <Globe :size="18" /> {{ authStore.t.language }}
+        </div>
+        <div
+          class="menu-item"
+          :class="{ active: activeMenu === 'time' }"
+          @click="activeMenu = 'time'"
+        >
+          <Clock :size="18" /> {{ authStore.t.timeDisplayMode }}
         </div>
 
         <div class="sidebar-footer">
@@ -347,6 +359,73 @@ function handleLogout() {
               <option value="ja">日本語 (Japanese)</option>
               <option value="en">English</option>
             </select>
+          </div>
+        </div>
+
+        <!-- Time Display Section -->
+        <div v-if="activeMenu === 'time'" class="section">
+          <h2>{{ authStore.t.timeDisplayMode }}</h2>
+          <div class="radio-group">
+            <label
+              class="radio-option"
+              :class="{ active: timeDisplayMode === 'default' }"
+            >
+              <input
+                type="radio"
+                value="default"
+                v-model="timeDisplayMode"
+                @change="updateTimeDisplayMode"
+              />
+              <div class="radio-content">
+                <span class="title">{{ authStore.t.time_default }}</span>
+                <span class="desc">投稿した時刻をそのまま表示します。</span>
+              </div>
+            </label>
+            <label
+              class="radio-option"
+              :class="{ active: timeDisplayMode === 'minute' }"
+            >
+              <input
+                type="radio"
+                value="minute"
+                v-model="timeDisplayMode"
+                @change="updateTimeDisplayMode"
+              />
+              <div class="radio-content">
+                <span class="title">{{ authStore.t.time_minute }}</span>
+                <span class="desc">「5分」のように、分単位で経過時間を表示します。</span>
+              </div>
+            </label>
+            <label
+              class="radio-option"
+              :class="{ active: timeDisplayMode === 'realtime' }"
+            >
+              <input
+                type="radio"
+                value="realtime"
+                v-model="timeDisplayMode"
+                @change="updateTimeDisplayMode"
+              />
+              <div class="radio-content">
+                <span class="title">{{ authStore.t.time_realtime }}</span>
+                <span class="desc">秒単位でリアルタイムに経過時間を更新します。</span>
+              </div>
+            </label>
+            <label
+              class="radio-option"
+              :class="{ active: timeDisplayMode === 'none' }"
+            >
+              <input
+                type="radio"
+                value="none"
+                v-model="timeDisplayMode"
+                @change="updateTimeDisplayMode"
+              />
+              <div class="radio-content">
+                <span class="title">{{ authStore.t.time_none }}</span>
+                <span class="desc">投稿時刻を表示しません。</span>
+              </div>
+            </label>
           </div>
         </div>
 

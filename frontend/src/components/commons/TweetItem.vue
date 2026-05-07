@@ -206,23 +206,56 @@ const totalLikes = computed(() => {
 });
 
 const formattedTime = computed(() => {
+  const mode = authStore.timeDisplayMode;
+  if (mode === "none") return "";
+
   let rawDate = props.msg.created_at;
   if (!rawDate) return "";
 
   let dateStr = rawDate;
-  if (typeof dateStr === 'string') {
-    // Check if it's missing the timezone indicator (Z or +HH:mm or -HH:mm at the end)
+  if (typeof dateStr === "string") {
     const hasTZ = /Z|[+-]\d{2}(?::?\d{2})?$/.test(dateStr);
     if (!hasTZ) {
-      dateStr = dateStr.replace(' ', 'T') + 'Z';
-    } else if (dateStr.includes(' ') && !dateStr.includes('T')) {
-      dateStr = dateStr.replace(' ', 'T');
+      dateStr = dateStr.replace(" ", "T") + "Z";
+    } else if (dateStr.includes(" ") && !dateStr.includes("T")) {
+      dateStr = dateStr.replace(" ", "T");
     }
   }
 
   const date = new Date(dateStr);
+
+  if (mode === "default") {
+    const now = new Date();
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
+    if (isToday) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else {
+      return date.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  }
+
   const diff = (currentTime.value - date.getTime()) / 1000;
 
+  if (mode === "minute") {
+    if (diff < 60) return "1分未満";
+    if (diff < 3600) return Math.floor(diff / 60) + "分";
+    if (diff < 86400) return Math.floor(diff / 3600) + "時間";
+    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+
+  // realtime (current behavior)
   if (diff < 1) return "今";
   if (diff < 60) return Math.floor(diff) + "秒";
   if (diff < 3600) return Math.floor(diff / 60) + "分";
@@ -251,7 +284,7 @@ const formattedTime = computed(() => {
           <div class="author-info">
             <span class="author-name">{{ displayAuthor.name }}</span>
             <span class="author-handle">@{{ displayAuthor.handle }}</span>
-            <span class="dot">·</span>
+            <span v-if="authStore.timeDisplayMode !== 'none'" class="dot">·</span>
             <span class="timestamp">{{ formattedTime }}</span>
           </div>
           <button class="more-btn" @click.stop="openContextMenu">

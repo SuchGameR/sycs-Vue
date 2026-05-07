@@ -98,6 +98,11 @@ const translations: Record<string, TranslationSet> = {
     notice: "通知",
     favorite: "お気に入り",
     add_server: "コミュニティ",
+    timeDisplayMode: "ポスト時刻の表示形式",
+    time_default: "投稿時間 (デフォルト)",
+    time_minute: "分刻み",
+    time_realtime: "リアルタイム",
+    time_none: "表示しない",
   },
   en: {
     home: "Home",
@@ -139,6 +144,11 @@ const translations: Record<string, TranslationSet> = {
     notice: "Notifications",
     favorite: "Favorites",
     add_server: "Community",
+    timeDisplayMode: "Post Time Display",
+    time_default: "Post Time (Default)",
+    time_minute: "Every Minute",
+    time_realtime: "Real-time",
+    time_none: "None",
   },
 };
 
@@ -150,6 +160,9 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.getItem("timelineMode") || "scroll",
   );
   const theme = ref<string>(localStorage.getItem("theme") || "light");
+  const timeDisplayMode = ref<string>(
+    localStorage.getItem("timeDisplayMode") || "default",
+  );
   const notificationCount = ref<number>(0);
 
   const isAuthenticated = computed(() => !!token.value);
@@ -161,6 +174,11 @@ export const useAuthStore = defineStore("auth", () => {
   function setLang(newLang: string) {
     lang.value = newLang;
     localStorage.setItem("lang", newLang);
+  }
+
+  function setTimeDisplayMode(mode: string) {
+    timeDisplayMode.value = mode;
+    localStorage.setItem("timeDisplayMode", mode);
   }
 
   function setTheme(newTheme: string) {
@@ -299,9 +317,11 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated,
     timelineMode,
     theme,
+    timeDisplayMode,
     notificationCount,
     setLang,
     setTheme,
+    setTimeDisplayMode,
     setTimelineMode,
     resetNotificationCount,
     incrementNotificationCount,
