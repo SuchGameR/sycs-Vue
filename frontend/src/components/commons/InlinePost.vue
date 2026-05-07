@@ -34,7 +34,7 @@ function handleInput(e: Event) {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === "Enter" && !e.shiftKey) {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
     // Prevent sending during IME composition
     if (e.isComposing) return;
     
@@ -56,7 +56,7 @@ function handleKeydown(e: KeyboardEvent) {
       <div class="content-col">
         <textarea
           v-model="content"
-          :placeholder="authStore.t.whats_happening"
+          :placeholder="authStore.t.whats_happening + ' (Ctrl+Enterで送信)'"
           rows="1"
           @input="handleInput"
           @keydown="handleKeydown"

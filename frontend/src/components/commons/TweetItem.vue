@@ -75,10 +75,11 @@ async function initHighlighter() {
 
 async function renderContent() {
   await initHighlighter();
-  // リポストの場合は自身のコンテンツ（通常は空）を表示し、
-  // オリジナルのコンテンツは別途引用枠で表示するようにする
-  const contentToRender = props.msg.content;
-  const escapedContent = (contentToRender || "").replace(
+  const contentToRender = props.msg.content || "";
+  
+  // URL and Mention processing
+  // First escape HTML
+  let processed = contentToRender.replace(
     /[&<>"']/g,
     (m) =>
       ({
@@ -88,6 +89,13 @@ async function renderContent() {
         '"': "&quot;",
         "'": "&#039;",
       })[m] || m,
+  );
+
+  // Mention replacement: @username -> <a href="#" class="mention">@username</a>
+  // Since we don't have profile pages yet, we use a class for styling
+  processed = processed.replace(
+    /@([a-zA-Z0-9_]+)/g,
+    '<a href="#" class="mention">@$1</a>'
   );
 
   const renderer = new marked.Renderer();
@@ -103,15 +111,25 @@ async function renderContent() {
       return `<pre><code>${text}</code></pre>`;
     }
   };
-  const rawHtml = await marked.parse(escapedContent, { renderer, async: true });
-  highlightedHtml.value = DOMPurify.sanitize(rawHtml);
+
+  const rawHtml = await marked.parse(processed, { 
+    renderer, 
+    async: true,
+    breaks: true, // Support line breaks
+    gfm: true     // Support GitHub Flavored Markdown (including autolinks)
+  });
+  highlightedHtml.value = DOMPurify.sanitize(rawHtml, {
+    ADD_ATTR: ['target', 'class'] // Allow target and class for mentions/links
+  });
 }
 
 // 引用されたコンテンツのレンダリング用
 async function renderOrigContent() {
   if (!props.msg.retweet_id) return;
   await initHighlighter();
-  const escapedContent = (props.msg.orig_content || "").replace(
+  const contentToRender = props.msg.orig_content || "";
+  
+  let processed = contentToRender.replace(
     /[&<>"']/g,
     (m) =>
       ({
@@ -121,6 +139,11 @@ async function renderOrigContent() {
         '"': "&quot;",
         "'": "&#039;",
       })[m] || m,
+  );
+
+  processed = processed.replace(
+    /@([a-zA-Z0-9_]+)/g,
+    '<a href="#" class="mention">@$1</a>'
   );
 
   const renderer = new marked.Renderer();
@@ -136,8 +159,15 @@ async function renderOrigContent() {
       return `<pre><code>${text}</code></pre>`;
     }
   };
-  const rawHtml = await marked.parse(escapedContent, { renderer, async: true });
-  highlightedOrigHtml.value = DOMPurify.sanitize(rawHtml);
+  const rawHtml = await marked.parse(processed, { 
+    renderer, 
+    async: true,
+    breaks: true,
+    gfm: true
+  });
+  highlightedOrigHtml.value = DOMPurify.sanitize(rawHtml, {
+    ADD_ATTR: ['target', 'class']
+  });
 }
 
 // Increment view count on mount
@@ -515,6 +545,23 @@ const formattedTime = computed(() => {
   line-height: 1.5;
   color: var(--text-primary);
   word-break: break-word;
+}
+
+:deep(.mention) {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+:deep(.mention:hover) {
+  text-decoration: underline;
+}
+
+:deep(a) {
+  color: var(--accent);
+  text-decoration: none;
+}
+:deep(a:hover) {
+  text-decoration: underline;
 }
 
 /* Quoted Post */

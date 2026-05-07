@@ -76,7 +76,25 @@ async function initHighlighter() {
 
 async function renderContent() {
   await initHighlighter();
-  const escapedContent = escapeHtml(props.msg.content || "");
+  const contentToRender = props.msg.content || "";
+  
+  let processed = contentToRender.replace(
+    /[&<>"']/g,
+    (m) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      })[m] || m,
+  );
+
+  processed = processed.replace(
+    /@([a-zA-Z0-9_]+)/g,
+    '<a href="#" class="mention">@$1</a>'
+  );
+
   const renderer = new marked.Renderer();
   renderer.code = ({ text, lang }) => {
     const theme = authStore.theme === "light" ? "github-light" : "github-dark";
@@ -90,8 +108,15 @@ async function renderContent() {
       return `<pre><code>${text}</code></pre>`;
     }
   };
-  const rawHtml = await marked.parse(escapedContent, { renderer, async: true });
-  highlightedHtml.value = DOMPurify.sanitize(rawHtml);
+  const rawHtml = await marked.parse(processed, { 
+    renderer, 
+    async: true,
+    breaks: true,
+    gfm: true
+  });
+  highlightedHtml.value = DOMPurify.sanitize(rawHtml, {
+    ADD_ATTR: ['target', 'class']
+  });
 }
 
 onMounted(() => {
@@ -707,6 +732,23 @@ const hasMyReaction = (emoji: string) =>
   color: var(--text-primary);
   word-break: break-word;
   font-size: 1rem;
+}
+
+:deep(.mention) {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+:deep(.mention:hover) {
+  text-decoration: underline;
+}
+
+:deep(a) {
+  color: var(--accent);
+  text-decoration: none;
+}
+:deep(a:hover) {
+  text-decoration: underline;
 }
 
 /* Edit UI */
