@@ -59,7 +59,7 @@ const handleRefresh = () => {
     ui="Compass"
     @click="isCommunityModalOpen = true"
   />
-  <div class="sidebar-section-title">参加中のサーバー</div>
+  <div class="sidebar-section-title">参加済み</div>
   <div class="server-list">
     <PrimaryButton
       v-for="server in servers"
@@ -68,9 +68,7 @@ const handleRefresh = () => {
       ui="Server"
       :url="`/server/${server.id}`"
     />
-    <div v-if="servers.length === 0" class="server-empty">
-      参加中のサーバーはありません
-    </div>
+    <div v-if="servers.length === 0" class="server-empty">参加なし</div>
   </div>
 
   <CommunityModal

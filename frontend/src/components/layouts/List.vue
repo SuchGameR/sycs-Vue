@@ -24,18 +24,13 @@
 
 <style scoped>
 .user-list-sidebar {
-  /* display: none; */
-  /* width: 240px; */
   width: 100%;
-  background-color: var(--background);
+  flex: 1;
+  background-color: var(--surface);
   color: var(--text-primary);
   padding: 20px;
-  margin: var(--tiny-gap);
-  margin-left: 0;
-  border-radius: calc(var(--tiny-gap) * 2);
-  /* height: calc(100vh - var(--tiny-gap) * 2); */
-  height: 100vh;
-  border-left: solid 1px rgba(0, 0, 0, 0.05);
+  height: 100%;
+  overflow-y: auto;
 }
 
 h3 {

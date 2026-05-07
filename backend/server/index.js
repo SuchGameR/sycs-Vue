@@ -931,6 +931,139 @@ app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
   }
 });
 
+// --- User Profile & Follow Routes ---
+
+// Get User by Handle (extended with follow stats)
+app.get("/api/users/:handle", async (req, res) => {
+  const { handle } = req.params;
+  const currentUser = getUserFromToken(req);
+
+  try {
+    const result = await pool.query(
+      `SELECT id, username, email, avatar_url, header_url, userid, attributes, created_at,
+              (SELECT COUNT(*) FROM follows WHERE following_id = users.id) as followers_count,
+              (SELECT COUNT(*) FROM follows WHERE follower_id = users.id) as following_count,
+              EXISTS(SELECT 1 FROM follows WHERE follower_id = $2 AND following_id = users.id) as is_following
+       FROM users 
+       WHERE userid = $1 OR email LIKE $3`,
+      [handle, currentUser?.id || null, `${handle}@%`],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
+
+// Get User Messages
+app.get("/api/users/:handle/messages", async (req, res) => {
+  const { handle } = req.params;
+  const currentUser = getUserFromToken(req);
+
+  try {
+    const userRes = await pool.query("SELECT id FROM users WHERE userid = $1 OR email LIKE $2", [handle, `${handle}@%`]);
+    if (userRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    const targetUserId = userRes.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($2::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $2) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $2) as is_bookmarked
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       WHERE m.user_id = $1
+       ORDER BY m.created_at DESC`,
+      [targetUserId, currentUser?.id || null],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch user messages" });
+  }
+});
+
+// Follow a user
+app.post("/api/users/:userId/follow", authenticateToken, async (req, res) => {
+  const targetUserId = parseInt(req.params.userId);
+  const followerId = req.user.id;
+
+  if (targetUserId === followerId) {
+    return res.status(400).json({ error: "You cannot follow yourself" });
+  }
+
+  try {
+    await pool.query(
+      "INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [followerId, targetUserId],
+    );
+    res.json({ message: "Followed successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to follow" });
+  }
+});
+
+// Unfollow a user
+app.delete("/api/users/:userId/follow", authenticateToken, async (req, res) => {
+  const targetUserId = parseInt(req.params.userId);
+  const followerId = req.user.id;
+
+  try {
+    await pool.query(
+      "DELETE FROM follows WHERE follower_id = $1 AND following_id = $2",
+      [followerId, targetUserId],
+    );
+    res.json({ message: "Unfollowed successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to unfollow" });
+  }
+});
+
+// Get Followers
+app.get("/api/users/:userId/followers", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.username, u.userid as handle, u.email, u.avatar_url, u.attributes->>'bio' as bio
+       FROM users u
+       JOIN follows f ON f.follower_id = u.id
+       WHERE f.following_id = $1`,
+      [userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch followers" });
+  }
+});
+
+// Get Following
+app.get("/api/users/:userId/following", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.username, u.userid as handle, u.email, u.avatar_url, u.attributes->>'bio' as bio
+       FROM users u
+       JOIN follows f ON f.following_id = u.id
+       WHERE f.follower_id = $1`,
+      [userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch following" });
+  }
+});
+
 // Start server
 httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import TweetItem from "../components/commons/TweetItem.vue";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon } from "lucide-vue-next";
+import UserListModal from "../components/popups/UserListModal.vue";
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, MoreHorizontal } from "lucide-vue-next";
 
 const route = useRoute();
 const router = useRouter();
@@ -14,25 +15,69 @@ const posts = ref<any[]>([]);
 const loading = ref(true);
 const error = ref("");
 
+// Follow Logic State
+const isFollowing = ref(false);
+const followersCount = ref(0);
+const followingCount = ref(0);
+
+// Modal State
+const showUserList = ref(false);
+const modalTitle = ref("");
+const modalType = ref<'followers' | 'following'>('followers');
+
 async function fetchUserData() {
   const handle = route.params.handle as string;
   loading.value = true;
   error.value = "";
   try {
-    // ユーザー情報の取得 (バックエンドの実装に合わせる必要があるが、一旦モックまたは/auth/meの拡張を想定)
-    // ここではデモ用にauthStoreのユーザー情報を利用するか、APIを叩く
     const response = await fetch(`/api/users/${handle}`);
     if (!response.ok) throw new Error("User not found");
-    user.value = await response.json();
+    const data = await response.json();
+    user.value = data;
     
+    // フォロー状態とカウントの初期化 (APIが未実装の場合はモック値を設定)
+    isFollowing.value = data.is_following || false;
+    followersCount.value = data.followers_count || 0;
+    followingCount.value = data.following_count || 0;
+
     // ユーザーの投稿取得
     const postsRes = await fetch(`/api/users/${handle}/messages`);
-    posts.value = await postsRes.json();
+    if (postsRes.ok) {
+      posts.value = await postsRes.json();
+    }
   } catch (err: any) {
     error.value = err.message;
   } finally {
     loading.value = false;
   }
+}
+
+async function toggleFollow() {
+  if (!authStore.isAuthenticated) {
+    router.push('/signin');
+    return;
+  }
+  
+  try {
+    const method = isFollowing.value ? 'DELETE' : 'POST';
+    const res = await fetch(`/api/users/${user.value.id}/follow`, {
+      method,
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    });
+    
+    if (res.ok) {
+      isFollowing.value = !isFollowing.value;
+      followersCount.value += isFollowing.value ? 1 : -1;
+    }
+  } catch (e) {
+    console.error("Follow failed", e);
+  }
+}
+
+function openUserList(type: 'followers' | 'following') {
+  modalType.value = type;
+  modalTitle.value = type === 'followers' ? 'フォロワー' : 'フォロー中';
+  showUserList.value = true;
 }
 
 onMounted(fetchUserData);
@@ -41,6 +86,8 @@ watch(() => route.params.handle, fetchUserData);
 function goBack() {
   router.back();
 }
+
+const isMe = computed(() => authStore.user?.id === user.value?.id);
 </script>
 
 <template>
@@ -55,8 +102,13 @@ function goBack() {
       </div>
     </header>
 
-    <div v-if="loading" class="loading-state">読み込み中...</div>
-    <div v-else-if="error" class="error-state">{{ error }}</div>
+    <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
+    </div>
+    <div v-else-if="error" class="error-state">
+      <p>{{ error }}</p>
+      <button @click="router.push('/')" class="home-btn">ホームに戻る</button>
+    </div>
     <div v-else class="profile-content">
       <!-- Header Image -->
       <div class="header-banner">
@@ -66,11 +118,25 @@ function goBack() {
       <!-- Profile Info -->
       <div class="profile-main-info">
         <div class="avatar-row">
-          <img :src="user?.avatar_url || '/default-avatar.png'" class="profile-avatar" />
-          <button v-if="authStore.user?.id === user?.id" class="edit-profile-btn" @click="router.push('/settings')">
-            プロフィールを編集
-          </button>
-          <button v-else class="follow-btn">フォロー</button>
+          <div class="avatar-wrapper">
+            <img :src="user?.avatar_url || '/default-avatar.png'" class="profile-avatar" />
+          </div>
+          <div class="action-buttons">
+            <button v-if="isMe" class="edit-profile-btn" @click="router.push('/settings')">
+              プロフィールを編集
+            </button>
+            <template v-else>
+              <button class="more-actions-btn">
+                <MoreHorizontal :size="20" />
+              </button>
+              <button 
+                :class="['follow-btn', { 'is-following': isFollowing }]" 
+                @click="toggleFollow"
+              >
+                {{ isFollowing ? 'フォロー中' : 'フォロー' }}
+              </button>
+            </template>
+          </div>
         </div>
 
         <div class="user-meta">
@@ -91,13 +157,17 @@ function goBack() {
             <a :href="user.website" target="_blank">{{ user.website.replace(/^https?:\/\//, '') }}</a>
           </div>
           <div class="stat-item">
-            <Calendar :size="16" /> {{ new Date(user?.created_at).toLocaleDateString() }}に登録
+            <Calendar :size="16" /> {{ new Date(user?.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' }) }}に登録
           </div>
         </div>
 
         <div class="follow-stats">
-          <span class="stat"><strong>0</strong> フォロー中</span>
-          <span class="stat"><strong>0</strong> フォロワー</span>
+          <span class="stat-link" @click="openUserList('following')">
+            <strong>{{ followingCount }}</strong> フォロー中
+          </span>
+          <span class="stat-link" @click="openUserList('followers')">
+            <strong>{{ followersCount }}</strong> フォロワー
+          </span>
         </div>
       </div>
 
@@ -117,6 +187,16 @@ function goBack() {
         </div>
       </div>
     </div>
+
+    <!-- Modals -->
+    <UserListModal 
+      v-if="showUserList"
+      :show="showUserList"
+      :title="modalTitle"
+      :userId="user?.id"
+      :type="modalType"
+      @close="showUserList = false"
+    />
   </div>
 </template>
 
@@ -147,9 +227,12 @@ function goBack() {
   border-radius: 50%;
   cursor: pointer;
   transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .back-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .header-info {
@@ -160,6 +243,7 @@ function goBack() {
   font-size: 1.25rem;
   font-weight: 800;
   margin: 0;
+  color: var(--text-primary);
 }
 .post-count {
   font-size: 0.85rem;
@@ -185,31 +269,45 @@ function goBack() {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-top: -60px;
+  margin-top: -65px;
   margin-bottom: 16px;
 }
 
+.avatar-wrapper {
+  position: relative;
+}
+
 .profile-avatar {
-  width: 120px;
-  height: 120px;
+  width: 134px;
+  height: 134px;
   border-radius: 50%;
   border: 4px solid var(--surface);
   background: var(--surface);
   object-fit: cover;
 }
 
-.edit-profile-btn, .follow-btn {
-  padding: 8px 16px;
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.edit-profile-btn, .follow-btn, .more-actions-btn {
+  padding: 0 16px;
+  height: 36px;
   border-radius: 50px;
-  font-weight: 800;
+  font-weight: 700;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-primary);
   cursor: pointer;
   transition: background 0.2s;
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.edit-profile-btn:hover, .follow-btn:hover {
+
+.edit-profile-btn:hover, .more-actions-btn:hover {
   background: rgba(0, 0, 0, 0.05);
 }
 
@@ -217,6 +315,22 @@ function goBack() {
   background: var(--text-primary);
   color: var(--surface);
   border: none;
+  min-width: 100px;
+}
+
+.follow-btn.is-following {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.follow-btn.is-following:hover {
+  background: rgba(255, 0, 0, 0.05);
+  color: #f4212e;
+  border-color: #f4212e;
+}
+.follow-btn.is-following:hover::after {
+  content: "";
 }
 
 .user-meta {
@@ -226,6 +340,7 @@ function goBack() {
   font-size: 1.5rem;
   font-weight: 900;
   margin: 0;
+  color: var(--text-primary);
 }
 .user-handle {
   color: var(--text-secondary);
@@ -235,6 +350,8 @@ function goBack() {
 .bio {
   margin-bottom: 12px;
   line-height: 1.4;
+  color: var(--text-primary);
+  white-space: pre-wrap;
 }
 
 .stats-row {
@@ -254,6 +371,9 @@ function goBack() {
   color: var(--accent);
   text-decoration: none;
 }
+.stat-item a:hover {
+  text-decoration: underline;
+}
 
 .follow-stats {
   display: flex;
@@ -261,7 +381,13 @@ function goBack() {
   font-size: 0.95rem;
   color: var(--text-secondary);
 }
-.follow-stats strong {
+.stat-link {
+  cursor: pointer;
+}
+.stat-link:hover {
+  text-decoration: underline;
+}
+.stat-link strong {
   color: var(--text-primary);
 }
 
@@ -296,6 +422,38 @@ function goBack() {
   height: 4px;
   background: var(--accent);
   border-radius: 2px;
+}
+
+.loading-state {
+  display: flex;
+  justify-content: center;
+  padding: 100px;
+}
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-state {
+  padding: 40px;
+  text-align: center;
+}
+.home-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .empty-timeline {

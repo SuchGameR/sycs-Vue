@@ -25,7 +25,7 @@ function handleProfileClick() {
       <!-- Logo -->
       <div class="logo-icon">
         <img src="/svgLogoOutline.svg" alt="SYCS" />
-        <span class="version">1.2.28</span>
+        <span class="version">1.2.29</span>
       </div>
 
       <PrimarySidebar />
@@ -91,6 +91,7 @@ aside {
   overflow: visible;
   overflow-y: scroll;
   min-width: 80px;
+  flex-shrink: 0;
 
   width: 100%;
   max-width: 200px;
@@ -100,13 +101,20 @@ aside {
   background-color: var(--surface);
   color: var(--text-primary);
   padding: var(--sidebar-paddingSize);
-  margin: var(--tiny-gap);
-  border-radius: calc(var(--tiny-gap) * 2);
   position: relative;
   border-right: solid 1px var(--border);
+  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 900px) {
+  aside {
+    max-width: 80px;
+    padding: calc(var(--sidebar-paddingSize) / 2);
+  }
 }
 
 .logo-icon {
+  height: 30px !important;
   display: flex;
   align-items: end;
   justify-content: space-between;

@@ -37,7 +37,7 @@ function handleKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
     // Prevent sending during IME composition
     if (e.isComposing) return;
-    
+
     e.preventDefault();
     handleSubmit();
   }
@@ -91,11 +91,22 @@ function handleKeydown(e: KeyboardEvent) {
 </template>
 
 <style scoped>
+@container small (max-width: 500px) {
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .icons-group {
+    display: none;
+  }
+}
+
 .inline-post {
   padding: 16px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   width: 100%;
+  container-name: small;
 }
 
 .post-layout {
@@ -189,6 +200,7 @@ textarea::placeholder {
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .submit-btn:disabled {

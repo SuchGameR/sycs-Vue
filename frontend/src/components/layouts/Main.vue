@@ -65,20 +65,17 @@ const fetchMessages = async (isLoadMore = false) => {
 
 const handlePost = async (content) => {
   try {
-    const res = await fetch(
-      `/api/messages/global`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({
-          content,
-          parent_id: replyingTo.value?.id,
-        }),
+    const res = await fetch(`/api/messages/global`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({
+        content,
+        parent_id: replyingTo.value?.id,
+      }),
+    });
     if (res.ok) {
       showPostModal.value = false;
       replyingTo.value = null;
@@ -91,15 +88,12 @@ const handlePost = async (content) => {
 
 const handleRetweet = async (msg) => {
   try {
-    const res = await fetch(
-      `/api/messages/${msg.id}/retweet`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
+    const res = await fetch(`/api/messages/${msg.id}/retweet`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+    });
     if (res.ok) {
       fetchMessages();
     }
@@ -110,21 +104,19 @@ const handleRetweet = async (msg) => {
 
 const handleBookmark = async (msg) => {
   try {
-    const res = await fetch(
-      `/api/messages/${msg.id}/bookmark`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
+    const res = await fetch(`/api/messages/${msg.id}/bookmark`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+    });
     if (res.ok) {
       const data = await res.json();
       const target = messages.value.find((m) => m.id === msg.id);
       if (target) {
         target.is_bookmarked = data.bookmarked;
-        target.bookmark_count = (target.bookmark_count || 0) + (data.bookmarked ? 1 : -1);
+        target.bookmark_count =
+          (target.bookmark_count || 0) + (data.bookmarked ? 1 : -1);
       }
     }
   } catch (e) {
@@ -133,27 +125,24 @@ const handleBookmark = async (msg) => {
 };
 
 const handleReact = async (messageId, emoji) => {
-  const mid = typeof messageId === 'object' ? messageId.id : messageId;
-  const emojiStr = typeof emoji === 'string' ? emoji : '❤️';
+  const mid = typeof messageId === "object" ? messageId.id : messageId;
+  const emojiStr = typeof emoji === "string" ? emoji : "❤️";
 
   try {
-    const res = await fetch(
-      `/api/messages/${mid}/reactions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({ emoji: emojiStr }),
+    const res = await fetch(`/api/messages/${mid}/reactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({ emoji: emojiStr }),
+    });
     if (res.ok) {
       const reactions = await res.json();
       const msg = messages.value.find((m) => m.id === mid);
       if (msg) {
         msg.reactions = reactions;
-        msg.is_liked = (reactions['❤️'] || []).includes(authStore.user?.id);
+        msg.is_liked = (reactions["❤️"] || []).includes(authStore.user?.id);
       }
     }
   } catch (e) {
@@ -163,17 +152,14 @@ const handleReact = async (messageId, emoji) => {
 
 const handleEdit = async (messageId, content) => {
   try {
-    await fetch(
-      `/api/messages/${messageId}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authStore.token}`,
-        },
-        body: JSON.stringify({ content }),
+    await fetch(`/api/messages/${messageId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+      body: JSON.stringify({ content }),
+    });
   } catch (e) {
     console.error(e);
   }
@@ -181,15 +167,12 @@ const handleEdit = async (messageId, content) => {
 
 const handleDelete = async (messageId) => {
   try {
-    await fetch(
-      `/api/messages/${messageId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
+    await fetch(`/api/messages/${messageId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
       },
-    );
+    });
   } catch (e) {
     console.error(e);
   }
@@ -266,7 +249,7 @@ watch(activeTab, () => {
 </script>
 
 <template>
-  <main>
+  <div class="main-layout">
     <Vertical class="mainContainer">
       <!-- タブ切り替えエリア -->
       <section class="tabs">
@@ -292,18 +275,18 @@ watch(activeTab, () => {
 
       <!-- タイムラインエリア -->
       <div class="timeline" ref="messageListRef" @scroll="handleScroll">
-  <TweetItem
-    v-for="msg in messages"
-    :key="msg.id"
-    :msg="msg"
-    @reply="startReply"
-    @retweet="handleRetweet"
-    @like="handleReact"
-    @bookmark="handleBookmark"
-    @edit="handleEdit"
-    @delete="handleDelete"
-    @refresh="fetchMessages"
-  />
+        <TweetItem
+          v-for="msg in messages"
+          :key="msg.id"
+          :msg="msg"
+          @reply="startReply"
+          @retweet="handleRetweet"
+          @like="handleReact"
+          @bookmark="handleBookmark"
+          @edit="handleEdit"
+          @delete="handleDelete"
+          @refresh="fetchMessages"
+        />
 
         <div v-if="loading" class="loading">{{ authStore.t.now_loading }}</div>
         <div v-if="!hasMore && messages.length > 0" class="no-more">
@@ -347,24 +330,31 @@ watch(activeTab, () => {
         </template>
       </PostModal>
     </Vertical>
-  </main>
+  </div>
 </template>
 
 <style scoped>
-main {
+.main-layout {
+  flex: 1;
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100vh;
+  height: 100%;
   background-color: var(--background);
   color: var(--text-primary);
   position: relative;
   max-width: 800px;
+  /* margin: 0 auto; */
+  overflow: hidden;
+  min-width: 460px;
 }
 
 .mainContainer {
+  flex: 1;
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .tabs {
@@ -376,6 +366,13 @@ main {
   position: sticky;
   top: 0;
   z-index: 100;
+  padding-right: 60px; /* Space for mobile toggle button */
+}
+
+@media (min-width: 1101px) {
+  .tabs {
+    padding-right: 0;
+  }
 }
 
 .tab-item {
