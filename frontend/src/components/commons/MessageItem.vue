@@ -108,6 +108,9 @@ async function renderContent() {
       return `<pre><code>${text}</code></pre>`;
     }
   };
+  renderer.link = ({ href, title, text }) => {
+    return `<a href="${href}" title="${title || ""}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  };
   const rawHtml = await marked.parse(processed, { 
     renderer, 
     async: true,
@@ -115,7 +118,7 @@ async function renderContent() {
     gfm: true
   });
   highlightedHtml.value = DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ['target', 'class']
+    ADD_ATTR: ["target", "class", "rel"]
   });
 }
 

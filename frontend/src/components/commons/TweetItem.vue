@@ -111,6 +111,9 @@ async function renderContent() {
       return `<pre><code>${text}</code></pre>`;
     }
   };
+  renderer.link = ({ href, title, text }) => {
+    return `<a href="${href}" title="${title || ""}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  };
 
   const rawHtml = await marked.parse(processed, { 
     renderer, 
@@ -119,7 +122,7 @@ async function renderContent() {
     gfm: true     // Support GitHub Flavored Markdown (including autolinks)
   });
   highlightedHtml.value = DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ['target', 'class'] // Allow target and class for mentions/links
+    ADD_ATTR: ["target", "class", "rel"] // Allow target, class, and rel
   });
 }
 
@@ -159,6 +162,9 @@ async function renderOrigContent() {
       return `<pre><code>${text}</code></pre>`;
     }
   };
+  renderer.link = ({ href, title, text }) => {
+    return `<a href="${href}" title="${title || ""}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  };
   const rawHtml = await marked.parse(processed, { 
     renderer, 
     async: true,
@@ -166,7 +172,7 @@ async function renderOrigContent() {
     gfm: true
   });
   highlightedOrigHtml.value = DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ['target', 'class']
+    ADD_ATTR: ["target", "class", "rel"]
   });
 }
 
