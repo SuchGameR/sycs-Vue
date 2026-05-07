@@ -278,13 +278,27 @@ const hasMyReaction = (emoji: string) =>
             >
             <span class="dot">·</span>
             <span class="timestamp">{{
-              new Date(msg.created_at).toLocaleDateString() ===
-              new Date().toLocaleDateString()
-                ? new Date(msg.created_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : new Date(msg.created_at).toLocaleDateString()
+              (() => {
+                let rawDate = msg.created_at;
+                if (!rawDate) return "";
+                let dateStr = rawDate;
+                if (typeof dateStr === 'string') {
+                  const hasTZ = /Z|[+-]\d{2}(?::?\d{2})?$/.test(dateStr);
+                  if (!hasTZ) {
+                    dateStr = dateStr.replace(' ', 'T') + 'Z';
+                  } else if (dateStr.includes(' ') && !dateStr.includes('T')) {
+                    dateStr = dateStr.replace(' ', 'T');
+                  }
+                }
+                const date = new Date(dateStr);
+                const now = new Date();
+                return date.toLocaleDateString() === now.toLocaleDateString()
+                  ? date.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : date.toLocaleDateString();
+              })()
             }}</span>
             <span v-if="msg.edit_history?.length > 0" class="edited-tag"
               >(編集済)</span

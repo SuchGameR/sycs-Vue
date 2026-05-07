@@ -206,7 +206,21 @@ const totalLikes = computed(() => {
 });
 
 const formattedTime = computed(() => {
-  const date = new Date(props.msg.created_at);
+  let rawDate = props.msg.created_at;
+  if (!rawDate) return "";
+
+  let dateStr = rawDate;
+  if (typeof dateStr === 'string') {
+    // Check if it's missing the timezone indicator (Z or +HH:mm or -HH:mm at the end)
+    const hasTZ = /Z|[+-]\d{2}(?::?\d{2})?$/.test(dateStr);
+    if (!hasTZ) {
+      dateStr = dateStr.replace(' ', 'T') + 'Z';
+    } else if (dateStr.includes(' ') && !dateStr.includes('T')) {
+      dateStr = dateStr.replace(' ', 'T');
+    }
+  }
+
+  const date = new Date(dateStr);
   const diff = (currentTime.value - date.getTime()) / 1000;
 
   if (diff < 1) return "今";

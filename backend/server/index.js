@@ -567,7 +567,7 @@ app.get("/api/channels/:channelId/messages", async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT m.*, u.avatar_url, u.userid as author_handle,
-              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content, 'created_at', p.created_at) 
                FROM messages p WHERE p.id = m.parent_id) as parent_msg
        FROM messages m 
        LEFT JOIN users u ON m.user_id = u.id 
@@ -648,10 +648,7 @@ app.get("/api/messages/global", authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT m.id, m.messageid, m.channel_id, m.user_id, m.parent_id, m.retweet_id, m.author_name, m.content, m.post_type, m.poston, m.attachment, m.reactions, m.edit_history, m.attributes, m.views_count,
-              m.created_at AT TIME ZONE 'UTC' as created_at,
-              m.updated_at AT TIME ZONE 'UTC' as updated_at,
-              u.avatar_url, u.userid as author_handle,
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
               (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
                FROM messages p WHERE p.id = m.parent_id) as parent_msg,
               (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
