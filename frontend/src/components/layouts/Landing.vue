@@ -94,7 +94,7 @@ function goToSignup() {
         </div>
         <div v-for="msg in messages" :key="msg.id" class="message-card">
           <img
-            :src="msg.avatar_url || '/kiwibird-discord.png'"
+            :src="msg.avatar_url || '/default-avatar.png'"
             class="msg-avatar"
           />
           <div class="msg-body">
@@ -251,12 +251,24 @@ function goToSignup() {
   overflow-y: auto;
 }
 
+@keyframes woosh {
+  0% {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .message-card {
   padding: 1.2rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   gap: 1rem;
   transition: background 0.2s;
+  animation: woosh 0.3s ease forwards;
 }
 
 .message-card:hover {

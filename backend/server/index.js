@@ -294,6 +294,24 @@ app.get("/api/servers", async (req, res) => {
   }
 });
 
+// Get user's joined/owned servers
+app.get("/api/servers/mine", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM servers 
+       WHERE serverowner = $1 
+       OR serverjoins @> $2::jsonb 
+       ORDER BY id ASC`,
+      [userId, JSON.stringify([userId])],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch your servers" });
+  }
+});
+
 app.get("/api/servers/:serverId", async (req, res) => {
   const { serverId } = req.params;
   const user = getUserFromToken(req);
@@ -335,24 +353,6 @@ app.get("/api/servers/:serverId", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch server" });
-  }
-});
-
-// Get user's joined/owned servers
-app.get("/api/servers/mine", authenticateToken, async (req, res) => {
-  const userId = req.user.id;
-  try {
-    const result = await pool.query(
-      `SELECT * FROM servers 
-       WHERE serverowner = $1 
-       OR serverjoins @> $2::jsonb 
-       ORDER BY id ASC`,
-      [userId, JSON.stringify([userId])],
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch your servers" });
   }
 });
 
