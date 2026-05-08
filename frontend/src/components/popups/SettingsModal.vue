@@ -30,6 +30,7 @@ const router = useRouter();
 
 const activeMenu = ref("profile");
 const username = ref("");
+const userid = ref("");
 const avatar_url = ref("");
 const header_url = ref("");
 const timelineMode = ref(authStore.timelineMode);
@@ -60,6 +61,7 @@ onMounted(async () => {
 function initFields() {
   if (authStore.user) {
     username.value = authStore.user.username;
+    userid.value = authStore.user.userid;
     avatar_url.value = authStore.user.avatar_url || "";
     header_url.value = authStore.user.header_url || "";
   }
@@ -138,6 +140,7 @@ async function handleUpdate() {
   try {
     await authStore.updateSettings({
       username: username.value,
+      userid: userid.value,
       avatar_url: avatar_url.value,
       header_url: header_url.value,
       attributes: { ...authStore.user?.attributes, theme: theme.value },
@@ -235,9 +238,7 @@ function handleLogout() {
               </div>
               <div class="preview-text">
                 <span class="preview-name">{{ username || "Username" }}</span>
-                <span class="preview-handle"
-                  >@{{ authStore.user?.email.split("@")[0] }}</span
-                >
+                <span class="preview-handle">@{{ userid }}</span>
               </div>
             </div>
           </div>
@@ -246,6 +247,11 @@ function handleLogout() {
             <div class="form-group">
               <label>{{ authStore.t.username }}</label>
               <input v-model="username" type="text" />
+            </div>
+
+            <div class="form-group">
+              <label>ユーザーID (ハンドネーム)</label>
+              <input v-model="userid" type="text" placeholder="bird" />
             </div>
 
             <div class="form-group full-width">

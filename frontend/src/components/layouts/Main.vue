@@ -25,11 +25,9 @@ const replyingTo = ref(null);
 const socket = io("/", { path: "/socket.io" });
 
 const fetchMessages = async (isLoadMore = false) => {
-  if (
-    loading.value ||
-    (!isLoadMore && !hasMore.value && messages.value.length > 0)
-  )
-    return;
+  if (loading.value) return;
+  if (isLoadMore && !hasMore.value) return;
+
   loading.value = true;
 
   if (!isLoadMore) {
@@ -214,15 +212,40 @@ const switchTab = (tab) => {
 onMounted(() => {
   fetchMessages();
 
-  socket.on("new-global-message", (msg) => {
-    if (activeTab.value === "global") {
-      messages.value.unshift(msg);
-      if (authStore.timelineMode === "stream") {
-        scrollToBottom();
-      }
-      if (messages.value.length > 100) messages.value.pop();
+  socket.on("public-message", (msg) => {
+    // 1. 返信は表示しない
+    if (msg.parent_id) return;
+
+    // 2. 現在のタブに合わせて反映
+    let shouldAdd = false;
+
+    if (activeTab.value === "global" || activeTab.value === "recommend") {
+      // グローバル/おすすめは全てのトップレベルメッセージを表示
+      shouldAdd = true;
+    } else if (activeTab.value === "follow") {
+      // フォロー中の場合は著者が自分かフォロー中である必要がある
+      // ここでは簡略化のため、著者が自分であるか、サーバーから何らかのフラグが欲しいが、
+      // クライアント側でフォローリストを持っていないため、一旦自分のみか再取得を検討
+      // ユーザーの利便性のため、自分の投稿は必ず表示する
+      if (msg.user_id === authStore.user?.id) shouldAdd = true;
+    } else if (activeTab.value === "local") {
+      // ローカルはチャンネルIDがある（サーバー投稿）場合
+      if (msg.channel_id) shouldAdd = true;
     }
-    if (msg.user_id !== authStore.user?.id) {
+
+    if (shouldAdd) {
+      // 重複チェック
+      if (!messages.value.find((m) => m.id === msg.id)) {
+        messages.value.unshift(msg);
+        if (authStore.timelineMode === "stream") {
+          scrollToBottom();
+        }
+        if (messages.value.length > 100) messages.value.pop();
+      }
+    }
+
+    // 通知バッジ（自分以外の投稿の場合）
+    if (msg.user_id !== authStore.user?.id && activeTab.value !== "global") {
       authStore.incrementNotificationCount();
     }
   });
@@ -346,7 +369,7 @@ watch(activeTab, () => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   background-color: var(--background);
   color: var(--text-primary);
   position: relative;

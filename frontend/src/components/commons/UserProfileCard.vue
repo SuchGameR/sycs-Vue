@@ -19,9 +19,9 @@ const loading = ref(true);
 const fullUser = ref<any>(null);
 
 async function fetchFullUser() {
-  const handle = props.user.author_handle || props.user.handle || props.user.email?.split('@')[0];
+  const handle = props.user.author_handle || props.user.userid || props.user.handle || props.user.email?.split('@')[0];
   if (!handle) return;
-  
+
   loading.value = true;
   try {
     const res = await fetch(`/api/users/${handle}`, {
@@ -30,8 +30,8 @@ async function fetchFullUser() {
     if (res.ok) {
       const data = await res.json();
       fullUser.value = data;
-      isFollowing.value = data.is_following;
-      followersCount.value = data.followers_count;
+      isFollowing.value = !!data.is_following;
+      followersCount.value = Number(data.followers_count) || 0;
     }
   } catch (e) {
     console.error("Failed to fetch user in card", e);
@@ -47,7 +47,7 @@ watch(() => props.show, (newVal) => {
 });
 
 function goToProfile() {
-  const handle = fullUser.value?.userid || props.user?.author_handle || props.user?.email?.split('@')[0];
+  const handle = fullUser.value?.userid || props.user?.author_handle || props.user?.userid || props.user?.email?.split('@')[0];
   if (handle) {
     router.push(`/user/${handle}`);
   }
@@ -62,7 +62,7 @@ async function toggleFollow(e: Event) {
   
   try {
     const method = isFollowing.value ? 'DELETE' : 'POST';
-    const res = await fetch(`/api/users/${props.user.user_id || props.user.id}/follow`, {
+    const res = await fetch(`/api/users/${fullUser.value?.id || props.user.user_id || props.user.id}/follow`, {
       method,
       headers: { Authorization: `Bearer ${authStore.token}` }
     });
@@ -77,12 +77,19 @@ async function toggleFollow(e: Event) {
 }
 
 const joinedDate = computed(() => {
-  const date = props.user?.created_at ? new Date(props.user.created_at) : new Date();
-  return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
+  const date = fullUser.value?.created_at || props.user?.created_at;
+  if (!date) return '';
+  return new Date(date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
 });
 
-const handle = computed(() => props.user.author_handle || props.user.handle || props.user.email?.split('@')[0]);
-const name = computed(() => props.user.username || props.user.author_name);
+const handle = computed(() => {
+  const h = fullUser.value?.userid || props.user.author_handle || props.user.userid || props.user.handle || props.user.email?.split('@')[0];
+  return h ? `@${h}` : '';
+});
+const name = computed(() => fullUser.value?.username || props.user.username || props.user.author_name);
+const bio = computed(() => fullUser.value?.attributes?.bio || props.user.bio || props.user.attributes?.bio);
+const headerUrl = computed(() => fullUser.value?.header_url || props.user.header_url);
+const avatarUrl = computed(() => fullUser.value?.avatar_url || props.user.avatar_url);
 </script>
 
 <template>
@@ -96,17 +103,17 @@ const name = computed(() => props.user.username || props.user.author_name);
       >
         <div class="card-inner">
           <!-- Banner -->
-          <div class="card-banner" :style="{ backgroundColor: 'var(--accent)', backgroundImage: `url(${user.header_url || '/image.png'})` }"></div>
+          <div class="card-banner" :style="{ backgroundColor: 'var(--accent)', backgroundImage: `url(${headerUrl || '/image.png'})` }"></div>
           
           <div class="card-body">
             <!-- Avatar & Follow -->
             <div class="avatar-row">
               <div class="avatar-container">
-                <img :src="user.avatar_url || '/default-avatar.png'" class="card-avatar" />
+                <img :src="avatarUrl || '/default-avatar.png'" class="card-avatar" />
                 <div class="status-dot"></div>
               </div>
               <button 
-                v-if="authStore.user?.id !== (user.user_id || user.id)" 
+                v-if="authStore.user?.id !== (fullUser?.id || user.user_id || user.id)" 
                 :class="['card-follow-btn', { 'is-following': isFollowing }]"
                 @click="toggleFollow"
               >
@@ -125,9 +132,9 @@ const name = computed(() => props.user.username || props.user.author_name);
             <div class="divider"></div>
 
             <!-- Bio -->
-            <div class="section bio-section" v-if="user.bio">
+            <div class="section bio-section" v-if="bio">
               <h4 class="section-title">自己紹介</h4>
-              <p class="bio-text">{{ user.bio }}</p>
+              <p class="bio-text">{{ bio }}</p>
             </div>
 
             <!-- Stats/Meta -->

@@ -78,7 +78,7 @@ const isListOpen = ref(false);
   flex-direction: column;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 730px) {
   .mobile-list-toggle {
     display: flex;
     position: fixed;

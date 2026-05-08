@@ -169,6 +169,12 @@ const handleServerUpdated = (updatedServer) => {
 onMounted(() => {
   fetchData();
 
+  socket.on("server-updated", (updatedServer) => {
+    if (currentServer.value && currentServer.value.id === updatedServer.id) {
+      currentServer.value = { ...currentServer.value, ...updatedServer };
+    }
+  });
+
   socket.on("new-message", (msg) => {
     if (msg.channel_id === currentChannelId.value) {
       messages.value.push(msg);

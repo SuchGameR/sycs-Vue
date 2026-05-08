@@ -1,12 +1,14 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import PrimaryButton from "../commons/PrimaryButton.vue";
 import CommunityModal from "../popups/CommunityModal.vue";
+import { io } from "socket.io-client";
 
 const authStore = useAuthStore();
 const servers = ref([]);
 const isCommunityModalOpen = ref(false);
+const socket = io("/", { path: "/socket.io" });
 
 const fetchMyServers = async () => {
   if (!authStore.isAuthenticated) {
@@ -29,6 +31,17 @@ const fetchMyServers = async () => {
 
 onMounted(() => {
   fetchMyServers();
+
+  socket.on("server-updated", (updatedServer) => {
+    const index = servers.value.findIndex((s) => s.id === updatedServer.id);
+    if (index !== -1) {
+      servers.value[index] = { ...servers.value[index], ...updatedServer };
+    }
+  });
+});
+
+onUnmounted(() => {
+  socket.disconnect();
 });
 
 watch(

@@ -69,7 +69,7 @@ function handleMouseLeave() {
 }
 
 function goToProfile() {
-  const handle = props.msg.author_handle || props.msg.email?.split("@")[0];
+  const handle = props.msg.author_handle;
   if (handle) {
     router.push(`/user/${handle}`);
   }

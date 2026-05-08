@@ -125,6 +125,22 @@ const getUserFromToken = (req) => {
 
 // ... (Auth Routes: signup, signin, me, settings - unchanged) ...
 
+// --- Helper Functions ---
+async function generateUniqueUserId(base) {
+  let userid = base.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+  if (!userid) userid = "user";
+  
+  let currentUserId = userid;
+  let counter = 1;
+  
+  while (true) {
+    const check = await pool.query("SELECT id FROM users WHERE userid = $1", [currentUserId]);
+    if (check.rows.length === 0) return currentUserId;
+    currentUserId = `${userid}${counter}`;
+    counter++;
+  }
+}
+
 // --- Auth Routes ---
 
 // Upload Avatar
@@ -190,10 +206,12 @@ app.post("/api/auth/signup", async (req, res) => {
       return res.status(400).json({ error: "User already exists" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const defaultUserId = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+    const baseId = email.split("@")[0];
+    const uniqueUserId = await generateUniqueUserId(baseId);
+
     const result = await pool.query(
       "INSERT INTO users (username, email, password_hash, userid) VALUES ($1, $2, $3, $4) RETURNING id, username, email, avatar_url, header_url, userid",
-      [username, email, hashedPassword, defaultUserId],
+      [username, email, hashedPassword, uniqueUserId],
     );
     const user = result.rows[0];
     const token = jwt.sign(
@@ -257,10 +275,31 @@ app.get("/api/auth/me", authenticateToken, async (req, res) => {
 });
 
 app.put("/api/auth/settings", authenticateToken, async (req, res) => {
-  const { username, avatar_url, header_url, attributes } = req.body;
+  const { username, avatar_url, header_url, attributes, userid } = req.body;
   try {
+    // If userid is being changed, check for uniqueness
+    if (userid) {
+      const sanitizedId = userid.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+      if (sanitizedId.length < 3) {
+        return res.status(400).json({ error: "ID must be at least 3 characters" });
+      }
+
+      const checkResult = await pool.query(
+        "SELECT id FROM users WHERE userid = $1 AND id != $2",
+        [sanitizedId, req.user.id]
+      );
+      if (checkResult.rows.length > 0) {
+        return res.status(400).json({ error: "This ID is already taken" });
+      }
+
+      await pool.query(
+        "UPDATE users SET userid = $1 WHERE id = $2",
+        [sanitizedId, req.user.id]
+      );
+    }
+
     const result = await pool.query(
-      "UPDATE users SET username = COALESCE($1, username), avatar_url = COALESCE($2, avatar_url), header_url = COALESCE($3, header_url), attributes = COALESCE($4, attributes) WHERE id = $5 RETURNING id, username, email, avatar_url, header_url, attributes",
+      "UPDATE users SET username = COALESCE($1, username), avatar_url = COALESCE($2, avatar_url), header_url = COALESCE($3, header_url), attributes = COALESCE($4, attributes) WHERE id = $5 RETURNING id, username, email, avatar_url, header_url, userid, attributes",
       [username, avatar_url, header_url, attributes, req.user.id],
     );
     res.json(result.rows[0]);
@@ -456,7 +495,9 @@ app.put("/api/servers/:serverId", authenticateToken, async (req, res) => {
       [name, icon, header, JSON.stringify(newSettings), serverId],
     );
 
-    res.json(result.rows[0]);
+    const updatedServer = result.rows[0];
+    io.emit("server-updated", updatedServer);
+    res.json(updatedServer);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update server settings" });
@@ -485,10 +526,12 @@ app.post(
         return res.status(403).json({ error: "Unauthorized" });
 
       const result = await pool.query(
-        "UPDATE servers SET icon = $1 WHERE id = $2 RETURNING icon",
+        "UPDATE servers SET icon = $1 WHERE id = $2 RETURNING *",
         [iconUrl, serverId],
       );
-      res.json(result.rows[0]);
+      const updatedServer = result.rows[0];
+      io.emit("server-updated", updatedServer);
+      res.json(updatedServer);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Failed to update server icon" });
@@ -518,10 +561,12 @@ app.post(
         return res.status(403).json({ error: "Unauthorized" });
 
       const result = await pool.query(
-        "UPDATE servers SET header = $1 WHERE id = $2 RETURNING header",
+        "UPDATE servers SET header = $1 WHERE id = $2 RETURNING *",
         [headerUrl, serverId],
       );
-      res.json(result.rows[0]);
+      const updatedServer = result.rows[0];
+      io.emit("server-updated", updatedServer);
+      res.json(updatedServer);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Failed to update server header" });
@@ -661,6 +706,7 @@ app.get("/api/messages/global", authenticateToken, async (req, res) => {
        LEFT JOIN users u ON m.user_id = u.id 
        LEFT JOIN messages orig ON m.retweet_id = orig.id
        LEFT JOIN users ou ON orig.user_id = ou.id
+       WHERE m.parent_id IS NULL AND m.post_type = 'GLOBAL'
        ORDER BY m.created_at DESC 
        LIMIT $1 OFFSET $2`,
       [limit, offset, userId],
@@ -669,6 +715,109 @@ app.get("/api/messages/global", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch global messages" });
+  }
+});
+
+// Get recommended messages (Same as global for now)
+app.get("/api/messages/recommend", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $3) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $3) as is_bookmarked,
+              orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       LEFT JOIN messages orig ON m.retweet_id = orig.id
+       LEFT JOIN users ou ON orig.user_id = ou.id
+       WHERE m.parent_id IS NULL
+       ORDER BY m.created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch recommended messages" });
+  }
+});
+
+// Get following messages
+app.get("/api/messages/follow", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $3) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $3) as is_bookmarked,
+              orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       LEFT JOIN messages orig ON m.retweet_id = orig.id
+       LEFT JOIN users ou ON orig.user_id = ou.id
+       JOIN follows f ON m.user_id = f.following_id
+       WHERE f.follower_id = $3 AND m.parent_id IS NULL
+       ORDER BY m.created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch following messages" });
+  }
+});
+
+// Get local messages (joined servers)
+app.get("/api/messages/local", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $3) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $3) as is_bookmarked,
+              orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       LEFT JOIN messages orig ON m.retweet_id = orig.id
+       LEFT JOIN users ou ON orig.user_id = ou.id
+       JOIN channels c ON m.channel_id = c.id
+       JOIN servers s ON c.server_id = s.id
+       WHERE (s.serverowner = $3 OR s.serverjoins @> jsonb_build_array($3::int))
+         AND m.parent_id IS NULL
+       ORDER BY m.created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch local messages" });
   }
 });
 

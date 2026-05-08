@@ -43,15 +43,17 @@ async function fetchUserData() {
   offset.value = 0;
   hasMore.value = true;
   try {
-    const response = await fetch(`/api/users/${handle}`);
+    const response = await fetch(`/api/users/${handle}`, {
+      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {},
+    });
     if (!response.ok) throw new Error("User not found");
     const data = await response.json();
     user.value = data;
 
-    // フォロー状態とカウントの初期化 (APIが未実装の場合はモック値を設定)
-    isFollowing.value = data.is_following || false;
-    followersCount.value = data.followers_count || 0;
-    followingCount.value = data.following_count || 0;
+    // フォロー状態とカウントの初期化 (数値変換を強制)
+    isFollowing.value = !!data.is_following;
+    followersCount.value = Number(data.followers_count) || 0;
+    followingCount.value = Number(data.following_count) || 0;
 
     // ユーザーの投稿取得
     await fetchUserPosts();
@@ -192,7 +194,7 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
 
         <div class="user-meta">
           <h1 class="display-name">{{ user?.username }}</h1>
-          <span class="user-handle">@{{ user?.email.split("@")[0] }}</span>
+          <span class="user-handle">@{{ user?.userid }}</span>
         </div>
 
         <div class="bio" v-if="user?.bio">
