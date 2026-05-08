@@ -8,6 +8,7 @@ import Server from "../pages/Server.vue";
 import Signup from "../pages/Signup.vue";
 import Signin from "../pages/Signin.vue";
 import UserProfile from "../pages/UserProfile.vue";
+import PostDetail from "../pages/PostDetail.vue";
 import TimelineMain from "../components/layouts/Main.vue";
 
 const router = createRouter({
@@ -19,6 +20,7 @@ const router = createRouter({
       children: [
         { path: "", component: TimelineMain },
         { path: "user/:handle", component: UserProfile },
+        { path: "status/:id", component: PostDetail },
       ]
     },
     { path: "/about", component: About },

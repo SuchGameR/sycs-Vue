@@ -672,6 +672,66 @@ app.get("/api/messages/global", authenticateToken, async (req, res) => {
   }
 });
 
+// Get single message detail with replies
+app.get("/api/messages/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const msgResult = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              (SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($2::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $2) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $2) as is_bookmarked,
+              orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       LEFT JOIN messages orig ON m.retweet_id = orig.id
+       LEFT JOIN users ou ON orig.user_id = ou.id
+       WHERE m.id = $1`,
+      [id, userId],
+    );
+
+    if (msgResult.rows.length === 0) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    const message = msgResult.rows[0];
+
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const repliesResult = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              (SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id) as reply_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($2::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $2) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $2) as is_bookmarked
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       WHERE m.parent_id = $1
+       ORDER BY m.created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [id, userId, limit, offset],
+    );
+
+    res.json({
+      message,
+      replies: repliesResult.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch message detail" });
+  }
+});
+
 // Increment view count
 app.post("/api/messages/:messageId/views", async (req, res) => {
   const { messageId } = req.params;
@@ -943,6 +1003,7 @@ app.get("/api/users/:handle", async (req, res) => {
       `SELECT id, username, email, avatar_url, header_url, userid, attributes, created_at,
               (SELECT COUNT(*) FROM follows WHERE following_id = users.id) as followers_count,
               (SELECT COUNT(*) FROM follows WHERE follower_id = users.id) as following_count,
+              (SELECT COUNT(*) FROM messages WHERE user_id = users.id) as posts_count,
               EXISTS(SELECT 1 FROM follows WHERE follower_id = $2 AND following_id = users.id) as is_following
        FROM users 
        WHERE userid = $1 OR email LIKE $3`,
@@ -970,6 +1031,9 @@ app.get("/api/users/:handle/messages", async (req, res) => {
     if (userRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
     const targetUserId = userRes.rows[0].id;
 
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
     const result = await pool.query(
       `SELECT m.*, u.avatar_url, u.userid as author_handle,
               (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
@@ -980,8 +1044,9 @@ app.get("/api/users/:handle/messages", async (req, res) => {
        FROM messages m 
        LEFT JOIN users u ON m.user_id = u.id 
        WHERE m.user_id = $1
-       ORDER BY m.created_at DESC`,
-      [targetUserId, currentUser?.id || null],
+       ORDER BY m.created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [targetUserId, currentUser?.id || null, limit, offset],
     );
     res.json(result.rows);
   } catch (err) {

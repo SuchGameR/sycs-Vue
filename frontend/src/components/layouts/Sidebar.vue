@@ -25,7 +25,7 @@ function handleProfileClick() {
       <!-- Logo -->
       <div class="logo-icon">
         <img src="/svgLogoOutline.svg" alt="SYCS" />
-        <span class="version">1.2.29</span>
+        <span class="version">1.2.30</span>
       </div>
 
       <PrimarySidebar />

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
+import { useRouter } from "vue-router";
 import { io } from "socket.io-client";
 import { X } from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
@@ -10,6 +11,7 @@ import InlinePost from "../commons/InlinePost.vue";
 import TweetItem from "../commons/TweetItem.vue";
 
 const authStore = useAuthStore();
+const router = useRouter();
 const messages = ref([]);
 const messageListRef = ref(null);
 const loading = ref(false);
@@ -77,9 +79,14 @@ const handlePost = async (content) => {
       }),
     });
     if (res.ok) {
+      const parentId = replyingTo.value?.id;
       showPostModal.value = false;
       replyingTo.value = null;
-      fetchMessages();
+      if (parentId) {
+        router.push(`/status/${parentId}`);
+      } else {
+        fetchMessages();
+      }
     }
   } catch (e) {
     console.error(e);

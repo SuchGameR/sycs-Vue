@@ -4,7 +4,13 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import TweetItem from "../components/commons/TweetItem.vue";
 import UserListModal from "../components/popups/UserListModal.vue";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, MoreHorizontal } from "lucide-vue-next";
+import {
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Link as LinkIcon,
+  MoreHorizontal,
+} from "lucide-vue-next";
 
 const route = useRoute();
 const router = useRouter();
@@ -13,7 +19,11 @@ const authStore = useAuthStore();
 const user = ref<any>(null);
 const posts = ref<any[]>([]);
 const loading = ref(true);
+const loadingPosts = ref(false);
 const error = ref("");
+const hasMore = ref(true);
+const offset = ref(0);
+const limit = 20;
 
 // Follow Logic State
 const isFollowing = ref(false);
@@ -23,28 +33,28 @@ const followingCount = ref(0);
 // Modal State
 const showUserList = ref(false);
 const modalTitle = ref("");
-const modalType = ref<'followers' | 'following'>('followers');
+const modalType = ref<"followers" | "following">("followers");
 
 async function fetchUserData() {
   const handle = route.params.handle as string;
   loading.value = true;
   error.value = "";
+  posts.value = [];
+  offset.value = 0;
+  hasMore.value = true;
   try {
     const response = await fetch(`/api/users/${handle}`);
     if (!response.ok) throw new Error("User not found");
     const data = await response.json();
     user.value = data;
-    
+
     // フォロー状態とカウントの初期化 (APIが未実装の場合はモック値を設定)
     isFollowing.value = data.is_following || false;
     followersCount.value = data.followers_count || 0;
     followingCount.value = data.following_count || 0;
 
     // ユーザーの投稿取得
-    const postsRes = await fetch(`/api/users/${handle}/messages`);
-    if (postsRes.ok) {
-      posts.value = await postsRes.json();
-    }
+    await fetchUserPosts();
   } catch (err: any) {
     error.value = err.message;
   } finally {
@@ -52,19 +62,53 @@ async function fetchUserData() {
   }
 }
 
+async function fetchUserPosts(isLoadMore = false) {
+  if (loadingPosts.value || (isLoadMore && !hasMore.value)) return;
+  const handle = route.params.handle as string;
+  loadingPosts.value = true;
+
+  try {
+    const postsRes = await fetch(`/api/users/${handle}/messages?limit=${limit}&offset=${offset.value}`, {
+      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {},
+    });
+    if (postsRes.ok) {
+      const data = await postsRes.json();
+      if (data.length < limit) hasMore.value = false;
+      
+      if (isLoadMore) {
+        posts.value = [...posts.value, ...data];
+      } else {
+        posts.value = data;
+      }
+      offset.value += data.length;
+    }
+  } catch (e) {
+    console.error("Failed to fetch posts", e);
+  } finally {
+    loadingPosts.value = false;
+  }
+}
+
+function handleScroll(e: Event) {
+  const target = e.target as HTMLElement;
+  if (target.scrollHeight - target.scrollTop <= target.clientHeight + 100) {
+    fetchUserPosts(true);
+  }
+}
+
 async function toggleFollow() {
   if (!authStore.isAuthenticated) {
-    router.push('/signin');
+    router.push("/signin");
     return;
   }
-  
+
   try {
-    const method = isFollowing.value ? 'DELETE' : 'POST';
+    const method = isFollowing.value ? "DELETE" : "POST";
     const res = await fetch(`/api/users/${user.value.id}/follow`, {
       method,
-      headers: { Authorization: `Bearer ${authStore.token}` }
+      headers: { Authorization: `Bearer ${authStore.token}` },
     });
-    
+
     if (res.ok) {
       isFollowing.value = !isFollowing.value;
       followersCount.value += isFollowing.value ? 1 : -1;
@@ -74,9 +118,9 @@ async function toggleFollow() {
   }
 }
 
-function openUserList(type: 'followers' | 'following') {
+function openUserList(type: "followers" | "following") {
   modalType.value = type;
-  modalTitle.value = type === 'followers' ? 'フォロワー' : 'フォロー中';
+  modalTitle.value = type === "followers" ? "フォロワー" : "フォロー中";
   showUserList.value = true;
 }
 
@@ -91,14 +135,14 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
 </script>
 
 <template>
-  <div class="profile-page">
+  <div class="profile-page" @scroll="handleScroll">
     <header class="profile-header-nav">
       <button class="back-btn" @click="goBack">
         <ArrowLeft :size="20" />
       </button>
       <div class="header-info">
         <h2 class="header-name">{{ user?.username || "プロフィール" }}</h2>
-        <span class="post-count">{{ posts.length }} ポスト</span>
+        <span class="post-count">{{ user?.posts_count || 0 }} ポスト</span>
       </div>
     </header>
 
@@ -119,21 +163,28 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
       <div class="profile-main-info">
         <div class="avatar-row">
           <div class="avatar-wrapper">
-            <img :src="user?.avatar_url || '/default-avatar.png'" class="profile-avatar" />
+            <img
+              :src="user?.avatar_url || '/default-avatar.png'"
+              class="profile-avatar"
+            />
           </div>
           <div class="action-buttons">
-            <button v-if="isMe" class="edit-profile-btn" @click="router.push('/settings')">
+            <button
+              v-if="isMe"
+              class="edit-profile-btn"
+              @click="router.push('/settings')"
+            >
               プロフィールを編集
             </button>
             <template v-else>
               <button class="more-actions-btn">
                 <MoreHorizontal :size="20" />
               </button>
-              <button 
-                :class="['follow-btn', { 'is-following': isFollowing }]" 
+              <button
+                :class="['follow-btn', { 'is-following': isFollowing }]"
                 @click="toggleFollow"
               >
-                {{ isFollowing ? 'フォロー中' : 'フォロー' }}
+                {{ isFollowing ? "フォロー中" : "フォロー" }}
               </button>
             </template>
           </div>
@@ -141,7 +192,7 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
 
         <div class="user-meta">
           <h1 class="display-name">{{ user?.username }}</h1>
-          <span class="user-handle">@{{ user?.email.split('@')[0] }}</span>
+          <span class="user-handle">@{{ user?.email.split("@")[0] }}</span>
         </div>
 
         <div class="bio" v-if="user?.bio">
@@ -153,11 +204,19 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
             <MapPin :size="16" /> {{ user.location }}
           </div>
           <div class="stat-item" v-if="user?.website">
-            <LinkIcon :size="16" /> 
-            <a :href="user.website" target="_blank">{{ user.website.replace(/^https?:\/\//, '') }}</a>
+            <LinkIcon :size="16" />
+            <a :href="user.website" target="_blank">{{
+              user.website.replace(/^https?:\/\//, "")
+            }}</a>
           </div>
           <div class="stat-item">
-            <Calendar :size="16" /> {{ new Date(user?.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' }) }}に登録
+            <Calendar :size="16" />
+            {{
+              new Date(user?.created_at).toLocaleDateString("ja-JP", {
+                year: "numeric",
+                month: "long",
+              })
+            }}に登録
           </div>
         </div>
 
@@ -182,14 +241,23 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
       <!-- Timeline -->
       <div class="timeline">
         <TweetItem v-for="post in posts" :key="post.id" :msg="post" />
-        <div v-if="posts.length === 0" class="empty-timeline">
+        
+        <div v-if="loadingPosts" class="loading-more">
+          <div class="small-spinner"></div>
+          読み込み中...
+        </div>
+        <div v-if="!hasMore && posts.length > 0" class="no-more">
+          これ以上のポストはありません
+        </div>
+
+        <div v-if="posts.length === 0 && !loadingPosts" class="empty-timeline">
           まだポストがありません
         </div>
       </div>
     </div>
 
     <!-- Modals -->
-    <UserListModal 
+    <UserListModal
       v-if="showUserList"
       :show="showUserList"
       :title="modalTitle"
@@ -204,6 +272,7 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
 .profile-page {
   background: var(--surface);
   min-height: 100vh;
+  overflow-y: scroll;
 }
 
 .profile-header-nav {
@@ -292,7 +361,9 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
   margin-bottom: 12px;
 }
 
-.edit-profile-btn, .follow-btn, .more-actions-btn {
+.edit-profile-btn,
+.follow-btn,
+.more-actions-btn {
   padding: 0 16px;
   height: 36px;
   border-radius: 50px;
@@ -307,7 +378,8 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
   justify-content: center;
 }
 
-.edit-profile-btn:hover, .more-actions-btn:hover {
+.edit-profile-btn:hover,
+.more-actions-btn:hover {
   background: rgba(0, 0, 0, 0.05);
 }
 
@@ -438,7 +510,9 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
   animation: spin 1s linear infinite;
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .error-state {
@@ -461,5 +535,30 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
   text-align: center;
   color: var(--text-secondary);
   font-size: 1.1rem;
+}
+
+.loading-more, .no-more {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.small-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.profile-content {
+  overflow-y: scroll;
 }
 </style>

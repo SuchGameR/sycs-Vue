@@ -37,7 +37,11 @@ const isListOpen = ref(false);
 
       <!-- Drawer Overlay -->
       <Transition name="fade">
-        <div v-if="isListOpen" class="drawer-overlay" @click="isListOpen = false"></div>
+        <div
+          v-if="isListOpen"
+          class="drawer-overlay"
+          @click="isListOpen = false"
+        ></div>
       </Transition>
     </Horizontal>
   </div>
@@ -61,6 +65,7 @@ const isListOpen = ref(false);
   border-left: 1px solid var(--border);
   height: 100vh;
   position: relative;
+  max-width: 800px;
 }
 
 .mobile-list-toggle {
@@ -140,10 +145,12 @@ const isListOpen = ref(false);
   }
 } */
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.3s;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 </style>

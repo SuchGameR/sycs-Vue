@@ -75,6 +75,10 @@ function goToProfile() {
   }
 }
 
+function goToDetail() {
+  router.push(`/status/${props.msg.id}`);
+}
+
 function startTimer() {
   if (timer) return;
   timer = setInterval(() => {
@@ -335,7 +339,7 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div class="tweet-container" @contextmenu="openContextMenu">
+  <div class="tweet-container" @contextmenu="openContextMenu" @click="goToDetail">
     <!-- Retweet Indicator -->
     <div v-if="msg.retweet_id" class="retweet-indicator">
       <Repeat2 :size="14" />
