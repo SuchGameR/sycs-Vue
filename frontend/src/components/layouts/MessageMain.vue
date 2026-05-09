@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { io } from "socket.io-client";
 import { Send, UserPlus, Check, X, UserMinus, MessageSquare } from "lucide-vue-next";
@@ -8,6 +8,7 @@ import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
 
 const route = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
 const friends = ref([]);
 const pendingRequests = ref([]);
@@ -21,7 +22,30 @@ const replyingTo = ref(null);
 
 const socket = io("/", { path: "/socket.io" });
 
-// ... (previous functions same) ...
+// ルートパラメータの監視
+watch(() => route.params.handle, (newHandle) => {
+  if (newHandle) {
+    const handle = newHandle.toString();
+    const friend = friends.value.find(f => f.handle === handle);
+    if (friend) {
+      selectFriend(friend, false);
+    }
+  } else if (route.path === '/message') {
+    selectedFriend.value = null;
+    messages.value = [];
+  }
+});
+
+// フレンドリスト読み込み後の自動選択
+watch(friends, (newFriends) => {
+  if (route.params.handle && newFriends.length > 0) {
+    const handle = route.params.handle.toString();
+    const friend = newFriends.find(f => f.handle === handle);
+    if (friend) {
+      selectFriend(friend, false);
+    }
+  }
+});
 
 const fetchFriends = async () => {
   try {
@@ -182,6 +206,7 @@ const removeFriend = async (friendId) => {
       if (selectedFriend.value?.id === friendId) {
         selectedFriend.value = null;
         messages.value = [];
+        router.push('/message');
       }
       fetchFriends();
     }
@@ -190,11 +215,14 @@ const removeFriend = async (friendId) => {
   }
 };
 
-const selectFriend = (friend) => {
+const selectFriend = (friend, shouldPush = true) => {
   selectedFriend.value = friend;
   activeView.value = "chat";
   messages.value = [];
   fetchDMs(friend.uid);
+  if (shouldPush) {
+    router.push(`/message/@${friend.handle}`);
+  }
 };
 
 const scrollToBottom = () => {
@@ -214,21 +242,42 @@ onMounted(() => {
     activeView.value = "requests";
   }
 
-  socket.on(`friend-request-${authStore.user?.id}`, () => {
-    fetchPendingRequests();
-    if (authStore.incrementNotificationCount) authStore.incrementNotificationCount();
-  });
-
-  socket.on(`dm-receive-${authStore.user?.uid}`, (msg) => {
-    if (selectedFriend.value && 
-        (msg.user_id === selectedFriend.value.id || 
-        (msg.user_id === authStore.user?.id && msg.poston === selectedFriend.value.uid))) {
-      messages.value.push(msg);
-      scrollToBottom();
-    } else if (msg.user_id !== authStore.user?.id) {
-      if (authStore.incrementNotificationCount) authStore.incrementNotificationCount();
+  // Socket登録（UID取得を待つ）
+  const registerSocket = () => {
+    if (!authStore.user?.uid) {
+      setTimeout(registerSocket, 500);
+      return;
     }
-  });
+
+    socket.on(`friend-request-${authStore.user?.id}`, () => {
+      fetchPendingRequests();
+    });
+
+    socket.on(`dm-receive-${authStore.user?.uid}`, (msg) => {
+      if (selectedFriend.value && 
+          (msg.user_id === selectedFriend.value.id || 
+          (msg.user_id === authStore.user?.id && msg.poston === selectedFriend.value.uid))) {
+        messages.value.push(msg);
+        scrollToBottom();
+      }
+    });
+
+    socket.on(`dm-update-${authStore.user?.uid}`, ({ type, messageId, reactions, message }) => {
+      if (type === 'reaction') {
+        const msg = messages.value.find((m) => m.id === messageId);
+        if (msg) msg.reactions = reactions;
+      } else if (type === 'updated') {
+        const index = messages.value.findIndex((m) => m.id === message.id);
+        if (index !== -1) {
+          messages.value[index] = { ...messages.value[index], ...message };
+        }
+      } else if (type === 'deleted') {
+        messages.value = messages.value.filter((m) => m.id !== messageId);
+      }
+    });
+  };
+
+  registerSocket();
 
   socket.on("message-reaction", ({ messageId, reactions }) => {
     const msg = messages.value.find((m) => m.id === messageId);

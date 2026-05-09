@@ -2,7 +2,13 @@
 import { ref, onMounted } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { useRouter } from "vue-router";
-import { Heart, Repeat, UserPlus, UserCircle, MessageSquare } from "lucide-vue-next";
+import {
+  Heart,
+  Repeat,
+  UserPlus,
+  UserCircle,
+  MessageSquare,
+} from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 
 const authStore = useAuthStore();
@@ -31,10 +37,10 @@ const fetchNotifications = async () => {
 };
 
 const handleNotificationClick = (note) => {
-  if (note.type === 'friend_request') {
-    router.push('/message?view=requests');
-  } else if (note.type === 'dm') {
-    router.push('/message');
+  if (note.type === "friend_request") {
+    router.push("/message?view=requests");
+  } else if (note.type === "dm") {
+    router.push("/message");
   } else if (note.message_id) {
     router.push(`/post/${note.message_id}`);
   } else if (note.actor_handle) {
@@ -56,34 +62,52 @@ const markAsRead = async () => {
 
 const getIcon = (type) => {
   switch (type) {
-    case 'like': return Heart;
-    case 'retweet': return Repeat;
-    case 'follow': return UserPlus;
-    case 'friend_request': return UserPlus;
-    case 'dm': return MessageSquare;
-    default: return UserCircle;
+    case "like":
+      return Heart;
+    case "retweet":
+      return Repeat;
+    case "follow":
+      return UserPlus;
+    case "friend_request":
+      return UserPlus;
+    case "dm":
+      return MessageSquare;
+    default:
+      return UserCircle;
   }
 };
 
 const getIconColor = (type) => {
   switch (type) {
-    case 'like': return '#f4212e';
-    case 'retweet': return '#00ba7c';
-    case 'follow': return '#1d9bf0';
-    case 'friend_request': return '#f59e0b';
-    case 'dm': return '#1d9bf0';
-    default: return 'var(--text-secondary)';
+    case "like":
+      return "#f4212e";
+    case "retweet":
+      return "#00ba7c";
+    case "follow":
+      return "#1d9bf0";
+    case "friend_request":
+      return "#f59e0b";
+    case "dm":
+      return "#1d9bf0";
+    default:
+      return "var(--text-secondary)";
   }
 };
 
 const getActionText = (type) => {
   switch (type) {
-    case 'like': return 'さんがあなたのポストに「いいね」しました';
-    case 'retweet': return 'さんがあなたのポストをリポストしました';
-    case 'follow': return 'さんにフォローされました';
-    case 'friend_request': return 'さんからフレンド申請が届きました';
-    case 'dm': return 'さんからメッセージが届きました';
-    default: return 'さんがアクションを起こしました';
+    case "like":
+      return "さんがあなたのポストに「いいね」しました";
+    case "retweet":
+      return "さんがあなたのポストをリポストしました";
+    case "follow":
+      return "さんにフォローされました";
+    case "friend_request":
+      return "さんからフレンド申請が届きました";
+    case "dm":
+      return "さんからメッセージが届きました";
+    default:
+      return "さんがアクションを起こしました";
   }
 };
 
@@ -98,35 +122,41 @@ onMounted(fetchNotifications);
 
     <div class="notification-list">
       <div v-if="loading" class="loading">読み込み中...</div>
-      
-      <div 
-        v-for="note in notifications" 
-        :key="note.id" 
+
+      <div
+        v-for="note in notifications"
+        :key="note.id"
         class="notification-item"
-        :class="{ 'unread': !note.is_read }"
+        :class="{ unread: !note.is_read }"
         @click="handleNotificationClick(note)"
       >
         <div class="icon-section">
-          <component 
-            :is="getIcon(note.type)" 
-            :size="24" 
+          <component
+            :is="getIcon(note.type)"
+            :size="24"
             :color="getIconColor(note.type)"
             fill="currentColor"
             v-if="note.type === 'like'"
           />
-          <component 
-            :is="getIcon(note.type)" 
-            :size="24" 
+          <component
+            :is="getIcon(note.type)"
+            :size="24"
             :color="getIconColor(note.type)"
             v-else
           />
         </div>
         <div class="content-section">
-          <div class="actor-row">
-            <img :src="note.actor_avatar || '/default-avatar.png'" class="avatar" />
-          </div>
-          <div class="text">
-            <strong>{{ note.actor_name }}</strong>{{ getActionText(note.type) }}
+          <div>
+            <div class="actor-row">
+              <img
+                :src="note.actor_avatar || '/default-avatar.png'"
+                class="avatar"
+              />
+            </div>
+            <div class="text">
+              <strong>{{ note.actor_name }}</strong
+              >{{ getActionText(note.type) }}
+            </div>
           </div>
           <div class="preview" v-if="note.message_preview">
             {{ note.message_preview }}
@@ -236,7 +266,8 @@ onMounted(fetchNotifications);
   color: var(--text-secondary);
 }
 
-.loading, .empty {
+.loading,
+.empty {
   padding: 4rem;
   text-align: center;
   color: var(--text-secondary);

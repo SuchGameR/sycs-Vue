@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 
 export interface User {
   id: number;
+  uid: string;
   username: string;
   email: string;
   avatar_url: string | null;
@@ -165,6 +166,21 @@ export const useAuthStore = defineStore("auth", () => {
   );
   const notificationCount = ref<number>(0);
 
+  async function fetchNotificationCount() {
+    if (!token.value) return;
+    try {
+      const res = await fetch("/api/notifications/unread-count", {
+        headers: { Authorization: `Bearer ${token.value}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        notificationCount.value = data.count;
+      }
+    } catch (e) {
+      console.error("Failed to fetch notification count:", e);
+    }
+  }
+
   const isAuthenticated = computed(() => !!token.value);
   const t = computed(() => translations[lang.value] || translations.ja);
 
@@ -325,6 +341,7 @@ export const useAuthStore = defineStore("auth", () => {
     setTimelineMode,
     resetNotificationCount,
     incrementNotificationCount,
+    fetchNotificationCount,
     fetchUser,
     signin,
     signup,

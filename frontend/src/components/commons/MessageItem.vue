@@ -551,6 +551,15 @@ const hasMyReaction = (emoji: string) =>
         </div>
       </div>
     </Teleport>
+
+    <!-- User Profile Hover Card -->
+    <UserProfileCard
+      :user="msg"
+      :show="showProfileCard"
+      :position="cardPosition"
+      @mouseenter="clearTimeout(hoverTimer)"
+      @mouseleave="handleMouseLeave"
+    />
   </div>
 </template>
 

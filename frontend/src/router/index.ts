@@ -25,6 +25,7 @@ const router = createRouter({
     },
     { path: "/about", component: About },
     { path: "/message", component: Message },
+    { path: "/message/@:handle", component: Message },
     { path: "/notice", component: Notice },
     { path: "/favorite", component: Favorite },
     { path: "/server/:id", component: Server },

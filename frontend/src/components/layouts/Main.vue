@@ -243,11 +243,6 @@ onMounted(() => {
         if (messages.value.length > 100) messages.value.pop();
       }
     }
-
-    // 通知バッジ（自分以外の投稿の場合）
-    if (msg.user_id !== authStore.user?.id && activeTab.value !== "global") {
-      authStore.incrementNotificationCount();
-    }
   });
 
   socket.on("message-reaction", ({ messageId, reactions }) => {
@@ -291,12 +286,6 @@ watch(activeTab, () => {
           @click="switchTab(tab)"
         >
           {{ authStore.t[tab] }}
-          <span
-            v-if="tab === 'global' && authStore.notificationCount > 0"
-            class="badge"
-          >
-            {{ authStore.notificationCount }}
-          </span>
         </div>
       </section>
 

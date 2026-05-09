@@ -9,8 +9,26 @@ const toasts = ref([]);
 const socket = io("/", { path: "/socket.io" });
 
 const addToast = (message, type = "info") => {
+  // 重複チェック
+  const existing = toasts.value.find(t => t.message === message);
+  if (existing) {
+    existing.count = (existing.count || 1) + 1;
+    // タイマーのリセット（一旦削除して再度追加することでアニメーションとタイマーをリフレッシュ）
+    const count = existing.count;
+    toasts.value = toasts.value.filter(t => t.message !== message);
+    
+    setTimeout(() => {
+      const id = Date.now();
+      toasts.value.push({ id, message, type, count });
+      setTimeout(() => {
+        toasts.value = toasts.value.filter(t => t.id !== id);
+      }, 5000);
+    }, 10);
+    return;
+  }
+
   const id = Date.now();
-  toasts.value.push({ id, message, type });
+  toasts.value.push({ id, message, type, count: 1 });
   setTimeout(() => {
     toasts.value = toasts.value.filter(t => t.id !== id);
   }, 5000);
@@ -19,19 +37,24 @@ const addToast = (message, type = "info") => {
 onMounted(() => {
   if (authStore.user) {
     setupSocket();
+    authStore.fetchNotificationCount();
   }
 });
 
 watch(() => authStore.user, (newUser) => {
   if (newUser) {
     setupSocket();
+    authStore.fetchNotificationCount();
   } else {
     socket.off(`notification-${authStore.user?.id}`);
   }
 });
 
 const setupSocket = () => {
-  socket.on(`notification-${authStore.user?.id}`, (note) => {
+  const eventName = `notification-${authStore.user?.id}`;
+  socket.off(eventName); // Remove existing to prevent duplicates
+  
+  socket.on(eventName, (note) => {
     authStore.incrementNotificationCount();
     
     let text = "";
@@ -59,7 +82,7 @@ onUnmounted(() => {
     <div class="toast-container">
       <div v-for="toast in toasts" :key="toast.id" class="toast-item">
         <Bell :size="18" />
-        <span>{{ toast.message }}</span>
+        <span>{{ toast.message }} <template v-if="toast.count > 1">({{ toast.count }})</template></span>
       </div>
     </div>
   </div>

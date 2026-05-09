@@ -186,12 +186,27 @@ app.get("/api/notifications", authenticateToken, async (req, res) => {
   }
 });
 
+// Get unread notification count
+app.get("/api/notifications/unread-count", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await pool.query(
+      "SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = FALSE",
+      [userId]
+    );
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch unread count" });
+  }
+});
+
 // Mark notifications as read
 app.put("/api/notifications/read", authenticateToken, async (req, res) => {
   const userId = req.user.id;
   try {
     await pool.query("UPDATE notifications SET is_read = TRUE WHERE user_id = $1", [userId]);
-    res.sendStatus(200);
+    res.json({ success: true, count: 0 });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to mark notifications as read" });
@@ -267,12 +282,12 @@ app.post("/api/auth/signup", async (req, res) => {
     const uniqueUserId = await generateUniqueUserId(baseId);
 
     const result = await pool.query(
-      "INSERT INTO users (username, email, password_hash, userid) VALUES ($1, $2, $3, $4) RETURNING id, username, email, avatar_url, header_url, userid",
+      "INSERT INTO users (username, email, password_hash, userid) VALUES ($1, $2, $3, $4) RETURNING id, uid, username, email, avatar_url, header_url, userid",
       [username, email, hashedPassword, uniqueUserId],
     );
     const user = result.rows[0];
     const token = jwt.sign(
-      { id: user.id, email: user.email, username: user.username },
+      { id: user.id, uid: user.uid, email: user.email, username: user.username },
       JWT_SECRET,
       { expiresIn: "24h" },
     );
@@ -297,13 +312,14 @@ app.post("/api/auth/signin", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
     const token = jwt.sign(
-      { id: user.id, email: user.email, username: user.username },
+      { id: user.id, uid: user.uid, email: user.email, username: user.username },
       JWT_SECRET,
       { expiresIn: "24h" },
     );
     res.json({
       user: {
         id: user.id,
+        uid: user.uid,
         username: user.username,
         email: user.email,
         avatar_url: user.avatar_url,
@@ -322,7 +338,7 @@ app.post("/api/auth/signin", async (req, res) => {
 app.get("/api/auth/me", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, username, email, avatar_url, header_url, userid, attributes FROM users WHERE id = $1",
+      "SELECT id, uid, username, email, avatar_url, header_url, userid, attributes FROM users WHERE id = $1",
       [req.user.id],
     );
     res.json(result.rows[0]);
@@ -356,7 +372,7 @@ app.put("/api/auth/settings", authenticateToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      "UPDATE users SET username = COALESCE($1, username), avatar_url = COALESCE($2, avatar_url), header_url = COALESCE($3, header_url), attributes = COALESCE($4, attributes) WHERE id = $5 RETURNING id, username, email, avatar_url, header_url, userid, attributes",
+      "UPDATE users SET username = COALESCE($1, username), avatar_url = COALESCE($2, avatar_url), header_url = COALESCE($3, header_url), attributes = COALESCE($4, attributes) WHERE id = $5 RETURNING id, uid, username, email, avatar_url, header_url, userid, attributes",
       [username, avatar_url, header_url, attributes, req.user.id],
     );
     res.json(result.rows[0]);
@@ -1126,15 +1142,25 @@ app.post(
       }
 
       const updateResult = await pool.query(
-        "UPDATE messages SET reactions = $1 WHERE id = $2 RETURNING reactions",
+        "UPDATE messages SET reactions = $1 WHERE id = $2 RETURNING id, reactions, post_type, poston, user_id",
         [JSON.stringify(reactions), messageId],
       );
 
-      const updatedReactions = updateResult.rows[0].reactions;
-      io.emit("message-reaction", {
+      const msgData = updateResult.rows[0];
+      const updatedReactions = msgData.reactions;
+      const payload = {
         messageId: parseInt(messageId),
         reactions: updatedReactions,
-      });
+      };
+
+      if (msgData.post_type === 'DM') {
+        const senderRes = await pool.query("SELECT uid FROM users WHERE id = $1", [msgData.user_id]);
+        const senderUid = senderRes.rows[0].uid;
+        io.emit(`dm-update-${senderUid}`, { type: 'reaction', ...payload });
+        io.emit(`dm-update-${msgData.poston}`, { type: 'reaction', ...payload });
+      } else {
+        io.emit("message-reaction", payload);
+      }
 
       res.json(updatedReactions);
     } catch (err) {
@@ -1154,7 +1180,7 @@ app.put("/api/messages/:messageId", authenticateToken, async (req, res) => {
 
   try {
     const checkResult = await pool.query(
-      "SELECT user_id, content, edit_history FROM messages WHERE id = $1",
+      "SELECT user_id, content, edit_history, post_type, poston FROM messages WHERE id = $1",
       [messageId],
     );
     if (checkResult.rows.length === 0)
@@ -1178,7 +1204,14 @@ app.put("/api/messages/:messageId", authenticateToken, async (req, res) => {
     );
 
     const updatedMsg = result.rows[0];
-    io.emit("message-updated", updatedMsg);
+    if (updatedMsg.post_type === 'DM') {
+      const senderRes = await pool.query("SELECT uid FROM users WHERE id = $1", [updatedMsg.user_id]);
+      const senderUid = senderRes.rows[0].uid;
+      io.emit(`dm-update-${senderUid}`, { type: 'updated', message: updatedMsg });
+      io.emit(`dm-update-${updatedMsg.poston}`, { type: 'updated', message: updatedMsg });
+    } else {
+      io.emit("message-updated", updatedMsg);
+    }
     res.json(updatedMsg);
   } catch (err) {
     console.error(err);
@@ -1193,7 +1226,7 @@ app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
 
   try {
     const checkResult = await pool.query(
-      "SELECT user_id FROM messages WHERE id = $1",
+      "SELECT user_id, post_type, poston FROM messages WHERE id = $1",
       [messageId],
     );
     if (checkResult.rows.length === 0)
@@ -1201,8 +1234,19 @@ app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
     if (checkResult.rows[0].user_id !== userId)
       return res.status(403).json({ error: "Unauthorized" });
 
+    const msgType = checkResult.rows[0].post_type;
+    const msgPoston = checkResult.rows[0].poston;
+
     await pool.query("DELETE FROM messages WHERE id = $1", [messageId]);
-    io.emit("message-deleted", { messageId: parseInt(messageId) });
+    
+    if (msgType === 'DM') {
+      const senderRes = await pool.query("SELECT uid FROM users WHERE id = $1", [userId]);
+      const senderUid = senderRes.rows[0].uid;
+      io.emit(`dm-update-${senderUid}`, { type: 'deleted', messageId: parseInt(messageId) });
+      io.emit(`dm-update-${msgPoston}`, { type: 'deleted', messageId: parseInt(messageId) });
+    } else {
+      io.emit("message-deleted", { messageId: parseInt(messageId) });
+    }
     res.json({ message: "Deleted successfully" });
   } catch (err) {
     console.error(err);
