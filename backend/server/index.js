@@ -235,14 +235,27 @@ app.post("/api/upload", authenticateToken, upload.array("files", 10), async (req
       return res.status(400).json({ error: "No files uploaded" });
     }
 
+    // Parse options if provided
+    let optionsList = [];
+    if (req.body.options) {
+      try {
+        optionsList = JSON.parse(req.body.options);
+      } catch (e) {
+        console.error("Failed to parse options:", e);
+      }
+    }
+
     const processedFiles = await Promise.all(
-      files.map(async (file) => {
+      files.map(async (file, index) => {
+        const fileOptions = optionsList[index] || { downloadable: true, blur: false };
+        
         const fileData = {
           url: `/uploads/${file.filename}`,
           originalName: file.originalname,
           mimetype: file.mimetype,
           size: file.size,
           optimizedUrl: null,
+          options: fileOptions,
         };
 
         // Image optimization (exclude gif/svg)
@@ -255,13 +268,14 @@ app.post("/api/upload", authenticateToken, upload.array("files", 10), async (req
           const optimizedPath = resolve(__dirname, "uploads", optimizedFilename);
 
           try {
-            await sharp(file.path)
-              .webp({ quality: 80 })
-              .toFile(optimizedPath);
-            fileData.optimizedUrl = `/uploads/${optimizedFilename}`;
+            if (sharp) {
+              await sharp(file.path)
+                .webp({ quality: 80 })
+                .toFile(optimizedPath);
+              fileData.optimizedUrl = `/uploads/${optimizedFilename}`;
+            }
           } catch (sharpErr) {
             console.error("Sharp optimization failed:", sharpErr);
-            // Fallback to original if optimization fails
           }
         }
 
@@ -1658,18 +1672,29 @@ app.get("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
   const { friendUid } = req.params;
 
   try {
-    // Get friend's internal ID
-    const friendRes = await pool.query("SELECT id FROM users WHERE uid = $1", [friendUid]);
-    if (friendRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    // Get friend's internal ID and verify friend relationship
+    const friendRes = await pool.query("SELECT id, uid FROM users WHERE uid = $1", [friendUid]);
+    if (friendRes.rows.length === 0) {
+      console.warn(`DM fetch failed: User with UID ${friendUid} not found`);
+      return res.status(404).json({ error: "User not found" });
+    }
     const friendId = friendRes.rows[0].id;
 
-    // Check if they are friends
+    // Check friend status
     const friendCheck = await pool.query(
       "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
       [userId, friendId]
     );
     if (friendCheck.rows.length === 0) {
+      console.warn(`DM access denied: Users ${userId} and ${friendId} are not friends`);
       return res.status(403).json({ error: "You must be friends to exchange DMs" });
+    }
+
+    // Get current user's UID if not in token
+    let myUid = req.user.uid;
+    if (!myUid) {
+      const me = await pool.query("SELECT uid FROM users WHERE id = $1", [userId]);
+      myUid = me.rows[0]?.uid;
     }
 
     const result = await pool.query(
@@ -1681,11 +1706,11 @@ app.get("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
        WHERE m.post_type = 'DM' 
        AND ((m.user_id = $1 AND m.poston = $2) OR (m.user_id = $3 AND m.poston = $4))
        ORDER BY m.created_at ASC`,
-      [userId, friendUid, friendId, req.user.uid || (await pool.query("SELECT uid FROM users WHERE id=$1", [userId])).rows[0].uid]
+      [userId, friendUid, friendId, myUid]
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("DM fetch error:", err);
     res.status(500).json({ error: "Failed to fetch DM messages" });
   }
 });

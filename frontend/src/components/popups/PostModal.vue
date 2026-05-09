@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAuthStore } from "../../stores/auth";
-import { Image, Smile, Calendar, MapPin, List, BarChart2, X, FileIcon, Film, Music } from "lucide-vue-next";
+import { Image, Smile, Calendar, MapPin, List, BarChart2, X, FileIcon, Film, Music, Download, EyeOff } from "lucide-vue-next";
 
 const props = defineProps<{
   show: boolean;
@@ -16,9 +16,11 @@ const emit = defineEmits(["close", "submit"]);
 const authStore = useAuthStore();
 const content = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
-const selectedFiles = ref<File[]>([]);
+const selectedFiles = ref<{ file: File; options: { downloadable: boolean; blur: boolean } }[]>([]);
 const previews = ref<{ url: string; type: string; name: string }[]>([]);
 const isUploading = ref(false);
+
+const ALLOWED_EXTENSIONS = ['jpeg', 'jpg', 'png', 'gif', 'svg', 'webm', 'mp3', 'wav', 'ogg', 'mp4', 'mov', 'md'];
 
 const canPost = computed(() => (content.value.trim().length > 0 || selectedFiles.value.length > 0) && !isUploading.value);
 
@@ -27,10 +29,29 @@ function handleFileSelect(e: Event) {
   if (!target.files) return;
 
   const files = Array.from(target.files);
-  selectedFiles.value = [...selectedFiles.value, ...files].slice(0, 10); // Max 10 files
+  const validFiles: File[] = [];
+  
+  files.forEach(file => {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext && ALLOWED_EXTENSIONS.includes(ext)) {
+      validFiles.push(file);
+    } else {
+      alert(`非対応のファイル形式です: ${file.name}\n対応形式: ${ALLOWED_EXTENSIONS.join(', ')}`);
+    }
+  });
 
-  // Generate previews
-  files.forEach((file) => {
+  const nextFiles = [...selectedFiles.value, ...validFiles.map(f => ({ 
+    file: f, 
+    options: { downloadable: true, blur: false } 
+  }))].slice(0, 10);
+  
+  selectedFiles.value = nextFiles;
+  updatePreviews();
+}
+
+function updatePreviews() {
+  previews.value = [];
+  selectedFiles.value.forEach(({ file }) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       previews.value.push({
@@ -42,7 +63,6 @@ function handleFileSelect(e: Event) {
     if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
       reader.readAsDataURL(file);
     } else {
-      // For other files, just show an icon
       previews.value.push({
         url: "",
         type: file.type,
@@ -61,9 +81,10 @@ async function uploadFiles() {
   if (selectedFiles.value.length === 0) return [];
 
   const formData = new FormData();
-  selectedFiles.value.forEach((file) => {
+  selectedFiles.value.forEach(({ file }) => {
     formData.append("files", file);
   });
+  formData.append("options", JSON.stringify(selectedFiles.value.map(f => f.options)));
 
   const response = await fetch("/api/upload", {
     method: "POST",
@@ -139,10 +160,58 @@ function handleKeydown(e: KeyboardEvent) {
             @input="handleInput"
             @keydown="handleKeydown"
           ></textarea>
+
+          <!-- File Previews -->
+          <div v-if="previews.length > 0" class="previews-container">
+            <div v-for="(file, idx) in previews" :key="idx" class="preview-item">
+              <button class="remove-file" @click="removeFile(idx)"><X :size="14" /></button>
+              
+              <img v-if="file.type.startsWith('image/')" :src="file.url" class="preview-media" :class="{ 'preview-blur': selectedFiles[idx].options.blur }" />
+              <video v-else-if="file.type.startsWith('video/')" :src="file.url" class="preview-media" muted :class="{ 'preview-blur': selectedFiles[idx].options.blur }"></video>
+              <div v-else-if="file.type.startsWith('audio/')" class="preview-file-icon audio">
+                <Music :size="32" />
+                <span class="file-name">{{ file.name }}</span>
+              </div>
+              <div v-else class="preview-file-icon">
+                <FileIcon :size="32" />
+                <span class="file-name">{{ file.name }}</span>
+              </div>
+
+              <!-- Options Overlay -->
+              <div class="preview-options">
+                <button 
+                  class="opt-btn" 
+                  :class="{ active: selectedFiles[idx].options.downloadable }" 
+                  @click="selectedFiles[idx].options.downloadable = !selectedFiles[idx].options.downloadable"
+                  title="ダウンロード許可"
+                >
+                  <Download :size="14" />
+                </button>
+                <button 
+                  class="opt-btn" 
+                  :class="{ active: selectedFiles[idx].options.blur }" 
+                  @click="selectedFiles[idx].options.blur = !selectedFiles[idx].options.blur"
+                  title="ぼかし"
+                >
+                  <EyeOff :size="14" />
+                </button>
+              </div>
+            </div>
+          </div>
           
           <div class="modal-footer">
             <div class="icons-group">
-              <button class="icon-btn" title="メディア"><Image :size="20" /></button>
+              <input
+                type="file"
+                ref="fileInput"
+                multiple
+                hidden
+                @change="handleFileSelect"
+                accept=".jpeg,.jpg,.png,.gif,.svg,.webm,.mp3,.wav,.ogg,.mp4,.mov,.md"
+              />
+              <button class="icon-btn" title="メディア" @click="fileInput?.click()">
+                <Image :size="20" />
+              </button>
               <button class="icon-btn" title="GIF"><span class="gif-icon">GIF</span></button>
               <button class="icon-btn" title="投票"><BarChart2 :size="20" /></button>
               <button class="icon-btn" title="絵文字"><Smile :size="20" /></button>
@@ -330,6 +399,113 @@ textarea::placeholder {
 .submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.previews-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  margin-top: 8px;
+  scrollbar-width: thin;
+}
+
+.preview-item {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-media.preview-blur {
+  filter: blur(15px);
+}
+
+.preview-options {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  z-index: 5;
+}
+
+.opt-btn {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+  transition: all 0.2s;
+}
+
+.opt-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.opt-btn.active {
+  background: var(--accent);
+  opacity: 1;
+}
+
+.preview-file-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  padding: 8px;
+  text-align: center;
+}
+
+.file-name {
+  font-size: 0.7rem;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.remove-file {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.remove-file:hover {
+  background: rgba(0, 0, 0, 0.8);
 }
 
 [data-theme="dark"] .close-btn:hover,

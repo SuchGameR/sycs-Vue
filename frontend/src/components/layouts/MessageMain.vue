@@ -10,6 +10,11 @@ import {
   X,
   UserMinus,
   MessageSquare,
+  Music,
+  File as FileIcon,
+  Download,
+  EyeOff,
+  Plus,
 } from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
@@ -25,10 +30,42 @@ const newMessage = ref("");
 const messageListRef = ref(null);
 const loading = ref(false);
 const isSending = ref(false);
+const isUploading = ref(false);
 const activeView = ref("chat"); // 'chat' or 'requests'
 const replyingTo = ref(null);
 
+const selectedFiles = ref([]);
+const previews = ref([]);
+const fileInput = ref(null);
+
 const socket = io("/", { path: "/socket.io" });
+
+const handleFileSelect = (e) => {
+  const files = Array.from(e.target.files);
+  files.forEach((file) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      previews.value.push({
+        url: event.target.result,
+        type: file.type,
+        name: file.name,
+      });
+      selectedFiles.value.push({
+        file,
+        options: {
+          blur: false,
+          downloadable: true,
+        },
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const removeFile = (idx) => {
+  previews.value.splice(idx, 1);
+  selectedFiles.value.splice(idx, 1);
+};
 
 // ルートパラメータの監視
 watch(
@@ -85,6 +122,7 @@ const fetchPendingRequests = async () => {
 };
 
 const fetchDMs = async (friendUid) => {
+  if (!friendUid) return;
   loading.value = true;
   try {
     const res = await fetch(`/api/messages/dm/${friendUid}`, {
@@ -93,6 +131,8 @@ const fetchDMs = async (friendUid) => {
     if (res.ok) {
       messages.value = await res.json();
       scrollToBottom();
+    } else if (res.status === 403) {
+      alert("メッセージの取得に失敗しました。フレンド関係を確認してください。");
     }
   } catch (e) {
     console.error(e);
@@ -112,9 +152,10 @@ const sendDM = async () => {
   const content = newMessage.value;
   const parent_id = replyingTo.value?.id;
   isSending.value = true;
+  
+  const currentFiles = [...selectedFiles.value];
   newMessage.value = "";
   replyingTo.value = null;
-  const currentFiles = [...selectedFiles.value];
   selectedFiles.value = [];
   previews.value = [];
 
@@ -123,7 +164,9 @@ const sendDM = async () => {
     if (currentFiles.length > 0) {
       isUploading.value = true;
       const formData = new FormData();
-      currentFiles.forEach((file) => formData.append("files", file));
+      currentFiles.forEach(({ file }) => formData.append("files", file));
+      formData.append("options", JSON.stringify(currentFiles.map(f => f.options)));
+      
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${authStore.token}` },
@@ -143,10 +186,12 @@ const sendDM = async () => {
     if (!res.ok) {
       console.error("Failed to send message");
       newMessage.value = content;
+      alert("メッセージの送信に失敗しました");
     }
   } catch (e) {
     console.error(e);
     newMessage.value = content;
+    alert("通信エラーが発生しました");
   } finally {
     isSending.value = false;
     isUploading.value = false;
@@ -469,35 +514,37 @@ onUnmounted(() => {
 
           <!-- File Previews -->
           <div v-if="previews.length > 0" class="previews-container">
-            <div
-              v-for="(file, idx) in previews"
-              :key="idx"
-              class="preview-item"
-            >
-              <button class="remove-file" @click="removeFile(idx)">
-                <X :size="12" />
-              </button>
-              <img
-                v-if="file.type.startsWith('image/')"
-                :src="file.url"
-                class="preview-media"
-              />
-              <video
-                v-else-if="file.type.startsWith('video/')"
-                :src="file.url"
-                class="preview-media"
-                muted
-              ></video>
-              <div
-                v-else-if="file.type.startsWith('audio/')"
-                class="preview-file-icon audio"
-              >
+            <div v-for="(file, idx) in previews" :key="idx" class="preview-item">
+              <button class="remove-file" @click="removeFile(idx)"><X :size="12" /></button>
+              <img v-if="file.type.startsWith('image/')" :src="file.url" class="preview-media" :class="{ 'preview-blur': selectedFiles[idx].options.blur }" />
+              <video v-else-if="file.type.startsWith('video/')" :src="file.url" class="preview-media" muted :class="{ 'preview-blur': selectedFiles[idx].options.blur }"></video>
+              <div v-else-if="file.type.startsWith('audio/')" class="preview-file-icon audio">
                 <Music :size="20" />
                 <span class="file-name">{{ file.name }}</span>
               </div>
               <div v-else class="preview-file-icon">
                 <FileIcon :size="20" />
                 <span class="file-name">{{ file.name }}</span>
+              </div>
+
+              <!-- Options Overlay -->
+              <div class="preview-options">
+                <button 
+                  class="opt-btn" 
+                  :class="{ active: selectedFiles[idx].options.downloadable }" 
+                  @click="selectedFiles[idx].options.downloadable = !selectedFiles[idx].options.downloadable"
+                  title="ダウンロード許可"
+                >
+                  <Download :size="12" />
+                </button>
+                <button 
+                  class="opt-btn" 
+                  :class="{ active: selectedFiles[idx].options.blur }" 
+                  @click="selectedFiles[idx].options.blur = !selectedFiles[idx].options.blur"
+                  title="ぼかし"
+                >
+                  <EyeOff :size="12" />
+                </button>
               </div>
             </div>
           </div>
@@ -509,8 +556,9 @@ onUnmounted(() => {
               multiple
               hidden
               @change="handleFileSelect"
-              accept="image/*,video/*,audio/*,.md,text/markdown,text/plain,application/pdf"
+              accept=".jpeg,.jpg,.png,.gif,.svg,.webm,.mp3,.wav,.ogg,.mp4,.mov,.md"
             />
+
             <button
               class="attach-btn"
               @click="fileInput.click()"
@@ -821,6 +869,44 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.preview-media.preview-blur {
+  filter: blur(8px);
+}
+
+.preview-options {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  z-index: 5;
+}
+
+.opt-btn {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+  transition: all 0.2s;
+}
+
+.opt-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.opt-btn.active {
+  background: var(--accent);
+  opacity: 1;
 }
 
 .preview-file-icon {

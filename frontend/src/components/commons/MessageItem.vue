@@ -393,6 +393,9 @@ const hasMyReaction = (emoji: string) =>
           v-html="highlightedHtml"
         ></div>
 
+        <!-- Attachments -->
+        <MediaPreview v-if="msg.attachment" :attachments="msg.attachment" />
+
         <!-- Inline Edit UI -->
         <div v-else class="edit-ui">
           <textarea

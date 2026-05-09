@@ -16,6 +16,7 @@ const props = defineProps<{
   attachments: any[];
 }>();
 
+const revealed = ref<Record<string, boolean>>({});
 const showMd = ref<Record<number, boolean>>({});
 const mdContent = ref<Record<number, string>>({});
 
@@ -80,13 +81,22 @@ const documents = computed(
         v-for="(img, idx) in images.slice(0, 4)"
         :key="idx"
         class="image-wrapper"
+        :class="{ 'is-blurred': img.options?.blur && !revealed[img.url] }"
       >
         <img
           :src="img.optimizedUrl || img.url"
           class="media-content"
           loading="lazy"
         />
+        <div
+          v-if="img.options?.blur && !revealed[img.url]"
+          class="blur-overlay"
+          @click="revealed[img.url] = true"
+        >
+          <span class="blur-text">クリックで表示</span>
+        </div>
         <a
+          v-if="img.options?.downloadable !== false"
           :href="img.url"
           download
           :title="img.originalName"
@@ -99,11 +109,28 @@ const documents = computed(
 
     <!-- Videos -->
     <div v-if="videos.length > 0" class="video-list">
-      <div v-for="(video, idx) in videos" :key="idx" class="video-wrapper">
-        <video :src="video.url" controls class="media-video"></video>
+      <div
+        v-for="(video, idx) in videos"
+        :key="idx"
+        class="video-wrapper"
+        :class="{ 'is-blurred': video.options?.blur && !revealed[video.url] }"
+      >
+        <div
+          v-if="video.options?.blur && !revealed[video.url]"
+          class="blur-overlay video"
+          @click="revealed[video.url] = true"
+        >
+          <Film :size="48" />
+          <span class="blur-text">クリックで表示 (閲覧注意)</span>
+        </div>
+        <video v-else :src="video.url" controls class="media-video"></video>
         <div class="file-info">
           <span class="file-name">{{ video.originalName }}</span>
-          <a :href="video.url" download class="icon-link"
+          <a
+            v-if="video.options?.downloadable !== false"
+            :href="video.url"
+            download
+            class="icon-link"
             ><Download :size="16"
           /></a>
         </div>
@@ -116,7 +143,11 @@ const documents = computed(
         <div class="audio-header">
           <Music :size="20" />
           <span class="file-name">{{ audio.originalName }}</span>
-          <a :href="audio.url" download class="icon-link"
+          <a
+            v-if="audio.options?.downloadable !== false"
+            :href="audio.url"
+            download
+            class="icon-link"
             ><Download :size="16"
           /></a>
         </div>
@@ -142,7 +173,11 @@ const documents = computed(
               />
               {{ showMd[idx] ? "閉じる" : "プレビュー" }}
             </button>
-            <a :href="doc.url" download class="icon-link"
+            <a
+              v-if="doc.options?.downloadable !== false"
+              :href="doc.url"
+              download
+              class="icon-link"
               ><Download :size="16"
             /></a>
           </div>
@@ -159,21 +194,57 @@ const documents = computed(
 
 <style scoped>
 .media-preview-container {
-  width: fit-content;
-  height: fit-content;
   margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
   border-radius: 16px;
+  width: 100%;
+  max-width: var(--preview-max-size);
+  height: auto;
+}
+
+/* Blur effect */
+.image-wrapper.is-blurred .media-content {
+  filter: blur(40px);
+  cursor: pointer;
+}
+
+.blur-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  z-index: 5;
+  cursor: pointer;
+}
+
+.blur-overlay.video {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.blur-text {
+  font-weight: 800;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-top: 8px;
 }
 
 /* Image Grid */
 .image-grid {
-  height: 100%;
   display: grid;
   gap: 2px;
+
   border: 1px solid var(--border);
   aspect-ratio: 16 / 9;
 }
@@ -205,8 +276,8 @@ const documents = computed(
 }
 
 .media-content {
-  max-width: var(--preview-max-size);
   width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
@@ -237,6 +308,7 @@ const documents = computed(
 
 /* Video */
 .video-wrapper {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -247,15 +319,32 @@ const documents = computed(
   width: 100%;
   display: block;
   max-height: 500px;
+  position: relative;
+  color: white;
 }
 
 .file-info {
   padding: 8px 12px;
-  background: var(--surface);
+  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7));
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: white;
   border-top: 1px solid var(--border);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.video-wrapper .icon-link {
+  color: white;
+}
+
+.video-wrapper:hover .file-info {
+  opacity: 1;
 }
 
 /* Audio */

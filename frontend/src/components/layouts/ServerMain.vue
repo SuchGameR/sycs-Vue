@@ -2,7 +2,16 @@
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from "vue";
 import { useRoute } from "vue-router";
 import { io } from "socket.io-client";
-import { X, Send, Settings as SettingsIcon } from "lucide-vue-next";
+import {
+  X,
+  Send,
+  Settings as SettingsIcon,
+  Music,
+  File as FileIcon,
+  Download,
+  EyeOff,
+  Plus,
+} from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
@@ -18,6 +27,38 @@ const newMessage = ref("");
 const messageListRef = ref(null);
 const replyingTo = ref(null);
 const showSettings = ref(false);
+const isUploading = ref(false);
+
+const selectedFiles = ref([]);
+const previews = ref([]);
+const fileInput = ref(null);
+
+const handleFileSelect = (e) => {
+  const files = Array.from(e.target.files);
+  files.forEach((file) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      previews.value.push({
+        url: event.target.result,
+        type: file.type,
+        name: file.name,
+      });
+      selectedFiles.value.push({
+        file,
+        options: {
+          blur: false,
+          downloadable: true,
+        },
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const removeFile = (idx) => {
+  previews.value.splice(idx, 1);
+  selectedFiles.value.splice(idx, 1);
+};
 
 const isOwner = computed(() => {
   return (
@@ -87,6 +128,7 @@ const sendMessage = async () => {
   const parent_id = replyingTo.value?.id;
   const currentFiles = [...selectedFiles.value];
 
+  isUploading.value = true;
   newMessage.value = "";
   replyingTo.value = null;
   selectedFiles.value = [];
@@ -95,9 +137,10 @@ const sendMessage = async () => {
   try {
     let attachment = [];
     if (currentFiles.length > 0) {
-      isUploading.value = true;
       const formData = new FormData();
-      currentFiles.forEach((file) => formData.append("files", file));
+      currentFiles.forEach(({ file }) => formData.append("files", file));
+      formData.append("options", JSON.stringify(currentFiles.map(f => f.options)));
+      
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${authStore.token}` },
@@ -106,7 +149,7 @@ const sendMessage = async () => {
       if (uploadRes.ok) attachment = await uploadRes.json();
     }
 
-    await fetch(`/api/channels/${currentChannelId.value}/messages`, {
+    const res = await fetch(`/api/channels/${currentChannelId.value}/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,8 +157,12 @@ const sendMessage = async () => {
       },
       body: JSON.stringify({ content, parent_id, attachment }),
     });
+    if (!res.ok) {
+      alert("メッセージの送信に失敗しました");
+    }
   } catch (e) {
     console.error(e);
+    alert("通信エラーが発生しました");
   } finally {
     isUploading.value = false;
   }
@@ -294,7 +341,56 @@ watch(
             <span>{{ replyingTo.author_name }} への返信</span>
             <button @click="replyingTo = null"><X :size="14" /></button>
           </div>
+
+          <!-- File Previews -->
+          <div v-if="previews.length > 0" class="previews-container">
+            <div v-for="(file, idx) in previews" :key="idx" class="preview-item">
+              <button class="remove-file" @click="removeFile(idx)"><X :size="12" /></button>
+              <img v-if="file.type.startsWith('image/')" :src="file.url" class="preview-media" :class="{ 'preview-blur': selectedFiles[idx].options.blur }" />
+              <video v-else-if="file.type.startsWith('video/')" :src="file.url" class="preview-media" muted :class="{ 'preview-blur': selectedFiles[idx].options.blur }"></video>
+              <div v-else-if="file.type.startsWith('audio/')" class="preview-file-icon audio">
+                <Music :size="20" />
+                <span class="file-name">{{ file.name }}</span>
+              </div>
+              <div v-else class="preview-file-icon">
+                <FileIcon :size="20" />
+                <span class="file-name">{{ file.name }}</span>
+              </div>
+
+              <!-- Options Overlay -->
+              <div class="preview-options">
+                <button 
+                  class="opt-btn" 
+                  :class="{ active: selectedFiles[idx].options.downloadable }" 
+                  @click="selectedFiles[idx].options.downloadable = !selectedFiles[idx].options.downloadable"
+                  title="ダウンロード許可"
+                >
+                  <Download :size="12" />
+                </button>
+                <button 
+                  class="opt-btn" 
+                  :class="{ active: selectedFiles[idx].options.blur }" 
+                  @click="selectedFiles[idx].options.blur = !selectedFiles[idx].options.blur"
+                  title="ぼかし"
+                >
+                  <EyeOff :size="12" />
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="input-container">
+            <input
+              type="file"
+              ref="fileInput"
+              multiple
+              hidden
+              @change="handleFileSelect"
+              accept=".jpeg,.jpg,.png,.gif,.svg,.webm,.mp3,.wav,.ogg,.mp4,.mov,.md"
+            />
+            <button class="attach-btn" @click="fileInput.click()" title="ファイルを添付">
+              <Plus :size="20" />
+            </button>
             <textarea
               v-model="newMessage"
               :placeholder="
@@ -305,8 +401,9 @@ watch(
               rows="1"
               @keydown.enter="handleKeydown"
             ></textarea>
-            <button class="send-btn" @click="sendMessage">
-              <Send :size="18" />
+            <button @click="sendMessage" :disabled="(!newMessage.trim() && selectedFiles.length === 0) || isUploading" class="send-btn">
+              <Send v-if="!isUploading" :size="20" />
+              <div v-else class="upload-spinner"></div>
             </button>
           </div>
         </div>
@@ -517,6 +614,44 @@ main {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.preview-media.preview-blur {
+  filter: blur(8px);
+}
+
+.preview-options {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  z-index: 5;
+}
+
+.opt-btn {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+  transition: all 0.2s;
+}
+
+.opt-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.opt-btn.active {
+  background: var(--accent);
+  opacity: 1;
 }
 
 .preview-file-icon {

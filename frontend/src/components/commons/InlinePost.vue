@@ -19,10 +19,27 @@ const props = defineProps<{
 const authStore = useAuthStore();
 const content = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
-const selectedFiles = ref<File[]>([]);
+const selectedFiles = ref<
+  { file: File; options: { downloadable: boolean; blur: boolean } }[]
+>([]);
 const previews = ref<{ url: string; type: string; name: string }[]>([]);
 const isUploading = ref(false);
 const emit = defineEmits(["submit"]);
+
+const ALLOWED_EXTENSIONS = [
+  "jpeg",
+  "jpg",
+  "png",
+  "gif",
+  "svg",
+  "webm",
+  "mp3",
+  "wav",
+  "ogg",
+  "mp4",
+  "mov",
+  "md",
+];
 
 const canPost = computed(
   () =>
@@ -35,9 +52,34 @@ function handleFileSelect(e: Event) {
   if (!target.files) return;
 
   const files = Array.from(target.files);
-  selectedFiles.value = [...selectedFiles.value, ...files].slice(0, 10);
+  const validFiles: File[] = [];
 
   files.forEach((file) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext && ALLOWED_EXTENSIONS.includes(ext)) {
+      validFiles.push(file);
+    } else {
+      alert(
+        `非対応のファイル形式です: ${file.name}\n対応形式: ${ALLOWED_EXTENSIONS.join(", ")}`,
+      );
+    }
+  });
+
+  const nextFiles = [
+    ...selectedFiles.value,
+    ...validFiles.map((f) => ({
+      file: f,
+      options: { downloadable: true, blur: false },
+    })),
+  ].slice(0, 10);
+
+  selectedFiles.value = nextFiles;
+  updatePreviews();
+}
+
+function updatePreviews() {
+  previews.value = [];
+  selectedFiles.value.forEach(({ file }) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       previews.value.push({
@@ -71,9 +113,13 @@ async function uploadFiles() {
   if (selectedFiles.value.length === 0) return [];
 
   const formData = new FormData();
-  selectedFiles.value.forEach((file) => {
+  selectedFiles.value.forEach(({ file }) => {
     formData.append("files", file);
   });
+  formData.append(
+    "options",
+    JSON.stringify(selectedFiles.value.map((f) => f.options)),
+  );
 
   const response = await fetch("/api/upload", {
     method: "POST",
@@ -244,6 +290,44 @@ function handleKeydown(e: KeyboardEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.preview-media.preview-blur {
+  filter: blur(10px);
+}
+
+.preview-options {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  z-index: 5;
+}
+
+.opt-btn {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+  transition: all 0.2s;
+}
+
+.opt-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.opt-btn.active {
+  background: var(--accent);
+  opacity: 1;
 }
 
 .preview-media {
