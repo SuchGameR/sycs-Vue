@@ -30,6 +30,11 @@ const isFollowing = ref(false);
 const followersCount = ref(0);
 const followingCount = ref(0);
 
+// Friend Logic State
+const isFriend = ref(false);
+const friendRequestStatus = ref<string | null>(null);
+const friendRequestSenderId = ref<number | null>(null);
+
 // Modal State
 const showUserList = ref(false);
 const modalTitle = ref("");
@@ -55,12 +60,49 @@ async function fetchUserData() {
     followersCount.value = Number(data.followers_count) || 0;
     followingCount.value = Number(data.following_count) || 0;
 
+    // フレンド状態の初期化
+    isFriend.value = !!data.is_friend;
+    friendRequestStatus.value = data.friend_request_status;
+    friendRequestSenderId.value = data.friend_request_sender_id;
+
     // ユーザーの投稿取得
     await fetchUserPosts();
   } catch (err: any) {
     error.value = err.message;
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleFriendAction() {
+  if (!authStore.isAuthenticated) {
+    router.push("/signin");
+    return;
+  }
+
+  if (isFriend.value) {
+    router.push("/message");
+    return;
+  }
+
+  try {
+    if (!friendRequestStatus.value || friendRequestStatus.value === 'rejected') {
+      const res = await fetch(`/api/friends/request/${user.value.id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authStore.token}` },
+      });
+      if (res.ok) {
+        friendRequestStatus.value = 'pending';
+        friendRequestSenderId.value = authStore.user?.id || null;
+      }
+    } else if (friendRequestStatus.value === 'pending') {
+      if (friendRequestSenderId.value !== authStore.user?.id) {
+        // Redirect to message page to accept
+        router.push("/message?view=requests");
+      }
+    }
+  } catch (e) {
+    console.error("Friend action failed", e);
   }
 }
 
@@ -179,6 +221,17 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
               プロフィールを編集
             </button>
             <template v-else>
+              <button 
+                class="friend-btn" 
+                @click="handleFriendAction"
+                :class="{ 'is-friend': isFriend, 'is-pending': friendRequestStatus === 'pending' }"
+              >
+                <template v-if="isFriend">メッセージ</template>
+                <template v-else-if="friendRequestStatus === 'pending'">
+                  {{ friendRequestSenderId === authStore.user?.id ? '申請中' : '承認する' }}
+                </template>
+                <template v-else>フレンド申請</template>
+              </button>
               <button class="more-actions-btn">
                 <MoreHorizontal :size="20" />
               </button>
@@ -365,7 +418,8 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
 
 .edit-profile-btn,
 .follow-btn,
-.more-actions-btn {
+.more-actions-btn,
+.friend-btn {
   padding: 0 16px;
   height: 36px;
   border-radius: 50px;
@@ -381,8 +435,20 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
 }
 
 .edit-profile-btn:hover,
-.more-actions-btn:hover {
+.more-actions-btn:hover,
+.friend-btn:hover {
   background: rgba(0, 0, 0, 0.05);
+}
+
+.friend-btn.is-friend {
+  background: var(--accent);
+  color: white;
+  border: none;
+}
+
+.friend-btn.is-pending {
+  background: var(--secondary);
+  color: var(--text-primary);
 }
 
 .follow-btn {

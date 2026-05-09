@@ -63,7 +63,12 @@ const handleRefresh = () => {
     ui="MessageCircle"
     url="/message"
   />
-  <PrimaryButton :name="authStore.t.notice" ui="Bell" url="/notice" />
+  <PrimaryButton
+    :name="authStore.t.notice"
+    ui="Bell"
+    url="/notice"
+    :badge="authStore.notificationCount > 0 ? authStore.notificationCount : null"
+  />
   <PrimaryButton :name="authStore.t.favorite" ui="Heart" url="/favorite" />
   <hr />
 

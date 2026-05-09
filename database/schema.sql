@@ -16,6 +16,9 @@ DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS follows CASCADE;
 DROP TABLE IF EXISTS message_likes CASCADE;
 DROP TABLE IF EXISTS bookmarks CASCADE;
+DROP TABLE IF EXISTS friend_requests CASCADE;
+DROP TABLE IF EXISTS friends CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
 
 -- 3. ユーザーテーブル (Account)
 CREATE TABLE users (
@@ -112,3 +115,39 @@ CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
 CREATE INDEX IF NOT EXISTS idx_messages_poston ON messages(poston);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+
+-- 11. フレンド申請テーブル
+CREATE TABLE friend_requests (
+    id SERIAL PRIMARY KEY,
+    sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'accepted', 'rejected'
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sender_id, receiver_id)
+);
+
+-- 12. フレンドテーブル
+CREATE TABLE friends (
+    id SERIAL PRIMARY KEY,
+    user_id1 INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id2 INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id1, user_id2),
+    CHECK (user_id1 < user_id2)
+);
+
+-- 13. 通知テーブル
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, -- 通知を受け取るユーザー
+    actor_id INTEGER REFERENCES users(id) ON DELETE CASCADE, -- アクションを起こしたユーザー
+    type VARCHAR(50) NOT NULL, -- 'like', 'retweet', 'follow', 'friend_request', 'dm'
+    message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
+    related_id INTEGER, -- friend_request_id など
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. インデックス追加
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);

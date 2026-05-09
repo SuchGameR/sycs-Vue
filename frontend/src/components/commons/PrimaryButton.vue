@@ -19,6 +19,10 @@ const props = defineProps({
     required: false,
   },
   url: String,
+  badge: {
+    type: [Number, String],
+    default: null,
+  },
 });
 
 const url = computed(() => {
@@ -44,6 +48,7 @@ const currentIcon = computed(() => {
         class="UIcon"
       />
       <span class="menu-text">{{ name }}</span>
+      <span v-if="badge" class="badge">{{ badge }}</span>
     </div>
   </router-link>
   <div v-else class="link" @click="$emit('click')">
@@ -55,6 +60,7 @@ const currentIcon = computed(() => {
         class="UIcon"
       />
       <span class="menu-text">{{ name }}</span>
+      <span v-if="badge" class="badge">{{ badge }}</span>
     </div>
   </div>
 </template>
@@ -129,5 +135,22 @@ const currentIcon = computed(() => {
 
 .button:hover {
   background-color: rgba(0, 0, 0, 0.05);
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  left: 20px;
+  background: #ff4757;
+  color: white;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  font-weight: bold;
+  border: 2px solid var(--surface);
+  line-height: 1;
+  z-index: 10;
 }
 </style>

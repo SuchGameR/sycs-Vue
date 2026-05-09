@@ -11,6 +11,7 @@ import {
   Check,
   Pencil,
   Trash2,
+  X,
   MoreVertical,
   Heart,
   Repeat2,
@@ -38,6 +39,7 @@ const showEmojiPicker = ref(false);
 const highlightedHtml = ref('');
 const isCopying = ref(false);
 const showDetailsModal = ref(false);
+const showEditHistory = ref(false);
 
 // Hover Profile Card State
 const showProfileCard = ref(false);
@@ -370,7 +372,7 @@ const hasMyReaction = (emoji: string) =>
                   : date.toLocaleDateString();
               })()
             }}</span>
-            <span v-if="msg.edit_history?.length > 0" class="edited-tag"
+            <span v-if="msg.edit_history?.length > 0" class="edited-tag" @click.stop="showEditHistory = true"
               >(編集済)</span
             >
           </div>
@@ -481,6 +483,37 @@ const hasMyReaction = (emoji: string) =>
         </div>
       </div>
     </div>
+
+    <!-- Edit History Popup -->
+    <Teleport to="body">
+      <div v-if="showEditHistory" class="history-overlay" @click="showEditHistory = false">
+        <div class="history-popup" @click.stop>
+          <div class="history-header">
+            <h3>編集履歴</h3>
+            <button @click="showEditHistory = false" class="close-history"><X :size="20" /></button>
+          </div>
+          <div class="history-list">
+            <div v-for="(item, idx) in msg.edit_history" :key="idx" class="history-item">
+              <div class="history-time">
+                {{ new Date(item.edited_at).toLocaleString() }}
+              </div>
+              <div class="history-content">
+                {{ item.content }}
+              </div>
+            </div>
+            <!-- Current version -->
+            <div class="history-item current">
+              <div class="history-time">
+                現在
+              </div>
+              <div class="history-content">
+                {{ msg.content }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Context Menu -->
     <Teleport to="body">
@@ -770,6 +803,11 @@ const hasMyReaction = (emoji: string) =>
   font-size: 0.65rem;
   color: var(--text-secondary);
   margin-left: 4px;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+.edited-tag:hover {
+  color: var(--accent);
 }
 
 .message-body {
@@ -832,6 +870,78 @@ const hasMyReaction = (emoji: string) =>
 }
 .link-btn.save {
   color: #2ed573;
+}
+
+/* History Popup */
+.history-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+.history-popup {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+}
+.history-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.history-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.close-history {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.history-list {
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.history-item {
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+.history-item.current {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+.history-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.history-content {
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Context Menu */

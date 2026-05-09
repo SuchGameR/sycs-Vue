@@ -141,6 +141,63 @@ async function generateUniqueUserId(base) {
   }
 }
 
+async function createNotification(userId, actorId, type, messageId = null, relatedId = null) {
+  if (userId === actorId) return; // Don't notify self
+
+  try {
+    const result = await pool.query(
+      "INSERT INTO notifications (user_id, actor_id, type, message_id, related_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [userId, actorId, type, messageId, relatedId]
+    );
+    const notification = result.rows[0];
+
+    // Get actor info for the notification
+    const actorRes = await pool.query("SELECT username, avatar_url FROM users WHERE id = $1", [actorId]);
+    const fullNotification = { ...notification, actor: actorRes.rows[0] };
+
+    io.emit(`notification-${userId}`, fullNotification);
+    return fullNotification;
+  } catch (err) {
+    console.error("Failed to create notification:", err);
+  }
+}
+
+// ... existing code ...
+
+// Get notifications
+app.get("/api/notifications", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT n.*, u.username as actor_name, u.avatar_url as actor_avatar, u.userid as actor_handle,
+              m.content as message_preview
+       FROM notifications n
+       JOIN users u ON n.actor_id = u.id
+       LEFT JOIN messages m ON n.message_id = m.id
+       WHERE n.user_id = $1
+       ORDER BY n.created_at DESC
+       LIMIT 50`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+// Mark notifications as read
+app.put("/api/notifications/read", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    await pool.query("UPDATE notifications SET is_read = TRUE WHERE user_id = $1", [userId]);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to mark notifications as read" });
+  }
+});
+
 // --- Auth Routes ---
 
 // Upload Avatar
@@ -930,6 +987,12 @@ app.post(
         [authorName, userId, messageId],
       );
 
+      // Notify original author
+      const origAuthorRes = await pool.query("SELECT user_id FROM messages WHERE id = $1", [messageId]);
+      if (origAuthorRes.rows.length > 0) {
+        await createNotification(origAuthorRes.rows[0].user_id, userId, 'retweet', messageId);
+      }
+
       res.status(201).json({ ...result.rows[0], retweeted: true });
     } catch (err) {
       console.error(err);
@@ -1050,6 +1113,13 @@ app.post(
       const index = reactions[emoji].indexOf(userId);
       if (index === -1) {
         reactions[emoji].push(userId);
+        // Notify author if it's a like
+        if (emoji === '❤️') {
+          const msgAuthorRes = await pool.query("SELECT user_id FROM messages WHERE id = $1", [messageId]);
+          if (msgAuthorRes.rows.length > 0) {
+            await createNotification(msgAuthorRes.rows[0].user_id, userId, 'like', messageId);
+          }
+        }
       } else {
         reactions[emoji].splice(index, 1);
         if (reactions[emoji].length === 0) delete reactions[emoji];
@@ -1142,18 +1212,21 @@ app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
 
 // --- User Profile & Follow Routes ---
 
-// Get User by Handle (extended with follow stats)
+// Get User by Handle (extended with follow stats and friend status)
 app.get("/api/users/:handle", async (req, res) => {
   const { handle } = req.params;
   const currentUser = getUserFromToken(req);
 
   try {
     const result = await pool.query(
-      `SELECT id, username, email, avatar_url, header_url, userid, attributes, created_at,
+      `SELECT id, uid, username, email, avatar_url, header_url, userid, attributes, created_at,
               (SELECT COUNT(*) FROM follows WHERE following_id = users.id) as followers_count,
               (SELECT COUNT(*) FROM follows WHERE follower_id = users.id) as following_count,
               (SELECT COUNT(*) FROM messages WHERE user_id = users.id) as posts_count,
-              EXISTS(SELECT 1 FROM follows WHERE follower_id = $2 AND following_id = users.id) as is_following
+              EXISTS(SELECT 1 FROM follows WHERE follower_id = $2 AND following_id = users.id) as is_following,
+              (SELECT status FROM friend_requests WHERE (sender_id = $2 AND receiver_id = users.id) OR (sender_id = users.id AND receiver_id = $2) LIMIT 1) as friend_request_status,
+              (SELECT sender_id FROM friend_requests WHERE (sender_id = $2 AND receiver_id = users.id) OR (sender_id = users.id AND receiver_id = $2) LIMIT 1) as friend_request_sender_id,
+              EXISTS(SELECT 1 FROM friends WHERE (user_id1 = $2 AND user_id2 = users.id) OR (user_id1 = users.id AND user_id2 = $2)) as is_friend
        FROM users 
        WHERE userid = $1 OR email LIKE $3`,
       [handle, currentUser?.id || null, `${handle}@%`],
@@ -1214,10 +1287,13 @@ app.post("/api/users/:userId/follow", authenticateToken, async (req, res) => {
   }
 
   try {
-    await pool.query(
+    const res = await pool.query(
       "INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [followerId, targetUserId],
     );
+    if (res.rowCount > 0) {
+      await createNotification(targetUserId, followerId, 'follow');
+    }
     res.json({ message: "Followed successfully" });
   } catch (err) {
     console.error(err);
@@ -1275,6 +1351,272 @@ app.get("/api/users/:userId/following", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch following" });
+  }
+});
+
+// --- Friend & DM Routes ---
+
+// Get friends list
+app.get("/api/friends", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.uid, u.username, u.userid as handle, u.avatar_url, u.attributes->>'bio' as bio
+       FROM users u
+       JOIN friends f ON (f.user_id1 = u.id OR f.user_id2 = u.id)
+       WHERE (f.user_id1 = $1 OR f.user_id2 = $1) AND u.id != $1`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch friends" });
+  }
+});
+
+// Get pending friend requests
+app.get("/api/friends/requests/pending", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT fr.id as request_id, u.id as sender_id, u.uid as sender_uid, u.username, u.userid as handle, u.avatar_url, fr.created_at
+       FROM friend_requests fr
+       JOIN users u ON fr.sender_id = u.id
+       WHERE fr.receiver_id = $1 AND fr.status = 'pending'`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch pending requests" });
+  }
+});
+
+// Send friend request
+app.post("/api/friends/request/:userId", authenticateToken, async (req, res) => {
+  const senderId = req.user.id;
+  const receiverId = parseInt(req.params.userId);
+
+  if (senderId === receiverId) {
+    return res.status(400).json({ error: "You cannot friend yourself" });
+  }
+
+  try {
+    // Check if they are already friends
+    const friendCheck = await pool.query(
+      "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
+      [senderId, receiverId]
+    );
+    if (friendCheck.rows.length > 0) {
+      return res.status(400).json({ error: "Already friends" });
+    }
+
+    // Check for existing request
+    const requestCheck = await pool.query(
+      "SELECT status FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
+      [senderId, receiverId]
+    );
+    if (requestCheck.rows.length > 0) {
+      return res.status(400).json({ error: "A request already exists" });
+    }
+
+    const insertRes = await pool.query(
+      "INSERT INTO friend_requests (sender_id, receiver_id) VALUES ($1, $2) RETURNING id",
+      [senderId, receiverId]
+    );
+
+    await createNotification(receiverId, senderId, 'friend_request', null, insertRes.rows[0].id);
+
+    // Notify receiver via socket
+    io.emit(`friend-request-${receiverId}`, { from: senderId });
+
+    res.json({ message: "Friend request sent" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to send friend request" });
+  }
+});
+
+// Accept friend request
+app.put("/api/friends/requests/:requestId/accept", authenticateToken, async (req, res) => {
+  const requestId = parseInt(req.params.requestId);
+  const userId = req.user.id;
+
+  try {
+    const requestResult = await pool.query(
+      "SELECT * FROM friend_requests WHERE id = $1 AND receiver_id = $2 AND status = 'pending'",
+      [requestId, userId]
+    );
+
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ error: "Request not found or unauthorized" });
+    }
+
+    const senderId = requestResult.rows[0].sender_id;
+
+    // Update request status
+    await pool.query(
+      "UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [requestId]
+    );
+
+    // Add to friends table
+    const [u1, u2] = senderId < userId ? [senderId, userId] : [userId, senderId];
+    await pool.query(
+      "INSERT INTO friends (user_id1, user_id2) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [u1, u2]
+    );
+
+    res.json({ message: "Friend request accepted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to accept friend request" });
+  }
+});
+
+// Reject friend request
+app.put("/api/friends/requests/:requestId/reject", authenticateToken, async (req, res) => {
+  const requestId = parseInt(req.params.requestId);
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      "UPDATE friend_requests SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND receiver_id = $2",
+      [requestId, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    res.json({ message: "Friend request rejected" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to reject friend request" });
+  }
+});
+
+// Remove friend
+app.delete("/api/friends/:friendId", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const friendId = parseInt(req.params.friendId);
+
+  try {
+    const [u1, u2] = userId < friendId ? [userId, friendId] : [friendId, userId];
+    await pool.query("DELETE FROM friends WHERE user_id1 = $1 AND user_id2 = $2", [u1, u2]);
+    // Also cleanup requests
+    await pool.query(
+      "DELETE FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
+      [userId, friendId]
+    );
+    res.json({ message: "Friend removed" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to remove friend" });
+  }
+});
+
+// Get DM messages
+app.get("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { friendUid } = req.params;
+
+  try {
+    // Get friend's internal ID
+    const friendRes = await pool.query("SELECT id FROM users WHERE uid = $1", [friendUid]);
+    if (friendRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    const friendId = friendRes.rows[0].id;
+
+    // Check if they are friends
+    const friendCheck = await pool.query(
+      "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
+      [userId, friendId]
+    );
+    if (friendCheck.rows.length === 0) {
+      return res.status(403).json({ error: "You must be friends to exchange DMs" });
+    }
+
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content, 'created_at', p.created_at) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg
+       FROM messages m
+       LEFT JOIN users u ON m.user_id = u.id
+       WHERE m.post_type = 'DM' 
+       AND ((m.user_id = $1 AND m.poston = $2) OR (m.user_id = $3 AND m.poston = $4))
+       ORDER BY m.created_at ASC`,
+      [userId, friendUid, friendId, req.user.uid || (await pool.query("SELECT uid FROM users WHERE id=$1", [userId])).rows[0].uid]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch DM messages" });
+  }
+});
+
+// Send DM
+app.post("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { friendUid } = req.params;
+  const { content, parent_id } = req.body;
+
+  if (!content) return res.status(400).json({ error: "Content is required" });
+
+  try {
+    // Get friend's internal ID
+    const friendRes = await pool.query("SELECT id, username FROM users WHERE uid = $1", [friendUid]);
+    if (friendRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    const friendId = friendRes.rows[0].id;
+
+    // Check if they are friends
+    const friendCheck = await pool.query(
+      "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
+      [userId, friendId]
+    );
+    if (friendCheck.rows.length === 0) {
+      return res.status(403).json({ error: "You must be friends to exchange DMs" });
+    }
+
+    const authorRes = await pool.query("SELECT username, uid FROM users WHERE id = $1", [userId]);
+    const author_name = authorRes.rows[0].username;
+    const userUid = authorRes.rows[0].uid;
+
+    const result = await pool.query(
+      "INSERT INTO messages (author_name, content, user_id, post_type, poston, parent_id) VALUES ($1, $2, $3, 'DM', $4, $5) RETURNING *",
+      [author_name, content, userId, friendUid, parent_id || null]
+    );
+
+    const userResult = await pool.query(
+      "SELECT avatar_url, userid FROM users WHERE id = $1",
+      [userId]
+    );
+    
+    let parent_msg = null;
+    if (parent_id) {
+      const pResult = await pool.query(
+        "SELECT author_name, content, created_at FROM messages WHERE id = $1",
+        [parent_id]
+      );
+      parent_msg = pResult.rows[0];
+    }
+
+    const newMessage = {
+      ...result.rows[0],
+      avatar_url: userResult.rows[0].avatar_url,
+      author_handle: userResult.rows[0].userid,
+      parent_msg
+    };
+
+    await createNotification(friendId, userId, 'dm', newMessage.id);
+
+    // Notify both users via socket
+    io.emit(`dm-receive-${userUid}`, newMessage);
+    io.emit(`dm-receive-${friendUid}`, newMessage);
+
+    res.status(201).json(newMessage);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to send DM" });
   }
 });
 
