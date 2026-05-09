@@ -13,6 +13,7 @@ const authStore = useAuthStore();
 const message = ref(null);
 const replies = ref([]);
 const loading = ref(false);
+const isPosting = ref(false);
 const hasMore = ref(true);
 const offset = ref(0);
 const limit = 20;
@@ -64,6 +65,8 @@ const handleScroll = () => {
 };
 
 const handlePost = async (content) => {
+  if (isPosting.value) return;
+  isPosting.value = true;
   try {
     const res = await fetch(`/api/messages/global`, {
       method: "POST",
@@ -81,6 +84,8 @@ const handlePost = async (content) => {
     }
   } catch (e) {
     console.error(e);
+  } finally {
+    isPosting.value = false;
   }
 };
 
@@ -177,7 +182,7 @@ const goBack = () => {
       </div>
 
       <div class="reply-section">
-        <InlinePost @submit="handlePost" />
+        <InlinePost :loading="isPosting" @submit="handlePost" />
       </div>
 
       <div class="replies-list">

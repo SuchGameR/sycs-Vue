@@ -17,6 +17,7 @@ const messages = ref([]);
 const newMessage = ref("");
 const messageListRef = ref(null);
 const loading = ref(false);
+const isSending = ref(false);
 const activeView = ref("chat"); // 'chat' or 'requests'
 const replyingTo = ref(null);
 
@@ -91,10 +92,11 @@ const fetchDMs = async (friendUid) => {
 };
 
 const sendDM = async () => {
-  if (!newMessage.value.trim() || !selectedFriend.value) return;
+  if (!newMessage.value.trim() || !selectedFriend.value || isSending.value) return;
 
   const content = newMessage.value;
   const parent_id = replyingTo.value?.id;
+  isSending.value = true;
   newMessage.value = "";
   replyingTo.value = null;
 
@@ -109,9 +111,13 @@ const sendDM = async () => {
     });
     if (!res.ok) {
       console.error("Failed to send message");
+      newMessage.value = content;
     }
   } catch (e) {
     console.error(e);
+    newMessage.value = content;
+  } finally {
+    isSending.value = false;
   }
 };
 
@@ -411,8 +417,9 @@ onUnmounted(() => {
               placeholder="メッセージを入力..." 
               @keydown="handleKeydown"
               rows="1"
+              :disabled="isSending"
             ></textarea>
-            <button @click="sendDM" :disabled="!newMessage.trim()" class="send-btn">
+            <button @click="sendDM" :disabled="!newMessage.trim() || isSending" class="send-btn">
               <Send :size="20" />
             </button>
           </div>

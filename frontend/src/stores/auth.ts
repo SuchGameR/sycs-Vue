@@ -312,6 +312,13 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem("token");
   }
 
+  function localizeError(errorMsg: string): string {
+    if (errorMsg.includes("Invalid email or password")) return t.value.error_signin;
+    if (errorMsg.includes("User already exists")) return lang.value === 'ja' ? 'このメールアドレスは既に登録されています' : 'User already exists';
+    if (errorMsg.includes("Username, email, and password are required")) return lang.value === 'ja' ? 'ユーザー名、メールアドレス、パスワードは必須です' : 'Username, email, and password are required';
+    return errorMsg;
+  }
+
   function setTimelineMode(mode: string) {
     timelineMode.value = mode;
     localStorage.setItem("timelineMode", mode);

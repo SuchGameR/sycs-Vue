@@ -10,6 +10,10 @@ import {
   BarChart2,
 } from "lucide-vue-next";
 
+const props = defineProps<{
+  loading?: boolean;
+}>();
+
 const authStore = useAuthStore();
 const content = ref("");
 const emit = defineEmits(["submit"]);
@@ -17,7 +21,7 @@ const emit = defineEmits(["submit"]);
 const canPost = computed(() => content.value.trim().length > 0);
 
 function handleSubmit() {
-  if (!canPost.value) return;
+  if (!canPost.value || props.loading) return;
   emit("submit", content.value);
   content.value = "";
   // Reset height
@@ -81,8 +85,8 @@ function handleKeydown(e: KeyboardEvent) {
             </button>
             <button class="icon-btn" title="場所"><MapPin :size="20" /></button>
           </div>
-          <button class="submit-btn" :disabled="!canPost" @click="handleSubmit">
-            {{ authStore.t.post_btn }}
+          <button class="submit-btn" :disabled="!canPost || loading" @click="handleSubmit">
+            {{ loading ? '...' : authStore.t.post_btn }}
           </button>
         </div>
       </div>

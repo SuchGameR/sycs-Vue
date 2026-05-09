@@ -6,15 +6,21 @@ import { useRouter } from 'vue-router';
 const email = ref('');
 const password = ref('');
 const error = ref('');
+const isLoading = ref(false);
 const authStore = useAuthStore();
 const router = useRouter();
 
 async function handleSignin() {
+  if (isLoading.value) return;
+  isLoading.value = true;
+  error.value = '';
   try {
     await authStore.signin(email.value, password.value);
     router.push('/');
   } catch (err: any) {
-    error.value = err.message;
+    error.value = authStore.localizeError(err.message);
+  } finally {
+    isLoading.value = false;
   }
 }
 </script>
@@ -26,14 +32,16 @@ async function handleSignin() {
       <form @submit.prevent="handleSignin">
         <div class="form-group">
           <label>メールアドレス</label>
-          <input v-model="email" type="email" required />
+          <input v-model="email" type="email" required :disabled="isLoading" />
         </div>
         <div class="form-group">
           <label>パスワード</label>
-          <input v-model="password" type="password" required />
+          <input v-model="password" type="password" required :disabled="isLoading" />
         </div>
         <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit">サインイン</button>
+        <button type="submit" :disabled="isLoading">
+          {{ isLoading ? 'サインイン中...' : 'サインイン' }}
+        </button>
       </form>
       <p class="auth-footer">
         アカウントをお持ちでないですか？ <router-link to="/signup">サインアップ</router-link>

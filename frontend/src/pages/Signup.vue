@@ -7,15 +7,21 @@ const username = ref('');
 const email = ref('');
 const password = ref('');
 const error = ref('');
+const isLoading = ref(false);
 const authStore = useAuthStore();
 const router = useRouter();
 
 async function handleSignup() {
+  if (isLoading.value) return;
+  isLoading.value = true;
+  error.value = '';
   try {
     await authStore.signup(username.value, email.value, password.value);
     router.push('/');
   } catch (err: any) {
-    error.value = err.message;
+    error.value = authStore.localizeError(err.message);
+  } finally {
+    isLoading.value = false;
   }
 }
 </script>
@@ -27,18 +33,20 @@ async function handleSignup() {
       <form @submit.prevent="handleSignup">
         <div class="form-group">
           <label>ユーザー名</label>
-          <input v-model="username" type="text" required />
+          <input v-model="username" type="text" required :disabled="isLoading" />
         </div>
         <div class="form-group">
           <label>メールアドレス</label>
-          <input v-model="email" type="email" required />
+          <input v-model="email" type="email" required :disabled="isLoading" />
         </div>
         <div class="form-group">
           <label>パスワード</label>
-          <input v-model="password" type="password" required />
+          <input v-model="password" type="password" required :disabled="isLoading" />
         </div>
         <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit">サインアップ</button>
+        <button type="submit" :disabled="isLoading">
+          {{ isLoading ? '処理中...' : 'サインアップ' }}
+        </button>
       </form>
       <p class="auth-footer">
         すでにアカウントをお持ちですか？ <router-link to="/signin">サインイン</router-link>

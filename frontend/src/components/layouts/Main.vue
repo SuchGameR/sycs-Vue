@@ -18,8 +18,9 @@ const loading = ref(false);
 const hasMore = ref(true);
 const offset = ref(0);
 const limit = 20;
-const activeTab = ref("global");
+const activeTab = ref("recommend");
 const showPostModal = ref(false);
+const isPosting = ref(false);
 const replyingTo = ref(null);
 
 const socket = io("/", { path: "/socket.io" });
@@ -64,6 +65,8 @@ const fetchMessages = async (isLoadMore = false) => {
 };
 
 const handlePost = async (content) => {
+  if (isPosting.value) return;
+  isPosting.value = true;
   try {
     const res = await fetch(`/api/messages/global`, {
       method: "POST",
@@ -88,6 +91,8 @@ const handlePost = async (content) => {
     }
   } catch (e) {
     console.error(e);
+  } finally {
+    isPosting.value = false;
   }
 };
 
@@ -290,7 +295,7 @@ watch(activeTab, () => {
       </section>
 
       <!-- インライン投稿エリア (Twitter風) -->
-      <InlinePost @submit="handlePost" />
+      <InlinePost :loading="isPosting" @submit="handlePost" />
 
       <!-- タイムラインエリア -->
       <div class="timeline" ref="messageListRef" @scroll="handleScroll">
@@ -324,6 +329,7 @@ watch(activeTab, () => {
       <!-- 投稿モーダル -->
       <PostModal
         :show="showPostModal"
+        :loading="isPosting"
         :placeholder="
           replyingTo
             ? `${replyingTo.author_name} への返信...`

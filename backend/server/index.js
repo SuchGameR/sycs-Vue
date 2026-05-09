@@ -20,12 +20,16 @@ const envPath = resolve(__dirname, "../../env/.env");
 console.log("Loading env:", envPath);
 dotenv.config({ path: envPath });
 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : true;
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     // origin: "*",
-    origin: true,
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -60,7 +64,7 @@ const pool = new Pool({
 // Middleware
 app.use(
   cors({
-    origin: true,
+    origin: allowedOrigins,
     credentials: true,
   }),
 );

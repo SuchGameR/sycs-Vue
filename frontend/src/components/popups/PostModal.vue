@@ -8,6 +8,7 @@ const props = defineProps<{
   placeholder?: string;
   btnText?: string;
   title?: string;
+  loading?: boolean;
 }>();
 
 const emit = defineEmits(["close", "submit"]);
@@ -74,10 +75,10 @@ function handleKeydown(e: KeyboardEvent) {
             </div>
             <button
               class="submit-btn"
-              :disabled="!canPost"
+              :disabled="!canPost || loading"
               @click="handleSubmit"
             >
-              {{ btnText || authStore.t.post_btn }}
+              {{ loading ? '送信中...' : (btnText || authStore.t.post_btn) }}
             </button>
           </div>
         </div>
