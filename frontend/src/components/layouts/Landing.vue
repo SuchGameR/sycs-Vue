@@ -336,6 +336,7 @@ function goToSignup() {
   .cta-buttons,
   .features-grid {
     margin: 0 auto;
+    margin-top: 40px;
   }
   .landing {
     flex-direction: column;

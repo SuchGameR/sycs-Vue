@@ -40,7 +40,7 @@
         <ul>
           <li>
             <img
-              src="https://cdn.discordapp.com/avatars/1161667770900029450/d052f4c05bf8218e9b71d09eae989c30.webp?size=1024
+              src="https://avatars.githubusercontent.com/u/147938554?v=4
   "
               alt="Main Author"
               width="32"
@@ -51,7 +51,7 @@
           </li>
           <li>
             <img
-              src="https://cdn.discordapp.com/avatars/832876102573097020/d81525b08cd6b150386e9adfea3e393a.webp?size=1024"
+              src="https://avatars.githubusercontent.com/u/253502254?v=4"
               alt="Debugger"
               width="32"
               height="32"
@@ -61,7 +61,7 @@
           </li>
           <li>
             <img
-              src="https://cdn.discordapp.com/avatars/883967557672009739/a1a213f25ebc6eee159a3a2176f36c39.webp?size=1024"
+              src="https://avatars.githubusercontent.com/u/95160371?v=4"
               alt="Sub Author"
               width="32"
               height="32"

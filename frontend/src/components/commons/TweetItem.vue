@@ -19,6 +19,7 @@ import { useAuthStore } from "../../stores/auth";
 import { createHighlighter } from "shiki";
 import { useRouter } from "vue-router";
 import UserProfileCard from "./UserProfileCard.vue";
+import MediaPreview from "./MediaPreview.vue";
 
 const props = defineProps<{
   msg: any;
@@ -375,6 +376,9 @@ const formattedTime = computed(() => {
         </div>
 
         <div v-if="msg.content" class="tweet-body markdown-body" v-html="highlightedHtml"></div>
+
+        <!-- Attachments -->
+        <MediaPreview v-if="msg.attachment" :attachments="msg.attachment" />
 
         <!-- Quoted Post Box -->
         <div v-if="msg.retweet_id" class="quoted-post">

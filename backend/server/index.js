@@ -11,6 +11,8 @@ import { Server } from "socket.io";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import sharp from "sharp";
+console.log("Sharp library loaded:", !!sharp);
 
 const { Pool } = pkg;
 
@@ -86,19 +88,39 @@ const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
+      // Images
       "image/jpeg",
       "image/jpg",
       "image/png",
       "image/webp",
       "image/gif",
+      "image/svg+xml",
+      // Video
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+      "video/x-matroska",
+      // Audio
+      "audio/mpeg",
+      "audio/wav",
+      "audio/ogg",
+      "audio/mp3",
+      "audio/webm",
+      // Text/Other
+      "text/markdown",
+      "text/plain",
+      "application/pdf",
     ];
-    if (allowedTypes.includes(file.mimetype)) {
+    if (
+      allowedTypes.includes(file.mimetype) ||
+      file.originalname.toLowerCase().endsWith(".md")
+    ) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type"));
+      cb(new Error("Invalid file type: " + file.mimetype));
     }
   },
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
 });
 
 // Auth Middleware (unchanged...)
@@ -202,6 +224,55 @@ app.get("/api/notifications/unread-count", authenticateToken, async (req, res) =
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch unread count" });
+  }
+});
+
+// File upload endpoint
+app.post("/api/upload", authenticateToken, upload.array("files", 10), async (req, res) => {
+  try {
+    const files = req.files;
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    const processedFiles = await Promise.all(
+      files.map(async (file) => {
+        const fileData = {
+          url: `/uploads/${file.filename}`,
+          originalName: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          optimizedUrl: null,
+        };
+
+        // Image optimization (exclude gif/svg)
+        if (
+          file.mimetype.startsWith("image/") &&
+          !file.mimetype.includes("gif") &&
+          !file.mimetype.includes("svg+xml")
+        ) {
+          const optimizedFilename = `opt-${path.parse(file.filename).name}.webp`;
+          const optimizedPath = resolve(__dirname, "uploads", optimizedFilename);
+
+          try {
+            await sharp(file.path)
+              .webp({ quality: 80 })
+              .toFile(optimizedPath);
+            fileData.optimizedUrl = `/uploads/${optimizedFilename}`;
+          } catch (sharpErr) {
+            console.error("Sharp optimization failed:", sharpErr);
+            // Fallback to original if optimization fails
+          }
+        }
+
+        return fileData;
+      })
+    );
+
+    res.json(processedFiles);
+  } catch (err) {
+    console.error("Upload error:", err);
+    res.status(500).json({ error: "File upload and processing failed" });
   }
 });
 
@@ -710,13 +781,15 @@ app.post(
   authenticateToken,
   async (req, res) => {
     const { channelId } = req.params;
-    const { content, parent_id } = req.body;
+    const { content, parent_id, attachment } = req.body;
     const user_id = req.user.id;
 
-    if (!content) return res.status(400).json({ error: "Content is required" });
+    if (!content && (!attachment || attachment.length === 0)) {
+      return res.status(400).json({ error: "Content or attachment is required" });
+    }
 
     try {
-      // Fetch author_name from DB to be safe (in case token is old or missing it)
+      // Fetch author_name from DB to be safe
       const authorResult = await pool.query(
         "SELECT username FROM users WHERE id = $1",
         [user_id],
@@ -724,8 +797,15 @@ app.post(
       const author_name = authorResult.rows[0]?.username || "Unknown";
 
       const result = await pool.query(
-        "INSERT INTO messages (channel_id, author_name, content, user_id, parent_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-        [channelId, author_name, content, user_id, parent_id || null],
+        "INSERT INTO messages (channel_id, author_name, content, user_id, parent_id, attachment) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+        [
+          channelId,
+          author_name,
+          content || "",
+          user_id,
+          parent_id || null,
+          JSON.stringify(attachment || []),
+        ],
       );
 
       const userResult = await pool.query(
@@ -1057,10 +1137,12 @@ app.post(
 
 // Send a global message
 app.post("/api/messages/global", authenticateToken, async (req, res) => {
-  const { content, parent_id } = req.body;
+  const { content, parent_id, attachment } = req.body;
   const user_id = req.user.id;
 
-  if (!content) return res.status(400).json({ error: "Content is required" });
+  if (!content && (!attachment || attachment.length === 0)) {
+    return res.status(400).json({ error: "Content or attachment is required" });
+  }
 
   try {
     // Fetch author_name from DB to be safe
@@ -1071,8 +1153,14 @@ app.post("/api/messages/global", authenticateToken, async (req, res) => {
     const author_name = authorResult.rows[0]?.username || "Unknown";
 
     const result = await pool.query(
-      "INSERT INTO messages (author_name, content, user_id, post_type, parent_id) VALUES ($1, $2, $3, 'GLOBAL', $4) RETURNING *",
-      [author_name, content, user_id, parent_id || null],
+      "INSERT INTO messages (author_name, content, user_id, post_type, parent_id, attachment) VALUES ($1, $2, $3, 'GLOBAL', $4, $5) RETURNING *",
+      [
+        author_name,
+        content || "",
+        user_id,
+        parent_id || null,
+        JSON.stringify(attachment || []),
+      ],
     );
     // Get user avatar
     const userResult = await pool.query(
@@ -1606,9 +1694,11 @@ app.get("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
 app.post("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
   const userId = req.user.id;
   const { friendUid } = req.params;
-  const { content, parent_id } = req.body;
+  const { content, parent_id, attachment } = req.body;
 
-  if (!content) return res.status(400).json({ error: "Content is required" });
+  if (!content && (!attachment || attachment.length === 0)) {
+    return res.status(400).json({ error: "Content or attachment is required" });
+  }
 
   try {
     // Get friend's internal ID
@@ -1630,8 +1720,15 @@ app.post("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
     const userUid = authorRes.rows[0].uid;
 
     const result = await pool.query(
-      "INSERT INTO messages (author_name, content, user_id, post_type, poston, parent_id) VALUES ($1, $2, $3, 'DM', $4, $5) RETURNING *",
-      [author_name, content, userId, friendUid, parent_id || null]
+      "INSERT INTO messages (author_name, content, user_id, post_type, poston, parent_id, attachment) VALUES ($1, $2, $3, 'DM', $4, $5, $6) RETURNING *",
+      [
+        author_name,
+        content || "",
+        userId,
+        friendUid,
+        parent_id || null,
+        JSON.stringify(attachment || []),
+      ],
     );
 
     const userResult = await pool.query(

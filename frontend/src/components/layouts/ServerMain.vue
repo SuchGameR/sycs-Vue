@@ -76,23 +76,48 @@ const fetchMessages = async () => {
 };
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || !currentChannelId.value) return;
+  if (
+    (!newMessage.value.trim() && selectedFiles.value.length === 0) ||
+    !currentChannelId.value ||
+    isUploading.value
+  )
+    return;
+
   const content = newMessage.value;
   const parent_id = replyingTo.value?.id;
+  const currentFiles = [...selectedFiles.value];
+
   newMessage.value = "";
   replyingTo.value = null;
+  selectedFiles.value = [];
+  previews.value = [];
 
   try {
+    let attachment = [];
+    if (currentFiles.length > 0) {
+      isUploading.value = true;
+      const formData = new FormData();
+      currentFiles.forEach((file) => formData.append("files", file));
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authStore.token}` },
+        body: formData,
+      });
+      if (uploadRes.ok) attachment = await uploadRes.json();
+    }
+
     await fetch(`/api/channels/${currentChannelId.value}/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authStore.token}`,
       },
-      body: JSON.stringify({ content, parent_id }),
+      body: JSON.stringify({ content, parent_id, attachment }),
     });
   } catch (e) {
     console.error(e);
+  } finally {
+    isUploading.value = false;
   }
 };
 
@@ -462,13 +487,81 @@ main {
   padding-bottom: 20px;
   margin-left: 30px;
   margin-right: 30px;
-  transform: scale(1.05);
+  /* transform: scale(1.05); */
 }
 
-.reply-bar + .input-container {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  border-top: none;
+.previews-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+}
+
+.preview-item {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-file-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  padding: 4px;
+  text-align: center;
+}
+
+.preview-file-icon .file-name {
+  font-size: 0.5rem;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.remove-file {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.reply-bar + .previews-container {
+  margin-top: -12px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding-left: 8px;
+  padding-right: 8px;
+  background: var(--surface);
 }
 
 .reply-bar {
@@ -479,7 +572,6 @@ main {
   padding: 8px 12px;
   padding-right: 4px;
   z-index: +1;
-  background: var(--surface);
   border-radius: 12px 12px 0 0;
   font-size: 0.85rem;
   font-weight: 700;
@@ -504,7 +596,35 @@ main {
   padding-right: 4px;
   border-radius: 12px;
   border: 1px solid var(--border);
+  align-items: flex-end;
+}
+
+.attach-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
   align-items: center;
+  transition: all 0.2s;
+}
+
+.attach-btn:hover {
+  color: var(--accent);
+}
+
+.upload-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(var(--accent-rgb), 0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @container small (max-width: 400px) {
@@ -523,7 +643,7 @@ main {
   font-size: 1rem;
   color: var(--text-primary);
   resize: none;
-  padding: 8px 0;
+  padding: 10px 0;
 }
 
 .send-btn {

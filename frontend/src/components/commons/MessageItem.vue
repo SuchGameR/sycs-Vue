@@ -24,6 +24,7 @@ import { createHighlighter } from 'shiki';
 import MessageDetailsModal from '../popups/MessageDetailsModal.vue';
 import { useRouter } from 'vue-router';
 import UserProfileCard from './UserProfileCard.vue';
+import MediaPreview from './MediaPreview.vue';
 
 const props = defineProps<{
   msg: any;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAuthStore } from "../../stores/auth";
-import { Image, Smile, Calendar, MapPin, List, BarChart2, X } from "lucide-vue-next";
+import { Image, Smile, Calendar, MapPin, List, BarChart2, X, FileIcon, Film, Music } from "lucide-vue-next";
 
 const props = defineProps<{
   show: boolean;
@@ -15,16 +15,92 @@ const emit = defineEmits(["close", "submit"]);
 
 const authStore = useAuthStore();
 const content = ref("");
+const fileInput = ref<HTMLInputElement | null>(null);
+const selectedFiles = ref<File[]>([]);
+const previews = ref<{ url: string; type: string; name: string }[]>([]);
+const isUploading = ref(false);
 
-const canPost = computed(() => content.value.trim().length > 0);
+const canPost = computed(() => (content.value.trim().length > 0 || selectedFiles.value.length > 0) && !isUploading.value);
 
-function handleSubmit() {
+function handleFileSelect(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (!target.files) return;
+
+  const files = Array.from(target.files);
+  selectedFiles.value = [...selectedFiles.value, ...files].slice(0, 10); // Max 10 files
+
+  // Generate previews
+  files.forEach((file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previews.value.push({
+        url: e.target?.result as string,
+        type: file.type,
+        name: file.name,
+      });
+    };
+    if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
+      reader.readAsDataURL(file);
+    } else {
+      // For other files, just show an icon
+      previews.value.push({
+        url: "",
+        type: file.type,
+        name: file.name,
+      });
+    }
+  });
+}
+
+function removeFile(index: number) {
+  selectedFiles.value.splice(index, 1);
+  previews.value.splice(index, 1);
+}
+
+async function uploadFiles() {
+  if (selectedFiles.value.length === 0) return [];
+
+  const formData = new FormData();
+  selectedFiles.value.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${authStore.token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("Upload failed");
+  }
+
+  return await response.json();
+}
+
+async function handleSubmit() {
   if (!canPost.value) return;
-  emit("submit", content.value);
-  content.value = "";
+
+  try {
+    isUploading.value = true;
+    const attachments = await uploadFiles();
+    emit("submit", { content: content.value, attachment: attachments });
+    content.value = "";
+    selectedFiles.value = [];
+    previews.value = [];
+  } catch (err) {
+    console.error(err);
+    alert("アップロードに失敗しました");
+  } finally {
+    isUploading.value = false;
+  }
 }
 
 function handleInput(e: Event) {
+// ...
+
   const target = e.target as HTMLTextAreaElement;
   target.style.height = "auto";
   target.style.height = Math.min(target.scrollHeight, 300) + "px";
@@ -75,10 +151,10 @@ function handleKeydown(e: KeyboardEvent) {
             </div>
             <button
               class="submit-btn"
-              :disabled="!canPost || loading"
+              :disabled="!canPost || loading || isUploading"
               @click="handleSubmit"
             >
-              {{ loading ? '送信中...' : (btnText || authStore.t.post_btn) }}
+              {{ (loading || isUploading) ? '送信中...' : (btnText || authStore.t.post_btn) }}
             </button>
           </div>
         </div>

@@ -64,9 +64,13 @@ const handleScroll = () => {
   }
 };
 
-const handlePost = async (content) => {
+const handlePost = async (postData) => {
   if (isPosting.value) return;
   isPosting.value = true;
+
+  const content = typeof postData === "string" ? postData : postData.content;
+  const attachment = typeof postData === "object" ? postData.attachment : [];
+
   try {
     const res = await fetch(`/api/messages/global`, {
       method: "POST",
@@ -76,6 +80,7 @@ const handlePost = async (content) => {
       },
       body: JSON.stringify({
         content,
+        attachment,
         parent_id: message.value.id,
       }),
     });

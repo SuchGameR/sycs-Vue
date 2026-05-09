@@ -3,7 +3,14 @@ import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { io } from "socket.io-client";
-import { Send, UserPlus, Check, X, UserMinus, MessageSquare } from "lucide-vue-next";
+import {
+  Send,
+  UserPlus,
+  Check,
+  X,
+  UserMinus,
+  MessageSquare,
+} from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
 
@@ -24,24 +31,27 @@ const replyingTo = ref(null);
 const socket = io("/", { path: "/socket.io" });
 
 // ルートパラメータの監視
-watch(() => route.params.handle, (newHandle) => {
-  if (newHandle) {
-    const handle = newHandle.toString();
-    const friend = friends.value.find(f => f.handle === handle);
-    if (friend) {
-      selectFriend(friend, false);
+watch(
+  () => route.params.handle,
+  (newHandle) => {
+    if (newHandle) {
+      const handle = newHandle.toString();
+      const friend = friends.value.find((f) => f.handle === handle);
+      if (friend) {
+        selectFriend(friend, false);
+      }
+    } else if (route.path === "/message") {
+      selectedFriend.value = null;
+      messages.value = [];
     }
-  } else if (route.path === '/message') {
-    selectedFriend.value = null;
-    messages.value = [];
-  }
-});
+  },
+);
 
 // フレンドリスト読み込み後の自動選択
 watch(friends, (newFriends) => {
   if (route.params.handle && newFriends.length > 0) {
     const handle = route.params.handle.toString();
-    const friend = newFriends.find(f => f.handle === handle);
+    const friend = newFriends.find((f) => f.handle === handle);
     if (friend) {
       selectFriend(friend, false);
     }
@@ -92,22 +102,43 @@ const fetchDMs = async (friendUid) => {
 };
 
 const sendDM = async () => {
-  if (!newMessage.value.trim() || !selectedFriend.value || isSending.value) return;
+  if (
+    (!newMessage.value.trim() && selectedFiles.value.length === 0) ||
+    !selectedFriend.value ||
+    isSending.value
+  )
+    return;
 
   const content = newMessage.value;
   const parent_id = replyingTo.value?.id;
   isSending.value = true;
   newMessage.value = "";
   replyingTo.value = null;
+  const currentFiles = [...selectedFiles.value];
+  selectedFiles.value = [];
+  previews.value = [];
 
   try {
+    let attachment = [];
+    if (currentFiles.length > 0) {
+      isUploading.value = true;
+      const formData = new FormData();
+      currentFiles.forEach((file) => formData.append("files", file));
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authStore.token}` },
+        body: formData,
+      });
+      if (uploadRes.ok) attachment = await uploadRes.json();
+    }
+
     const res = await fetch(`/api/messages/dm/${selectedFriend.value.uid}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authStore.token}`,
       },
-      body: JSON.stringify({ content, parent_id }),
+      body: JSON.stringify({ content, parent_id, attachment }),
     });
     if (!res.ok) {
       console.error("Failed to send message");
@@ -118,6 +149,7 @@ const sendDM = async () => {
     newMessage.value = content;
   } finally {
     isSending.value = false;
+    isUploading.value = false;
   }
 };
 
@@ -212,7 +244,7 @@ const removeFriend = async (friendId) => {
       if (selectedFriend.value?.id === friendId) {
         selectedFriend.value = null;
         messages.value = [];
-        router.push('/message');
+        router.push("/message");
       }
       fetchFriends();
     }
@@ -260,27 +292,33 @@ onMounted(() => {
     });
 
     socket.on(`dm-receive-${authStore.user?.uid}`, (msg) => {
-      if (selectedFriend.value && 
-          (msg.user_id === selectedFriend.value.id || 
-          (msg.user_id === authStore.user?.id && msg.poston === selectedFriend.value.uid))) {
+      if (
+        selectedFriend.value &&
+        (msg.user_id === selectedFriend.value.id ||
+          (msg.user_id === authStore.user?.id &&
+            msg.poston === selectedFriend.value.uid))
+      ) {
         messages.value.push(msg);
         scrollToBottom();
       }
     });
 
-    socket.on(`dm-update-${authStore.user?.uid}`, ({ type, messageId, reactions, message }) => {
-      if (type === 'reaction') {
-        const msg = messages.value.find((m) => m.id === messageId);
-        if (msg) msg.reactions = reactions;
-      } else if (type === 'updated') {
-        const index = messages.value.findIndex((m) => m.id === message.id);
-        if (index !== -1) {
-          messages.value[index] = { ...messages.value[index], ...message };
+    socket.on(
+      `dm-update-${authStore.user?.uid}`,
+      ({ type, messageId, reactions, message }) => {
+        if (type === "reaction") {
+          const msg = messages.value.find((m) => m.id === messageId);
+          if (msg) msg.reactions = reactions;
+        } else if (type === "updated") {
+          const index = messages.value.findIndex((m) => m.id === message.id);
+          if (index !== -1) {
+            messages.value[index] = { ...messages.value[index], ...message };
+          }
+        } else if (type === "deleted") {
+          messages.value = messages.value.filter((m) => m.id !== messageId);
         }
-      } else if (type === 'deleted') {
-        messages.value = messages.value.filter((m) => m.id !== messageId);
-      }
-    });
+      },
+    );
   };
 
   registerSocket();
@@ -313,8 +351,8 @@ onUnmounted(() => {
     <div class="friend-sidebar">
       <div class="sidebar-header">
         <h2>メッセージ</h2>
-        <button 
-          class="request-badge-btn" 
+        <button
+          class="request-badge-btn"
           :class="{ active: activeView === 'requests' }"
           @click="activeView = 'requests'"
         >
@@ -326,14 +364,17 @@ onUnmounted(() => {
       </div>
 
       <div class="friend-list">
-        <div 
-          v-for="friend in friends" 
+        <div
+          v-for="friend in friends"
           :key="friend.id"
           class="friend-item"
           :class="{ active: selectedFriend?.id === friend.id }"
           @click="selectFriend(friend)"
         >
-          <img :src="friend.avatar_url || '/default-avatar.png'" class="avatar" />
+          <img
+            :src="friend.avatar_url || '/default-avatar.png'"
+            class="avatar"
+          />
           <div class="friend-info">
             <span class="name">{{ friend.username }}</span>
             <span class="handle">@{{ friend.handle }}</span>
@@ -354,8 +395,15 @@ onUnmounted(() => {
           <button @click="activeView = 'chat'" class="close-btn"><X /></button>
         </div>
         <div class="request-list">
-          <div v-for="req in pendingRequests" :key="req.request_id" class="request-item">
-            <img :src="req.avatar_url || '/default-avatar.png'" class="avatar" />
+          <div
+            v-for="req in pendingRequests"
+            :key="req.request_id"
+            class="request-item"
+          >
+            <img
+              :src="req.avatar_url || '/default-avatar.png'"
+              class="avatar"
+            />
             <div class="request-info">
               <span class="name">{{ req.username }}</span>
               <span class="handle">@{{ req.handle }}</span>
@@ -379,13 +427,20 @@ onUnmounted(() => {
       <div v-else-if="selectedFriend" class="chat-view">
         <div class="chat-header">
           <div class="user-info">
-            <img :src="selectedFriend.avatar_url || '/default-avatar.png'" class="avatar" />
+            <img
+              :src="selectedFriend.avatar_url || '/default-avatar.png'"
+              class="avatar"
+            />
             <div>
               <div class="name">{{ selectedFriend.username }}</div>
               <div class="handle">@{{ selectedFriend.handle }}</div>
             </div>
           </div>
-          <button @click="removeFriend(selectedFriend.id)" class="delete-friend-btn" title="フレンド解除">
+          <button
+            @click="removeFriend(selectedFriend.id)"
+            class="delete-friend-btn"
+            title="フレンド解除"
+          >
             <UserMinus :size="18" />
           </button>
         </div>
@@ -411,16 +466,74 @@ onUnmounted(() => {
             <span>{{ replyingTo.author_name }} への返信</span>
             <button @click="replyingTo = null"><X :size="14" /></button>
           </div>
+
+          <!-- File Previews -->
+          <div v-if="previews.length > 0" class="previews-container">
+            <div
+              v-for="(file, idx) in previews"
+              :key="idx"
+              class="preview-item"
+            >
+              <button class="remove-file" @click="removeFile(idx)">
+                <X :size="12" />
+              </button>
+              <img
+                v-if="file.type.startsWith('image/')"
+                :src="file.url"
+                class="preview-media"
+              />
+              <video
+                v-else-if="file.type.startsWith('video/')"
+                :src="file.url"
+                class="preview-media"
+                muted
+              ></video>
+              <div
+                v-else-if="file.type.startsWith('audio/')"
+                class="preview-file-icon audio"
+              >
+                <Music :size="20" />
+                <span class="file-name">{{ file.name }}</span>
+              </div>
+              <div v-else class="preview-file-icon">
+                <FileIcon :size="20" />
+                <span class="file-name">{{ file.name }}</span>
+              </div>
+            </div>
+          </div>
+
           <div class="input-container">
-            <textarea 
-              v-model="newMessage" 
-              placeholder="メッセージを入力..." 
+            <input
+              type="file"
+              ref="fileInput"
+              multiple
+              hidden
+              @change="handleFileSelect"
+              accept="image/*,video/*,audio/*,.md,text/markdown,text/plain,application/pdf"
+            />
+            <button
+              class="attach-btn"
+              @click="fileInput.click()"
+              title="ファイルを添付"
+            >
+              <Plus :size="20" />
+            </button>
+            <textarea
+              v-model="newMessage"
+              placeholder="メッセージを入力..."
               @keydown="handleKeydown"
               rows="1"
               :disabled="isSending"
             ></textarea>
-            <button @click="sendDM" :disabled="!newMessage.trim() || isSending" class="send-btn">
-              <Send :size="20" />
+            <button
+              @click="sendDM"
+              :disabled="
+                (!newMessage.trim() && selectedFiles.length === 0) || isSending
+              "
+              class="send-btn"
+            >
+              <Send v-if="!isUploading" :size="20" />
+              <div v-else class="upload-spinner"></div>
             </button>
           </div>
         </div>
@@ -476,7 +589,8 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.request-badge-btn:hover, .request-badge-btn.active {
+.request-badge-btn:hover,
+.request-badge-btn.active {
   background: rgba(var(--accent-rgb), 0.1);
   color: var(--accent);
 }
@@ -595,7 +709,8 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
-.accept-btn, .reject-btn {
+.accept-btn,
+.reject-btn {
   padding: 6px 12px;
   border-radius: 20px;
   border: none;
@@ -671,11 +786,77 @@ onUnmounted(() => {
 }
 
 .chat-input-area {
-  padding: 1.5rem;
+  padding: 1rem;
   background: var(--surface);
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+}
+
+.previews-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+}
+
+.preview-item {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-media {
+  max-width: var(--preview-max-size);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-file-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  padding: 4px;
+  text-align: center;
+}
+
+.preview-file-icon .file-name {
+  font-size: 0.5rem;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.remove-file {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
 }
 
 .reply-bar {
@@ -705,7 +886,37 @@ onUnmounted(() => {
   padding: 8px 16px;
   border-radius: 12px;
   border: 1px solid var(--border);
+  align-items: flex-end;
+}
+
+.attach-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
   align-items: center;
+  transition: all 0.2s;
+}
+
+.attach-btn:hover {
+  color: var(--accent);
+}
+
+.upload-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(var(--accent-rgb), 0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .input-container textarea {
@@ -718,7 +929,7 @@ onUnmounted(() => {
   font-size: 1rem;
   color: var(--text-primary);
   resize: none;
-  padding: 8px 0;
+  padding: 10px 0;
 }
 
 .send-btn {
@@ -768,7 +979,8 @@ onUnmounted(() => {
   .friend-sidebar {
     width: 80px;
   }
-  .sidebar-header h2, .friend-info {
+  .sidebar-header h2,
+  .friend-info {
     display: none;
   }
   .sidebar-header {
