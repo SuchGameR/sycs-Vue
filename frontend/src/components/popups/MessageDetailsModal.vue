@@ -68,139 +68,171 @@ function formatDate(dateStr: string) {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10000;
+  padding: 20px;
 }
 
 .modal-content {
   background: var(--surface);
   color: var(--text-primary);
-  width: 90%;
-  max-width: 700px;
-  max-height: 80vh;
-  border-radius: 16px;
+  width: 100%;
+  max-width: 750px;
+  max-height: 85vh;
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border);
+  animation: modal-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
+}
+
+@keyframes modal-pop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .modal-header {
-  padding: 16px 20px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: rgba(var(--surface-rgb), 0.5);
+  backdrop-filter: blur(5px);
 }
 
 .modal-header h3 {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
-  font-weight: 800;
+  font-weight: 900;
+  font-size: 1.4rem;
+  letter-spacing: -0.5px;
 }
 
 .close-btn {
-  background: transparent;
+  background: rgba(var(--text-primary-rgb), 0.05);
   border: none;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
-  padding: 4px;
+  padding: 8px;
   border-radius: 50%;
+  transition: all 0.2s;
 }
 
 .close-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--text-primary-rgb), 0.1);
+  transform: rotate(90deg);
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 32px;
   overflow-y: auto;
   flex: 1;
-}
-
-.scrollable {
   scrollbar-width: thin;
-  scrollbar-color: var(--accent) transparent;
 }
 
 .info-section {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .info-section h4 {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   border-bottom: 2px solid var(--accent);
-  padding-bottom: 4px;
-  margin-bottom: 12px;
-  font-size: 1rem;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+  font-weight: 800;
   color: var(--accent);
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
-  font-size: 0.9rem;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  font-size: 0.95rem;
 }
 
 .info-label {
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-secondary);
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .history-item {
-  padding: 12px;
-  background: var(--secondary);
-  border-radius: 8px;
+  padding: 16px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border-radius: 16px;
   border-left: 4px solid var(--accent);
 }
 
 .history-meta {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
   color: var(--text-secondary);
 }
 
 .history-content {
-  font-size: 0.9rem;
+  font-size: 1rem;
   white-space: pre-wrap;
   color: var(--text-primary);
+  line-height: 1.5;
 }
 
 .no-history {
   color: var(--text-secondary);
   font-style: italic;
-  font-size: 0.9rem;
+  font-size: 1rem;
+  padding: 20px;
+  text-align: center;
 }
 
 .json-debug {
-  background: #000;
-  color: #0f0;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
+  background: #111;
+  color: #2ed573;
+  padding: 20px;
+  border-radius: 16px;
+  font-size: 0.85rem;
   overflow-x: auto;
-  font-family: monospace;
+  font-family: 'Fira Code', monospace;
+  border: 1px solid #333;
+}
+
+@media (max-width: 600px) {
+  .modal-overlay { padding: 0; }
+  .modal-content {
+    max-height: none;
+    height: 100vh;
+    border-radius: 0;
+  }
+  .info-grid { grid-template-columns: 1fr; gap: 4px; }
+  .info-label { font-size: 0.8rem; }
+  .modal-body { padding: 20px; }
 }
 </style>

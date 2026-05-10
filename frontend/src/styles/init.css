@@ -68,6 +68,10 @@ html {
   background-color: var(--surface);
   /* background-color: rgb(179, 179, 179); */
   color: var(--text-primary);
+  overflow-x: hidden;
+  position: fixed; /* iOS zoom prevention fallback */
+  left: 0;
+  top: 0;
 }
 
 * {
@@ -76,6 +80,7 @@ html {
   box-sizing: border-box;
   /* font-family: BIZUD, sans-serif; */
   font-family: LINESeedJP, sans-serif;
+  touch-action: manipulation; /* Prevent double-tap zoom */
 }
 
 h1,

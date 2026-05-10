@@ -6,9 +6,9 @@
   "scripts": {
     "postinstall": "node patch-vite.js",
     "dev": "bun run-p dev:ui dev:server dev:ready",
-    "dev:ui": "cd frontend && bunx --bun vite",
+    "dev:ui": "cd frontend && bunx --bun vite --host",
     "dev:server": "cd backend && bun --watch server/index.js",
-    "dev:ready": "bun x wait-on http://localhost:5173 && bun ready.js",
+    "dev:ready": "bun x wait-on http://localhost:5173 ",
     "build": "bun run-p type-check \"build-only {@}\" --",
     "start": "cd frontend/dist && bun x serve && bun ready.js",
     "clear-db": "bun backend/server/init-db.js",

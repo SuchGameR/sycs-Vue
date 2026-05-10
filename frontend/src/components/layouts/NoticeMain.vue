@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useAuthStore } from "../../stores/auth";
+import { useUIStore } from "../../stores/ui";
 import { useRouter } from "vue-router";
 import {
   Heart,
@@ -8,10 +9,12 @@ import {
   UserPlus,
   UserCircle,
   MessageSquare,
+  Menu,
 } from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 
 const authStore = useAuthStore();
+const uiStore = useUIStore();
 const router = useRouter();
 const notifications = ref([]);
 const loading = ref(false);
@@ -42,7 +45,7 @@ const handleNotificationClick = (note) => {
   } else if (note.type === "dm") {
     router.push("/message");
   } else if (note.message_id) {
-    router.push(`/post/${note.message_id}`);
+    router.push(`/status/${note.message_id}`);
   } else if (note.actor_handle) {
     router.push(`/user/${note.actor_handle}`);
   }
@@ -181,8 +184,13 @@ onMounted(fetchNotifications);
   flex-direction: column;
   background: var(--background);
   max-width: 800px;
-  min-width: 460px;
   height: 100vh;
+}
+
+@media (max-width: 510px) {
+  .notice-layout {
+    max-width: 100%;
+  }
 }
 
 .header {

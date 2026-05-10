@@ -1,0 +1,18 @@
+{
+  "admin": [
+    {
+      "id": "suchgamr",
+      "email": "suchgamer91@gmail.com"
+    },
+    {
+      "id": "sgr",
+      "email": "sgr@example.com"
+    }
+  ],
+  "official": [
+    {
+      "id": "SYCS",
+      "email": "sycs@example.com"
+    }
+  ]
+}

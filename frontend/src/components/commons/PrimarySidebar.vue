@@ -5,6 +5,13 @@ import PrimaryButton from "../commons/PrimaryButton.vue";
 import CommunityModal from "../popups/CommunityModal.vue";
 import { io } from "socket.io-client";
 
+const props = defineProps({
+  mode: {
+    type: String,
+    default: "vertical", // 'vertical' or 'horizontal'
+  },
+});
+
 const authStore = useAuthStore();
 const servers = ref([]);
 const isCommunityModalOpen = ref(false);
@@ -57,46 +64,90 @@ const handleRefresh = () => {
 </script>
 
 <template>
-  <PrimaryButton :name="authStore.t.home" ui="Armchair" url="/" />
-  <PrimaryButton
-    :name="authStore.t.message"
-    ui="MessageCircle"
-    url="/message"
-  />
-  <PrimaryButton
-    :name="authStore.t.notice"
-    ui="Bell"
-    url="/notice"
-    :badge="authStore.notificationCount > 0 ? authStore.notificationCount : null"
-  />
-  <PrimaryButton :name="authStore.t.favorite" ui="Heart" url="/favorite" />
-  <hr />
+  <div :class="['primary-sidebar-container', mode]">
+    <div class="nav-section">
+      <PrimaryButton :name="authStore.t.home" ui="Armchair" url="/" />
+      <PrimaryButton
+        :name="authStore.t.message"
+        ui="MessageCircle"
+        url="/message"
+      />
+      <PrimaryButton
+        :name="authStore.t.notice"
+        ui="Bell"
+        url="/notice"
+        :badge="authStore.notificationCount > 0 ? authStore.notificationCount : null"
+      />
+      <PrimaryButton :name="authStore.t.favorite" ui="Heart" url="/favorite" />
+      <PrimaryButton :name="authStore.t.search" ui="Search" url="/search" />
+    </div>
 
-  <PrimaryButton
-    :name="authStore.t.add_server"
-    ui="Compass"
-    @click="isCommunityModalOpen = true"
-  />
-  <div class="sidebar-section-title">参加済み</div>
-  <div class="server-list">
-    <PrimaryButton
-      v-for="server in servers"
-      :key="server.id"
-      :name="server.name"
-      ui="Server"
-      :url="`/server/${server.id}`"
+    <div v-if="mode === 'vertical'" class="server-section">
+      <hr />
+
+      <PrimaryButton
+        :name="authStore.t.add_server"
+        ui="Compass"
+        @click="isCommunityModalOpen = true"
+      />
+      <div class="sidebar-section-title">参加済み</div>
+      <div class="server-list">
+        <PrimaryButton
+          v-for="server in servers"
+          :key="server.id"
+          :name="server.name"
+          ui="Server"
+          :url="`/server/${server.id}`"
+        />
+        <div v-if="servers.length === 0" class="server-empty">参加なし</div>
+      </div>
+    </div>
+
+    <CommunityModal
+      v-if="mode === 'vertical'"
+      :show="isCommunityModalOpen"
+      @close="isCommunityModalOpen = false"
+      @joined="handleRefresh"
     />
-    <div v-if="servers.length === 0" class="server-empty">参加なし</div>
   </div>
-
-  <CommunityModal
-    :show="isCommunityModalOpen"
-    @close="isCommunityModalOpen = false"
-    @joined="handleRefresh"
-  />
 </template>
 
 <style scoped>
+.primary-sidebar-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.primary-sidebar-container.horizontal {
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 0;
+  height: 60px;
+}
+
+.primary-sidebar-container.horizontal .nav-section {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  justify-content: space-around;
+}
+
+.primary-sidebar-container.horizontal :deep(.link) {
+  width: auto;
+}
+
+.primary-sidebar-container.horizontal :deep(.menu-text) {
+  display: none;
+}
+
+.primary-sidebar-container.horizontal :deep(.button) {
+  width: auto;
+  padding: 8px 12px;
+  margin: 0;
+}
+
 hr {
   width: calc(100% - var(--sidebar-paddingSize) * 2);
   border: none;

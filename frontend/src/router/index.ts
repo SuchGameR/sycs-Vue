@@ -9,6 +9,7 @@ import Signup from "../pages/Signup.vue";
 import Signin from "../pages/Signin.vue";
 import UserProfile from "../pages/UserProfile.vue";
 import PostDetail from "../pages/PostDetail.vue";
+import Search from "../pages/Search.vue";
 import TimelineMain from "../components/layouts/Main.vue";
 
 const router = createRouter({
@@ -28,6 +29,7 @@ const router = createRouter({
     { path: "/message/@:handle", component: Message },
     { path: "/notice", component: Notice },
     { path: "/favorite", component: Favorite },
+    { path: "/search", component: Search },
     { path: "/server/:id", component: Server },
     { path: "/server/:serverId/channel/:channelId", component: Server },
     { path: "/signup", component: Signup },

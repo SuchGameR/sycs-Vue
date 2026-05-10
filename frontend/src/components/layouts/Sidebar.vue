@@ -6,7 +6,10 @@ import PrimarySidebar from "../commons/PrimarySidebar.vue";
 import PrimaryProfile from "../commons/PrimaryProfile.vue";
 import SettingsModal from "../popups/SettingsModal.vue";
 
+import { useUIStore } from "../../stores/ui";
+
 const authStore = useAuthStore();
+const uiStore = useUIStore();
 const router = useRouter();
 const isSettingsOpen = ref(false);
 
@@ -25,10 +28,10 @@ function handleProfileClick() {
       <!-- Logo -->
       <div class="logo-icon">
         <img src="/svgLogoOutline.svg" alt="SYCS" />
-        <span class="version">1.2.39</span>
+        <span class="version">1.2.40</span>
       </div>
 
-      <PrimarySidebar />
+      <PrimarySidebar mode="vertical" class="main-nav-buttons" />
 
       <!-- Accounts -->
       <div class="account-section">
@@ -106,7 +109,21 @@ aside {
   transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 510px) {
+  aside {
+    display: flex;
+    max-width: 100%;
+    width: 100%;
+    border-right: none;
+    padding: 20px;
+  }
+
+  .main-nav-buttons :deep(.nav-section) {
+    display: none;
+  }
+}
+
+@media (min-width: 511px) and (max-width: 900px) {
   aside {
     max-width: 80px;
     padding: calc(var(--sidebar-paddingSize) / 2);

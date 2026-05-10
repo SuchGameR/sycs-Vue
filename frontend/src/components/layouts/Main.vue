@@ -3,14 +3,18 @@ import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { useRouter } from "vue-router";
 import { io } from "socket.io-client";
-import { X } from "lucide-vue-next";
+import { X, Menu, RefreshCw } from "lucide-vue-next";
+import * as icons from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 import PostModal from "../popups/PostModal.vue";
 import MessageItem from "../commons/MessageItem.vue";
 import InlinePost from "../commons/InlinePost.vue";
 import TweetItem from "../commons/TweetItem.vue";
 
+import { useUIStore } from "../../stores/ui";
+
 const authStore = useAuthStore();
+const uiStore = useUIStore();
 const router = useRouter();
 const messages = ref([]);
 const messageListRef = ref(null);
@@ -24,6 +28,56 @@ const isPosting = ref(false);
 const replyingTo = ref(null);
 
 const socket = io("/", { path: "/socket.io" });
+
+// Pull to Refresh State
+const isPulling = ref(false);
+const pullDistance = ref(0);
+const startTouchY = ref(0);
+const REFRESH_THRESHOLD = 80;
+
+const handleTouchStart = (e) => {
+  const el = messageListRef.value;
+  if (el && el.scrollTop <= 0) {
+    startTouchY.value = e.touches[0].clientY;
+  } else {
+    startTouchY.value = 0;
+  }
+};
+
+const handleTouchMove = (e) => {
+  if (startTouchY.value === 0) return;
+  
+  const currentY = e.touches[0].clientY;
+  const distance = currentY - startTouchY.value;
+  
+  if (distance > 0) {
+    isPulling.value = true;
+    // 指の動きに対して少し重くする（抵抗感）
+    pullDistance.value = Math.min(distance * 0.4, 120);
+  }
+};
+
+const handleTouchEnd = async () => {
+  if (!isPulling.value) return;
+  
+  if (pullDistance.value >= REFRESH_THRESHOLD) {
+    await fetchMessages();
+  }
+  
+  // Reset with animation
+  const step = pullDistance.value / 10;
+  const resetInterval = setInterval(() => {
+    if (pullDistance.value <= 0) {
+      clearInterval(resetInterval);
+      isPulling.value = false;
+      pullDistance.value = 0;
+    } else {
+      pullDistance.value -= step;
+    }
+  }, 16);
+  
+  startTouchY.value = 0;
+};
 
 const fetchMessages = async (isLoadMore = false) => {
   if (loading.value) return;
@@ -300,7 +354,26 @@ watch(activeTab, () => {
       </section>
 
       <!-- タイムラインエリア -->
-      <div class="timeline" ref="messageListRef" @scroll="handleScroll">
+      <div 
+        class="timeline" 
+        ref="messageListRef" 
+        @scroll="handleScroll"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+      >
+        <!-- Pull to Refresh Indicator -->
+        <div 
+          v-if="isPulling" 
+          class="pull-indicator"
+          :style="{ height: pullDistance + 'px', opacity: pullDistance / REFRESH_THRESHOLD }"
+        >
+          <icons.RefreshCw 
+            :size="24" 
+            :class="{ rotating: pullDistance >= REFRESH_THRESHOLD || loading }"
+          />
+        </div>
+
         <!-- インライン投稿エリア (Twitter風) -->
         <InlinePost :loading="isPosting" @submit="handlePost" />
 
@@ -374,9 +447,13 @@ watch(activeTab, () => {
   color: var(--text-primary);
   position: relative;
   max-width: 800px;
-  /* margin: 0 auto; */
   overflow: hidden;
-  min-width: 460px;
+}
+
+@media (max-width: 510px) {
+  .main-layout {
+    max-width: 100%;
+  }
 }
 
 .mainContainer {
@@ -396,13 +473,6 @@ watch(activeTab, () => {
   position: sticky;
   top: 0;
   z-index: 100;
-  padding-right: 60px; /* Space for mobile toggle button */
-}
-
-@media (min-width: 1101px) {
-  .tabs {
-    padding-right: 0;
-  }
 }
 
 .tab-item {
@@ -456,6 +526,27 @@ watch(activeTab, () => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+.pull-indicator {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  color: var(--accent);
+  background: var(--surface);
+  transition: height 0.1s ease-out;
+}
+
+.rotating {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .fab {

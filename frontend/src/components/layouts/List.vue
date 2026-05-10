@@ -1,37 +1,63 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import { useAuthStore } from "../../stores/auth";
+import { useUIStore } from "../../stores/ui";
+
+const authStore = useAuthStore();
+const uiStore = useUIStore();
+
+// サンプルデータ（実際はAPIから取得する想定）
+const allUsers = [
+  { id: 1, name: "KiwiBird", status: "online", userid: "kiwi" },
+  { id: 2, name: "Antigravity", status: "online", userid: "anti" },
+  { id: 3, name: "User123", status: "offline", userid: "user123" },
+  // ログインユーザー自身も含めておく
+  { 
+    id: authStore.user?.id || 0, 
+    name: authStore.user?.username || "", 
+    status: "online",
+    userid: authStore.user?.userid || ""
+  }
+];
+
+// モバイルの場合は自分を非表示にする
+const displayUsers = computed(() => {
+  if (uiStore.isMobile) {
+    return allUsers.filter(user => user.userid !== authStore.user?.userid);
+  }
+  return allUsers;
+});
+</script>
+
 <template>
   <aside class="user-list-sidebar">
-    <h3>ユーザー — 3</h3>
+    <h3>ユーザー — {{ displayUsers.length }}</h3>
     <div class="user-group">
-      <div class="user-item">
-        <div class="avatar online"></div>
-        <span>KiwiBird</span>
-      </div>
-      <div class="user-item">
-        <div class="avatar online"></div>
-        <span>Antigravity</span>
-      </div>
-      <div class="user-item">
-        <div class="avatar offline"></div>
-        <span>User123</span>
+      <div v-for="user in displayUsers" :key="user.id" class="user-item">
+        <div :class="['avatar', user.status]"></div>
+        <span>{{ user.name }}</span>
       </div>
     </div>
   </aside>
 </template>
 
-<script setup lang="ts">
-// ロジックが必要になったらここに書くよ
-</script>
-
 <style scoped>
 .user-list-sidebar {
   width: 100%;
-  max-width: 250px;
+  max-width: 100%;
   flex: 1;
   background-color: var(--surface);
   color: var(--text-primary);
   padding: 20px;
   height: 100%;
   overflow-y: auto;
+  border-left: 1px solid var(--border);
+}
+
+@media (max-width: 510px) {
+  .user-list-sidebar {
+    border-left: none;
+  }
 }
 
 h3 {

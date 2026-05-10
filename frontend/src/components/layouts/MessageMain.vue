@@ -15,14 +15,17 @@ import {
   Download,
   EyeOff,
   Plus,
+  Menu,
 } from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
+import { useUIStore } from "../../stores/ui";
 import { uploadAttachments } from "../../utils/upload";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUIStore();
 const friends = ref([]);
 const pendingRequests = ref([]);
 const selectedFriend = ref(null);
