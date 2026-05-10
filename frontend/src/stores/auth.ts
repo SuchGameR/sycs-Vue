@@ -87,7 +87,7 @@ const translations: Record<string, TranslationSet> = {
     welcome: "SYCSへようこそ",
     description: "つながろう、つなげよう。",
     public_timeline: "おすすめタイムライン",
-    now_happening: "いま、世界で起きていること",
+    now_happening: "いま、ちょっと覗いてかない？",
     start_now: "アカウント作成",
     error_signin: "メールアドレスまたはパスワードが正しくありません",
     updated: "設定を更新しました",
@@ -170,7 +170,7 @@ export const useAuthStore = defineStore("auth", () => {
     if (!token.value) return;
     try {
       const res = await fetch("/api/notifications/unread-count", {
-        headers: { Authorization: `Bearer ${token.value}` }
+        headers: { Authorization: `Bearer ${token.value}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -182,7 +182,9 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   const isAuthenticated = computed(() => !!token.value);
-  const t = computed(() => translations[lang.value] || translations.ja);
+  const t = computed<TranslationSet>(
+    () => translations[lang.value] ?? translations.ja!,
+  );
 
   // const API_BASE = `/api`;
   const API_BASE = `/api`;
@@ -313,9 +315,16 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   function localizeError(errorMsg: string): string {
-    if (errorMsg.includes("Invalid email or password")) return t.value.error_signin;
-    if (errorMsg.includes("User already exists")) return lang.value === 'ja' ? 'このメールアドレスは既に登録されています' : 'User already exists';
-    if (errorMsg.includes("Username, email, and password are required")) return lang.value === 'ja' ? 'ユーザー名、メールアドレス、パスワードは必須です' : 'Username, email, and password are required';
+    if (errorMsg.includes("Invalid email or password"))
+      return t.value.error_signin;
+    if (errorMsg.includes("User already exists"))
+      return lang.value === "ja"
+        ? "このメールアドレスは既に登録されています"
+        : "User already exists";
+    if (errorMsg.includes("Username, email, and password are required"))
+      return lang.value === "ja"
+        ? "ユーザー名、メールアドレス、パスワードは必須です"
+        : "Username, email, and password are required";
     return errorMsg;
   }
 
@@ -355,6 +364,7 @@ export const useAuthStore = defineStore("auth", () => {
     updateSettings,
     uploadAvatar,
     uploadHeader,
+    localizeError,
     logout,
   };
 });

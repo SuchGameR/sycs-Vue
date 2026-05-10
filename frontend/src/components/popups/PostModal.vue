@@ -1,7 +1,21 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAuthStore } from "../../stores/auth";
-import { Image, Smile, Calendar, MapPin, List, BarChart2, X, FileIcon, Film, Music, Download, EyeOff } from "lucide-vue-next";
+import {
+  Image,
+  Smile,
+  Calendar,
+  MapPin,
+  List,
+  BarChart2,
+  X,
+  FileIcon,
+  Film,
+  Music,
+  Download,
+  EyeOff,
+} from "lucide-vue-next";
+import { uploadAttachments } from "../../utils/upload";
 
 const props = defineProps<{
   show: boolean;
@@ -16,13 +30,20 @@ const emit = defineEmits(["close", "submit"]);
 const authStore = useAuthStore();
 const content = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
-const selectedFiles = ref<{ file: File; options: { downloadable: boolean; blur: boolean } }[]>([]);
+const selectedFiles = ref<
+  { file: File; options: { downloadable: boolean; blur: boolean } }[]
+>([]);
 const previews = ref<{ url: string; type: string; name: string }[]>([]);
 const isUploading = ref(false);
 
-const ALLOWED_EXTENSIONS = ['jpeg', 'jpg', 'png', 'gif', 'svg', 'webm', 'mp3', 'wav', 'ogg', 'mp4', 'mov', 'md'];
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_INLINE_PREVIEW_SIZE = 5 * 1024 * 1024;
 
-const canPost = computed(() => (content.value.trim().length > 0 || selectedFiles.value.length > 0) && !isUploading.value);
+const canPost = computed(
+  () =>
+    (content.value.trim().length > 0 || selectedFiles.value.length > 0) &&
+    !isUploading.value,
+);
 
 function handleFileSelect(e: Event) {
   const target = e.target as HTMLInputElement;
@@ -30,75 +51,70 @@ function handleFileSelect(e: Event) {
 
   const files = Array.from(target.files);
   const validFiles: File[] = [];
-  
-  files.forEach(file => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext && ALLOWED_EXTENSIONS.includes(ext)) {
+
+  files.forEach((file) => {
+    if (file.size <= MAX_FILE_SIZE) {
       validFiles.push(file);
     } else {
-      alert(`非対応のファイル形式です: ${file.name}\n対応形式: ${ALLOWED_EXTENSIONS.join(', ')}`);
+      alert(
+        `ファイルサイズが大きすぎます: ${file.name}\n1ファイル20MBまで添付できます`,
+      );
     }
   });
 
-  const nextFiles = [...selectedFiles.value, ...validFiles.map(f => ({ 
-    file: f, 
-    options: { downloadable: true, blur: false } 
-  }))].slice(0, 10);
-  
+  const nextFiles = [
+    ...selectedFiles.value,
+    ...validFiles.map((f) => ({
+      file: f,
+      options: { downloadable: true, blur: false },
+    })),
+  ].slice(0, 10);
+
   selectedFiles.value = nextFiles;
+  target.value = "";
   updatePreviews();
 }
 
 function updatePreviews() {
+  previews.value.forEach((preview) => {
+    if (preview.url) URL.revokeObjectURL(preview.url);
+  });
   previews.value = [];
   selectedFiles.value.forEach(({ file }) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      previews.value.push({
-        url: e.target?.result as string,
-        type: file.type,
-        name: file.name,
-      });
-    };
-    if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
-      reader.readAsDataURL(file);
-    } else {
-      previews.value.push({
-        url: "",
-        type: file.type,
-        name: file.name,
-      });
-    }
+    const canPreview =
+      file.type.startsWith("image/") && file.size <= MAX_INLINE_PREVIEW_SIZE;
+
+    previews.value.push({
+      url: canPreview ? URL.createObjectURL(file) : "",
+      type: file.type,
+      name: file.name,
+    });
   });
 }
 
 function removeFile(index: number) {
+  const preview = previews.value[index];
+  if (preview?.url) URL.revokeObjectURL(preview.url);
   selectedFiles.value.splice(index, 1);
   previews.value.splice(index, 1);
 }
 
+function fileOptions(index: number) {
+  return selectedFiles.value[index]?.options;
+}
+
+function toggleDownloadable(index: number) {
+  const options = fileOptions(index);
+  if (options) options.downloadable = !options.downloadable;
+}
+
+function toggleBlur(index: number) {
+  const options = fileOptions(index);
+  if (options) options.blur = !options.blur;
+}
+
 async function uploadFiles() {
-  if (selectedFiles.value.length === 0) return [];
-
-  const formData = new FormData();
-  selectedFiles.value.forEach(({ file }) => {
-    formData.append("files", file);
-  });
-  formData.append("options", JSON.stringify(selectedFiles.value.map(f => f.options)));
-
-  const response = await fetch("/api/upload", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${authStore.token}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error("Upload failed");
-  }
-
-  return await response.json();
+  return uploadAttachments(selectedFiles.value, authStore.token);
 }
 
 async function handleSubmit() {
@@ -110,6 +126,9 @@ async function handleSubmit() {
     emit("submit", { content: content.value, attachment: attachments });
     content.value = "";
     selectedFiles.value = [];
+    previews.value.forEach((preview) => {
+      if (preview.url) URL.revokeObjectURL(preview.url);
+    });
     previews.value = [];
   } catch (err) {
     console.error(err);
@@ -120,7 +139,7 @@ async function handleSubmit() {
 }
 
 function handleInput(e: Event) {
-// ...
+  // ...
 
   const target = e.target as HTMLTextAreaElement;
   target.style.height = "auto";
@@ -140,7 +159,9 @@ function handleKeydown(e: KeyboardEvent) {
   <div v-if="show" class="modal-overlay" @click.self="emit('close')">
     <div class="modal-content">
       <div class="modal-header">
-        <button class="close-btn" @click="emit('close')"><X :size="20" /></button>
+        <button class="close-btn" @click="emit('close')">
+          <X :size="20" />
+        </button>
         <div class="header-actions">
           <button class="draft-btn">下書き</button>
         </div>
@@ -150,7 +171,10 @@ function handleKeydown(e: KeyboardEvent) {
 
       <div class="modal-body">
         <div class="avatar-col">
-          <img :src="authStore.user?.avatar_url || '/kiwibird-discord.png'" class="user-avatar" />
+          <img
+            :src="authStore.user?.avatar_url || '/default-avatar.png'"
+            class="user-avatar"
+          />
         </div>
         <div class="content-col">
           <textarea
@@ -163,12 +187,32 @@ function handleKeydown(e: KeyboardEvent) {
 
           <!-- File Previews -->
           <div v-if="previews.length > 0" class="previews-container">
-            <div v-for="(file, idx) in previews" :key="idx" class="preview-item">
-              <button class="remove-file" @click="removeFile(idx)"><X :size="14" /></button>
-              
-              <img v-if="file.type.startsWith('image/')" :src="file.url" class="preview-media" :class="{ 'preview-blur': selectedFiles[idx].options.blur }" />
-              <video v-else-if="file.type.startsWith('video/')" :src="file.url" class="preview-media" muted :class="{ 'preview-blur': selectedFiles[idx].options.blur }"></video>
-              <div v-else-if="file.type.startsWith('audio/')" class="preview-file-icon audio">
+            <div
+              v-for="(file, idx) in previews"
+              :key="idx"
+              class="preview-item"
+            >
+              <button class="remove-file" @click="removeFile(idx)">
+                <X :size="14" />
+              </button>
+
+              <img
+                v-if="file.url && file.type.startsWith('image/')"
+                :src="file.url"
+                class="preview-media"
+                :class="{ 'preview-blur': fileOptions(idx)?.blur }"
+              />
+              <video
+                v-else-if="file.url && file.type.startsWith('video/')"
+                :src="file.url"
+                class="preview-media"
+                muted
+                :class="{ 'preview-blur': fileOptions(idx)?.blur }"
+              ></video>
+              <div
+                v-else-if="file.type.startsWith('audio/')"
+                class="preview-file-icon audio"
+              >
                 <Music :size="32" />
                 <span class="file-name">{{ file.name }}</span>
               </div>
@@ -179,18 +223,18 @@ function handleKeydown(e: KeyboardEvent) {
 
               <!-- Options Overlay -->
               <div class="preview-options">
-                <button 
-                  class="opt-btn" 
-                  :class="{ active: selectedFiles[idx].options.downloadable }" 
-                  @click="selectedFiles[idx].options.downloadable = !selectedFiles[idx].options.downloadable"
+                <button
+                  class="opt-btn"
+                  :class="{ active: fileOptions(idx)?.downloadable }"
+                  @click="toggleDownloadable(idx)"
                   title="ダウンロード許可"
                 >
                   <Download :size="14" />
                 </button>
-                <button 
-                  class="opt-btn" 
-                  :class="{ active: selectedFiles[idx].options.blur }" 
-                  @click="selectedFiles[idx].options.blur = !selectedFiles[idx].options.blur"
+                <button
+                  class="opt-btn"
+                  :class="{ active: fileOptions(idx)?.blur }"
+                  @click="toggleBlur(idx)"
                   title="ぼかし"
                 >
                   <EyeOff :size="14" />
@@ -198,7 +242,7 @@ function handleKeydown(e: KeyboardEvent) {
               </div>
             </div>
           </div>
-          
+
           <div class="modal-footer">
             <div class="icons-group">
               <input
@@ -207,23 +251,40 @@ function handleKeydown(e: KeyboardEvent) {
                 multiple
                 hidden
                 @change="handleFileSelect"
-                accept=".jpeg,.jpg,.png,.gif,.svg,.webm,.mp3,.wav,.ogg,.mp4,.mov,.md"
               />
-              <button class="icon-btn" title="メディア" @click="fileInput?.click()">
+              <button
+                class="icon-btn"
+                title="メディア"
+                @click="fileInput?.click()"
+              >
                 <Image :size="20" />
               </button>
-              <button class="icon-btn" title="GIF"><span class="gif-icon">GIF</span></button>
-              <button class="icon-btn" title="投票"><BarChart2 :size="20" /></button>
-              <button class="icon-btn" title="絵文字"><Smile :size="20" /></button>
-              <button class="icon-btn" title="予約"><Calendar :size="20" /></button>
-              <button class="icon-btn" title="場所"><MapPin :size="20" /></button>
+              <button class="icon-btn" title="GIF">
+                <span class="gif-icon">GIF</span>
+              </button>
+              <button class="icon-btn" title="投票">
+                <BarChart2 :size="20" />
+              </button>
+              <button class="icon-btn" title="絵文字">
+                <Smile :size="20" />
+              </button>
+              <button class="icon-btn" title="予約">
+                <Calendar :size="20" />
+              </button>
+              <button class="icon-btn" title="場所">
+                <MapPin :size="20" />
+              </button>
             </div>
             <button
               class="submit-btn"
               :disabled="!canPost || loading || isUploading"
               @click="handleSubmit"
             >
-              {{ (loading || isUploading) ? '送信中...' : (btnText || authStore.t.post_btn) }}
+              {{
+                loading || isUploading
+                  ? "送信中..."
+                  : btnText || authStore.t.post_btn
+              }}
             </button>
           </div>
         </div>

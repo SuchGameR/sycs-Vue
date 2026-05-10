@@ -74,11 +74,11 @@ function goToSignup() {
       <div class="features-grid">
         <div class="feature-card">
           <MessageCircle class="icon" />
-          <p>リアルタイムな会話</p>
+          <p>リアルタイムな会話。</p>
         </div>
         <div class="feature-card">
           <Rocket class="icon" />
-          <p>高速な体験</p>
+          <p>高速な体験を。</p>
         </div>
       </div>
     </div>
@@ -124,6 +124,7 @@ function goToSignup() {
   background-color: var(--surface);
   color: var(--text-primary);
   overflow: hidden;
+  background-color: var(--background);
 }
 
 .intro-section {
@@ -234,6 +235,11 @@ function goToSignup() {
   display: flex;
   flex-direction: column;
   background: var(--surface);
+
+  /* added */
+  transform: translateY(100px);
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 20px;
 }
 
 .timeline-header {

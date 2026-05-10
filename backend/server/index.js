@@ -41,13 +41,17 @@ const io = new Server(httpServer, {
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BOlu8bhoO2He4swaOFcU80hTZgU9phJr9O0-dpWa5vv6fUEa0AkE5arBgCq_U12QOMaT-yeA6BgMJNH1GWRU4sA";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "lO4V1fwbRqdbp16ksLEju7xyPzL6KJ9MTGooKHiCg0Y";
+const VAPID_PUBLIC_KEY =
+  process.env.VAPID_PUBLIC_KEY ||
+  "BOlu8bhoO2He4swaOFcU80hTZgU9phJr9O0-dpWa5vv6fUEa0AkE5arBgCq_U12QOMaT-yeA6BgMJNH1GWRU4sA";
+const VAPID_PRIVATE_KEY =
+  process.env.VAPID_PRIVATE_KEY ||
+  "lO4V1fwbRqdbp16ksLEju7xyPzL6KJ9MTGooKHiCg0Y";
 
 webpush.setVapidDetails(
   "mailto:example@yourdomain.com",
   VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
+  VAPID_PRIVATE_KEY,
 );
 
 // Socket.io connection
@@ -83,10 +87,18 @@ app.use(
 app.use(express.json());
 app.use("/uploads", express.static(resolve(__dirname, "uploads")));
 
+const uploadDir = resolve(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const optimizableImageTypes = new Set(["image/jpeg", "image/jpg", "image/png"]);
+
 // Multer configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, resolve(__dirname, "uploads"));
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -96,42 +108,34 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+const imageUpload = multer({
+  storage: storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      // Images
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/webp",
-      "image/gif",
-      "image/svg+xml",
-      // Video
-      "video/mp4",
-      "video/quicktime",
-      "video/webm",
-      "video/x-matroska",
-      // Audio
-      "audio/mpeg",
-      "audio/wav",
-      "audio/ogg",
-      "audio/mp3",
-      "audio/webm",
-      // Text/Other
-      "text/markdown",
-      "text/plain",
-      "application/pdf",
-    ];
-    if (
-      allowedTypes.includes(file.mimetype) ||
-      file.originalname.toLowerCase().endsWith(".md")
-    ) {
+    if (file.mimetype?.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type: " + file.mimetype));
+      cb(new Error("Only image files are allowed"));
     }
   },
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  limits: { fileSize: MAX_FILE_SIZE },
 });
+
+function handleUpload(middleware) {
+  return (req, res, next) => {
+    middleware(req, res, (err) => {
+      if (!err) return next();
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        return res
+          .status(413)
+          .json({ error: "File size must be 20MB or less" });
+      }
+      return res.status(400).json({ error: err.message || "Upload failed" });
+    });
+  };
+}
 
 // Auth Middleware (unchanged...)
 const authenticateToken = (req, res, next) => {
@@ -165,61 +169,93 @@ const getUserFromToken = (req) => {
 async function generateUniqueUserId(base) {
   let userid = base.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
   if (!userid) userid = "user";
-  
+
   let currentUserId = userid;
   let counter = 1;
-  
+
   while (true) {
-    const check = await pool.query("SELECT id FROM users WHERE userid = $1", [currentUserId]);
+    const check = await pool.query("SELECT id FROM users WHERE userid = $1", [
+      currentUserId,
+    ]);
     if (check.rows.length === 0) return currentUserId;
     currentUserId = `${userid}${counter}`;
     counter++;
   }
 }
 
-async function createNotification(userId, actorId, type, messageId = null, relatedId = null) {
+async function createNotification(
+  userId,
+  actorId,
+  type,
+  messageId = null,
+  relatedId = null,
+) {
   if (userId === actorId) return; // Don't notify self
 
   try {
     const result = await pool.query(
       "INSERT INTO notifications (user_id, actor_id, type, message_id, related_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-      [userId, actorId, type, messageId, relatedId]
+      [userId, actorId, type, messageId, relatedId],
     );
     const notification = result.rows[0];
 
     // Get actor info for the notification
-    const actorRes = await pool.query("SELECT username, avatar_url FROM users WHERE id = $1", [actorId]);
+    const actorRes = await pool.query(
+      "SELECT username, avatar_url FROM users WHERE id = $1",
+      [actorId],
+    );
     const fullNotification = { ...notification, actor: actorRes.rows[0] };
 
     io.emit(`notification-${userId}`, fullNotification);
 
     // --- Web Push ---
     try {
-      const subResult = await pool.query("SELECT subscription FROM push_subscriptions WHERE user_id = $1", [userId]);
+      const subResult = await pool.query(
+        "SELECT subscription FROM push_subscriptions WHERE user_id = $1",
+        [userId],
+      );
       if (subResult.rows.length > 0) {
         let title = "SYCS通知";
         let body = "";
-        
+
         switch (type) {
-          case 'like': body = `${fullNotification.actor.username}さんがいいねしました`; break;
-          case 'retweet': body = `${fullNotification.actor.username}さんがリポストしました`; break;
-          case 'follow': body = `${fullNotification.actor.username}さんにフォローされました`; break;
-          case 'friend_request': body = `${fullNotification.actor.username}さんからフレンド申請が届きました`; break;
-          case 'dm': body = `${fullNotification.actor.username}さんからメッセージが届きました`; break;
+          case "like":
+            body = `${fullNotification.actor.username}さんがいいねしました`;
+            break;
+          case "retweet":
+            body = `${fullNotification.actor.username}さんがリポストしました`;
+            break;
+          case "follow":
+            body = `${fullNotification.actor.username}さんにフォローされました`;
+            break;
+          case "friend_request":
+            body = `${fullNotification.actor.username}さんからフレンド申請が届きました`;
+            break;
+          case "dm":
+            body = `${fullNotification.actor.username}さんからメッセージが届きました`;
+            break;
         }
 
         const payload = JSON.stringify({
           title,
           body,
           icon: fullNotification.actor.avatar_url || "/default-avatar.png",
-          url: type === 'dm' ? '/message' : (type === 'friend_request' ? '/message?view=requests' : '/')
+          url:
+            type === "dm"
+              ? "/message"
+              : type === "friend_request"
+                ? "/message?view=requests"
+                : "/",
         });
 
-        subResult.rows.forEach(row => {
-          webpush.sendNotification(row.subscription, payload).catch(err => {
+        subResult.rows.forEach((row) => {
+          webpush.sendNotification(row.subscription, payload).catch((err) => {
             if (err.statusCode === 410) {
               // Subscription has expired or is no longer valid
-              pool.query("DELETE FROM push_subscriptions WHERE subscription = $1", [JSON.stringify(row.subscription)]);
+              pool.query(
+                "DELETE FROM push_subscriptions WHERE subscription = $1",
+                [JSON.stringify(row.subscription)],
+              );
             } else {
               console.error("Web Push error:", err);
             }
@@ -237,45 +273,53 @@ async function createNotification(userId, actorId, type, messageId = null, relat
 }
 
 // Push Subscription Endpoints
-app.post("/api/notifications/subscribe", authenticateToken, async (req, res) => {
-  const { subscription } = req.body;
-  const userId = req.user.id;
+app.post(
+  "/api/notifications/subscribe",
+  authenticateToken,
+  async (req, res) => {
+    const { subscription } = req.body;
+    const userId = req.user.id;
 
-  try {
-    // Check if subscription already exists for this user
-    const check = await pool.query(
-      "SELECT id FROM push_subscriptions WHERE user_id = $1 AND subscription @> $2",
-      [userId, JSON.stringify(subscription)]
-    );
-
-    if (check.rows.length === 0) {
-      await pool.query(
-        "INSERT INTO push_subscriptions (user_id, subscription) VALUES ($1, $2)",
-        [userId, JSON.stringify(subscription)]
+    try {
+      // Check if subscription already exists for this user
+      const check = await pool.query(
+        "SELECT id FROM push_subscriptions WHERE user_id = $1 AND subscription @> $2",
+        [userId, JSON.stringify(subscription)],
       );
+
+      if (check.rows.length === 0) {
+        await pool.query(
+          "INSERT INTO push_subscriptions (user_id, subscription) VALUES ($1, $2)",
+          [userId, JSON.stringify(subscription)],
+        );
+      }
+      res.status(201).json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to subscribe" });
     }
-    res.status(201).json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to subscribe" });
-  }
-});
+  },
+);
 
-app.post("/api/notifications/unsubscribe", authenticateToken, async (req, res) => {
-  const { subscription } = req.body;
-  const userId = req.user.id;
+app.post(
+  "/api/notifications/unsubscribe",
+  authenticateToken,
+  async (req, res) => {
+    const { subscription } = req.body;
+    const userId = req.user.id;
 
-  try {
-    await pool.query(
-      "DELETE FROM push_subscriptions WHERE user_id = $1 AND subscription @> $2",
-      [userId, JSON.stringify(subscription)]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to unsubscribe" });
-  }
-});
+    try {
+      await pool.query(
+        "DELETE FROM push_subscriptions WHERE user_id = $1 AND subscription @> $2",
+        [userId, JSON.stringify(subscription)],
+      );
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to unsubscribe" });
+    }
+  },
+);
 
 // ... existing code ...
 
@@ -292,7 +336,7 @@ app.get("/api/notifications", authenticateToken, async (req, res) => {
        WHERE n.user_id = $1
        ORDER BY n.created_at DESC
        LIMIT 50`,
-      [userId]
+      [userId],
     );
     res.json(result.rows);
   } catch (err) {
@@ -302,88 +346,106 @@ app.get("/api/notifications", authenticateToken, async (req, res) => {
 });
 
 // Get unread notification count
-app.get("/api/notifications/unread-count", authenticateToken, async (req, res) => {
-  const userId = req.user.id;
-  try {
-    const result = await pool.query(
-      "SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = FALSE",
-      [userId]
-    );
-    res.json({ count: parseInt(result.rows[0].count) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch unread count" });
-  }
-});
+app.get(
+  "/api/notifications/unread-count",
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    try {
+      const result = await pool.query(
+        "SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = FALSE",
+        [userId],
+      );
+      res.json({ count: parseInt(result.rows[0].count) });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to fetch unread count" });
+    }
+  },
+);
 
 // File upload endpoint
-app.post("/api/upload", authenticateToken, upload.array("files", 10), async (req, res) => {
-  try {
-    const files = req.files;
-    if (!files || files.length === 0) {
-      return res.status(400).json({ error: "No files uploaded" });
-    }
-
-    // Parse options if provided
-    let optionsList = [];
-    if (req.body.options) {
-      try {
-        optionsList = JSON.parse(req.body.options);
-      } catch (e) {
-        console.error("Failed to parse options:", e);
+app.post(
+  "/api/upload",
+  authenticateToken,
+  handleUpload(upload.array("files", 10)),
+  async (req, res) => {
+    try {
+      const files = req.files;
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
       }
-    }
 
-    const processedFiles = await Promise.all(
-      files.map(async (file, index) => {
-        const fileOptions = optionsList[index] || { downloadable: true, blur: false };
-        
-        const fileData = {
-          url: `/uploads/${file.filename}`,
-          originalName: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-          optimizedUrl: null,
-          options: fileOptions,
-        };
-
-        // Image optimization (exclude gif/svg)
-        if (
-          file.mimetype.startsWith("image/") &&
-          !file.mimetype.includes("gif") &&
-          !file.mimetype.includes("svg+xml")
-        ) {
-          const optimizedFilename = `opt-${path.parse(file.filename).name}.webp`;
-          const optimizedPath = resolve(__dirname, "uploads", optimizedFilename);
-
-          try {
-            if (sharp) {
-              await sharp(file.path)
-                .webp({ quality: 80 })
-                .toFile(optimizedPath);
-              fileData.optimizedUrl = `/uploads/${optimizedFilename}`;
-            }
-          } catch (sharpErr) {
-            console.error("Sharp optimization failed:", sharpErr);
-          }
+      // Parse options if provided
+      let optionsList = [];
+      if (req.body.options) {
+        try {
+          optionsList = JSON.parse(req.body.options);
+        } catch (e) {
+          console.error("Failed to parse options:", e);
         }
+      }
 
-        return fileData;
-      })
-    );
+      const processedFiles = await Promise.all(
+        files.map(async (file, index) => {
+          const fileOptions = optionsList[index] || {
+            downloadable: true,
+            blur: false,
+          };
 
-    res.json(processedFiles);
-  } catch (err) {
-    console.error("Upload error:", err);
-    res.status(500).json({ error: "File upload and processing failed" });
-  }
-});
+          const fileData = {
+            url: `/uploads/${file.filename}`,
+            originalName: file.originalname,
+            mimetype: file.mimetype || "application/octet-stream",
+            size: file.size,
+            optimizedUrl: null,
+            options: fileOptions,
+          };
+
+          // Keep posting responsive: only optimize common static images.
+          if (
+            optimizableImageTypes.has(file.mimetype) &&
+            file.size <= 8 * 1024 * 1024
+          ) {
+            const optimizedFilename = `opt-${path.parse(file.filename).name}.webp`;
+            const optimizedPath = resolve(
+              __dirname,
+              "uploads",
+              optimizedFilename,
+            );
+
+            try {
+              if (sharp) {
+                await sharp(file.path)
+                  .webp({ quality: 80 })
+                  .toFile(optimizedPath);
+                fileData.optimizedUrl = `/uploads/${optimizedFilename}`;
+              }
+            } catch (sharpErr) {
+              console.error("Sharp optimization failed:", sharpErr);
+            }
+          }
+
+          return fileData;
+        }),
+      );
+
+      res.json(processedFiles);
+    } catch (err) {
+      console.error("Upload error:", err);
+      res.status(500).json({ error: "File upload and processing failed" });
+    }
+  },
+);
 
 // Mark notifications as read
 app.put("/api/notifications/read", authenticateToken, async (req, res) => {
   const userId = req.user.id;
   try {
-    await pool.query("UPDATE notifications SET is_read = TRUE WHERE user_id = $1", [userId]);
+    await pool.query(
+      "UPDATE notifications SET is_read = TRUE WHERE user_id = $1",
+      [userId],
+    );
     res.json({ success: true, count: 0 });
   } catch (err) {
     console.error(err);
@@ -397,7 +459,7 @@ app.put("/api/notifications/read", authenticateToken, async (req, res) => {
 app.post(
   "/api/auth/upload-avatar",
   authenticateToken,
-  upload.single("avatar"),
+  handleUpload(imageUpload.single("avatar")),
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -420,7 +482,7 @@ app.post(
 app.post(
   "/api/auth/upload-header",
   authenticateToken,
-  upload.single("header"),
+  handleUpload(imageUpload.single("header")),
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -465,7 +527,12 @@ app.post("/api/auth/signup", async (req, res) => {
     );
     const user = result.rows[0];
     const token = jwt.sign(
-      { id: user.id, uid: user.uid, email: user.email, username: user.username },
+      {
+        id: user.id,
+        uid: user.uid,
+        email: user.email,
+        username: user.username,
+      },
       JWT_SECRET,
       { expiresIn: "24h" },
     );
@@ -490,7 +557,12 @@ app.post("/api/auth/signin", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
     const token = jwt.sign(
-      { id: user.id, uid: user.uid, email: user.email, username: user.username },
+      {
+        id: user.id,
+        uid: user.uid,
+        email: user.email,
+        username: user.username,
+      },
       JWT_SECRET,
       { expiresIn: "24h" },
     );
@@ -532,21 +604,23 @@ app.put("/api/auth/settings", authenticateToken, async (req, res) => {
     if (userid) {
       const sanitizedId = userid.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
       if (sanitizedId.length < 3) {
-        return res.status(400).json({ error: "ID must be at least 3 characters" });
+        return res
+          .status(400)
+          .json({ error: "ID must be at least 3 characters" });
       }
 
       const checkResult = await pool.query(
         "SELECT id FROM users WHERE userid = $1 AND id != $2",
-        [sanitizedId, req.user.id]
+        [sanitizedId, req.user.id],
       );
       if (checkResult.rows.length > 0) {
         return res.status(400).json({ error: "This ID is already taken" });
       }
 
-      await pool.query(
-        "UPDATE users SET userid = $1 WHERE id = $2",
-        [sanitizedId, req.user.id]
-      );
+      await pool.query("UPDATE users SET userid = $1 WHERE id = $2", [
+        sanitizedId,
+        req.user.id,
+      ]);
     }
 
     const result = await pool.query(
@@ -759,7 +833,7 @@ app.put("/api/servers/:serverId", authenticateToken, async (req, res) => {
 app.post(
   "/api/servers/:serverId/upload-icon",
   authenticateToken,
-  upload.single("icon"),
+  handleUpload(imageUpload.single("icon")),
   async (req, res) => {
     const { serverId } = req.params;
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -794,7 +868,7 @@ app.post(
 app.post(
   "/api/servers/:serverId/upload-header",
   authenticateToken,
-  upload.single("header"),
+  handleUpload(imageUpload.single("header")),
   async (req, res) => {
     const { serverId } = req.params;
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -888,7 +962,9 @@ app.post(
     const user_id = req.user.id;
 
     if (!content && (!attachment || attachment.length === 0)) {
-      return res.status(400).json({ error: "Content or attachment is required" });
+      return res
+        .status(400)
+        .json({ error: "Content or attachment is required" });
     }
 
     try {
@@ -1191,9 +1267,17 @@ app.post(
       );
 
       // Notify original author
-      const origAuthorRes = await pool.query("SELECT user_id FROM messages WHERE id = $1", [messageId]);
+      const origAuthorRes = await pool.query(
+        "SELECT user_id FROM messages WHERE id = $1",
+        [messageId],
+      );
       if (origAuthorRes.rows.length > 0) {
-        await createNotification(origAuthorRes.rows[0].user_id, userId, 'retweet', messageId);
+        await createNotification(
+          origAuthorRes.rows[0].user_id,
+          userId,
+          "retweet",
+          messageId,
+        );
       }
 
       res.status(201).json({ ...result.rows[0], retweeted: true });
@@ -1325,10 +1409,18 @@ app.post(
       if (index === -1) {
         reactions[emoji].push(userId);
         // Notify author if it's a like
-        if (emoji === '❤️') {
-          const msgAuthorRes = await pool.query("SELECT user_id FROM messages WHERE id = $1", [messageId]);
+        if (emoji === "❤️") {
+          const msgAuthorRes = await pool.query(
+            "SELECT user_id FROM messages WHERE id = $1",
+            [messageId],
+          );
           if (msgAuthorRes.rows.length > 0) {
-            await createNotification(msgAuthorRes.rows[0].user_id, userId, 'like', messageId);
+            await createNotification(
+              msgAuthorRes.rows[0].user_id,
+              userId,
+              "like",
+              messageId,
+            );
           }
         }
       } else {
@@ -1348,11 +1440,17 @@ app.post(
         reactions: updatedReactions,
       };
 
-      if (msgData.post_type === 'DM') {
-        const senderRes = await pool.query("SELECT uid FROM users WHERE id = $1", [msgData.user_id]);
+      if (msgData.post_type === "DM") {
+        const senderRes = await pool.query(
+          "SELECT uid FROM users WHERE id = $1",
+          [msgData.user_id],
+        );
         const senderUid = senderRes.rows[0].uid;
-        io.emit(`dm-update-${senderUid}`, { type: 'reaction', ...payload });
-        io.emit(`dm-update-${msgData.poston}`, { type: 'reaction', ...payload });
+        io.emit(`dm-update-${senderUid}`, { type: "reaction", ...payload });
+        io.emit(`dm-update-${msgData.poston}`, {
+          type: "reaction",
+          ...payload,
+        });
       } else {
         io.emit("message-reaction", payload);
       }
@@ -1399,11 +1497,20 @@ app.put("/api/messages/:messageId", authenticateToken, async (req, res) => {
     );
 
     const updatedMsg = result.rows[0];
-    if (updatedMsg.post_type === 'DM') {
-      const senderRes = await pool.query("SELECT uid FROM users WHERE id = $1", [updatedMsg.user_id]);
+    if (updatedMsg.post_type === "DM") {
+      const senderRes = await pool.query(
+        "SELECT uid FROM users WHERE id = $1",
+        [updatedMsg.user_id],
+      );
       const senderUid = senderRes.rows[0].uid;
-      io.emit(`dm-update-${senderUid}`, { type: 'updated', message: updatedMsg });
-      io.emit(`dm-update-${updatedMsg.poston}`, { type: 'updated', message: updatedMsg });
+      io.emit(`dm-update-${senderUid}`, {
+        type: "updated",
+        message: updatedMsg,
+      });
+      io.emit(`dm-update-${updatedMsg.poston}`, {
+        type: "updated",
+        message: updatedMsg,
+      });
     } else {
       io.emit("message-updated", updatedMsg);
     }
@@ -1433,12 +1540,21 @@ app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
     const msgPoston = checkResult.rows[0].poston;
 
     await pool.query("DELETE FROM messages WHERE id = $1", [messageId]);
-    
-    if (msgType === 'DM') {
-      const senderRes = await pool.query("SELECT uid FROM users WHERE id = $1", [userId]);
+
+    if (msgType === "DM") {
+      const senderRes = await pool.query(
+        "SELECT uid FROM users WHERE id = $1",
+        [userId],
+      );
       const senderUid = senderRes.rows[0].uid;
-      io.emit(`dm-update-${senderUid}`, { type: 'deleted', messageId: parseInt(messageId) });
-      io.emit(`dm-update-${msgPoston}`, { type: 'deleted', messageId: parseInt(messageId) });
+      io.emit(`dm-update-${senderUid}`, {
+        type: "deleted",
+        messageId: parseInt(messageId),
+      });
+      io.emit(`dm-update-${msgPoston}`, {
+        type: "deleted",
+        messageId: parseInt(messageId),
+      });
     } else {
       io.emit("message-deleted", { messageId: parseInt(messageId) });
     }
@@ -1488,8 +1604,12 @@ app.get("/api/users/:handle/messages", async (req, res) => {
   const currentUser = getUserFromToken(req);
 
   try {
-    const userRes = await pool.query("SELECT id FROM users WHERE userid = $1 OR email LIKE $2", [handle, `${handle}@%`]);
-    if (userRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    const userRes = await pool.query(
+      "SELECT id FROM users WHERE userid = $1 OR email LIKE $2",
+      [handle, `${handle}@%`],
+    );
+    if (userRes.rows.length === 0)
+      return res.status(404).json({ error: "User not found" });
     const targetUserId = userRes.rows[0].id;
 
     const limit = parseInt(req.query.limit) || 20;
@@ -1531,9 +1651,9 @@ app.post("/api/users/:userId/follow", authenticateToken, async (req, res) => {
       [followerId, targetUserId],
     );
     if (res.rowCount > 0) {
-      await createNotification(targetUserId, followerId, 'follow');
+      await createNotification(targetUserId, followerId, "follow");
     }
-    res.json({ message: "Followed successfully" });
+    res.status(200).json({ message: "Followed successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to follow" });
@@ -1604,7 +1724,7 @@ app.get("/api/friends", authenticateToken, async (req, res) => {
        FROM users u
        JOIN friends f ON (f.user_id1 = u.id OR f.user_id2 = u.id)
        WHERE (f.user_id1 = $1 OR f.user_id2 = $1) AND u.id != $1`,
-      [userId]
+      [userId],
     );
     res.json(result.rows);
   } catch (err) {
@@ -1614,126 +1734,151 @@ app.get("/api/friends", authenticateToken, async (req, res) => {
 });
 
 // Get pending friend requests
-app.get("/api/friends/requests/pending", authenticateToken, async (req, res) => {
-  const userId = req.user.id;
-  try {
-    const result = await pool.query(
-      `SELECT fr.id as request_id, u.id as sender_id, u.uid as sender_uid, u.username, u.userid as handle, u.avatar_url, fr.created_at
+app.get(
+  "/api/friends/requests/pending",
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    try {
+      const result = await pool.query(
+        `SELECT fr.id as request_id, u.id as sender_id, u.uid as sender_uid, u.username, u.userid as handle, u.avatar_url, fr.created_at
        FROM friend_requests fr
        JOIN users u ON fr.sender_id = u.id
        WHERE fr.receiver_id = $1 AND fr.status = 'pending'`,
-      [userId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch pending requests" });
-  }
-});
+        [userId],
+      );
+      res.json(result.rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to fetch pending requests" });
+    }
+  },
+);
 
 // Send friend request
-app.post("/api/friends/request/:userId", authenticateToken, async (req, res) => {
-  const senderId = req.user.id;
-  const receiverId = parseInt(req.params.userId);
+app.post(
+  "/api/friends/request/:userId",
+  authenticateToken,
+  async (req, res) => {
+    const senderId = req.user.id;
+    const receiverId = parseInt(req.params.userId);
 
-  if (senderId === receiverId) {
-    return res.status(400).json({ error: "You cannot friend yourself" });
-  }
-
-  try {
-    // Check if they are already friends
-    const friendCheck = await pool.query(
-      "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
-      [senderId, receiverId]
-    );
-    if (friendCheck.rows.length > 0) {
-      return res.status(400).json({ error: "Already friends" });
+    if (senderId === receiverId) {
+      return res.status(400).json({ error: "You cannot friend yourself" });
     }
 
-    // Check for existing request
-    const requestCheck = await pool.query(
-      "SELECT status FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
-      [senderId, receiverId]
-    );
-    if (requestCheck.rows.length > 0) {
-      return res.status(400).json({ error: "A request already exists" });
+    try {
+      // Check if they are already friends
+      const friendCheck = await pool.query(
+        "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
+        [senderId, receiverId],
+      );
+      if (friendCheck.rows.length > 0) {
+        return res.status(400).json({ error: "Already friends" });
+      }
+
+      // Check for existing request
+      const requestCheck = await pool.query(
+        "SELECT status FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
+        [senderId, receiverId],
+      );
+      if (requestCheck.rows.length > 0) {
+        return res.status(400).json({ error: "A request already exists" });
+      }
+
+      const insertRes = await pool.query(
+        "INSERT INTO friend_requests (sender_id, receiver_id) VALUES ($1, $2) RETURNING id",
+        [senderId, receiverId],
+      );
+
+      await createNotification(
+        receiverId,
+        senderId,
+        "friend_request",
+        null,
+        insertRes.rows[0].id,
+      );
+
+      // Notify receiver via socket
+      io.emit(`friend-request-${receiverId}`, { from: senderId });
+
+      res.json({ message: "Friend request sent" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to send friend request" });
     }
-
-    const insertRes = await pool.query(
-      "INSERT INTO friend_requests (sender_id, receiver_id) VALUES ($1, $2) RETURNING id",
-      [senderId, receiverId]
-    );
-
-    await createNotification(receiverId, senderId, 'friend_request', null, insertRes.rows[0].id);
-
-    // Notify receiver via socket
-    io.emit(`friend-request-${receiverId}`, { from: senderId });
-
-    res.json({ message: "Friend request sent" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to send friend request" });
-  }
-});
+  },
+);
 
 // Accept friend request
-app.put("/api/friends/requests/:requestId/accept", authenticateToken, async (req, res) => {
-  const requestId = parseInt(req.params.requestId);
-  const userId = req.user.id;
+app.put(
+  "/api/friends/requests/:requestId/accept",
+  authenticateToken,
+  async (req, res) => {
+    const requestId = parseInt(req.params.requestId);
+    const userId = req.user.id;
 
-  try {
-    const requestResult = await pool.query(
-      "SELECT * FROM friend_requests WHERE id = $1 AND receiver_id = $2 AND status = 'pending'",
-      [requestId, userId]
-    );
+    try {
+      const requestResult = await pool.query(
+        "SELECT * FROM friend_requests WHERE id = $1 AND receiver_id = $2 AND status = 'pending'",
+        [requestId, userId],
+      );
 
-    if (requestResult.rows.length === 0) {
-      return res.status(404).json({ error: "Request not found or unauthorized" });
+      if (requestResult.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ error: "Request not found or unauthorized" });
+      }
+
+      const senderId = requestResult.rows[0].sender_id;
+
+      // Update request status
+      await pool.query(
+        "UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        [requestId],
+      );
+
+      // Add to friends table
+      const [u1, u2] =
+        senderId < userId ? [senderId, userId] : [userId, senderId];
+      await pool.query(
+        "INSERT INTO friends (user_id1, user_id2) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        [u1, u2],
+      );
+
+      res.json({ message: "Friend request accepted" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to accept friend request" });
     }
-
-    const senderId = requestResult.rows[0].sender_id;
-
-    // Update request status
-    await pool.query(
-      "UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [requestId]
-    );
-
-    // Add to friends table
-    const [u1, u2] = senderId < userId ? [senderId, userId] : [userId, senderId];
-    await pool.query(
-      "INSERT INTO friends (user_id1, user_id2) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-      [u1, u2]
-    );
-
-    res.json({ message: "Friend request accepted" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to accept friend request" });
-  }
-});
+  },
+);
 
 // Reject friend request
-app.put("/api/friends/requests/:requestId/reject", authenticateToken, async (req, res) => {
-  const requestId = parseInt(req.params.requestId);
-  const userId = req.user.id;
+app.put(
+  "/api/friends/requests/:requestId/reject",
+  authenticateToken,
+  async (req, res) => {
+    const requestId = parseInt(req.params.requestId);
+    const userId = req.user.id;
 
-  try {
-    const result = await pool.query(
-      "UPDATE friend_requests SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND receiver_id = $2",
-      [requestId, userId]
-    );
+    try {
+      const result = await pool.query(
+        "UPDATE friend_requests SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND receiver_id = $2",
+        [requestId, userId],
+      );
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Request not found" });
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      res.json({ message: "Friend request rejected" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to reject friend request" });
     }
-
-    res.json({ message: "Friend request rejected" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to reject friend request" });
-  }
-});
+  },
+);
 
 // Remove friend
 app.delete("/api/friends/:friendId", authenticateToken, async (req, res) => {
@@ -1741,12 +1886,16 @@ app.delete("/api/friends/:friendId", authenticateToken, async (req, res) => {
   const friendId = parseInt(req.params.friendId);
 
   try {
-    const [u1, u2] = userId < friendId ? [userId, friendId] : [friendId, userId];
-    await pool.query("DELETE FROM friends WHERE user_id1 = $1 AND user_id2 = $2", [u1, u2]);
+    const [u1, u2] =
+      userId < friendId ? [userId, friendId] : [friendId, userId];
+    await pool.query(
+      "DELETE FROM friends WHERE user_id1 = $1 AND user_id2 = $2",
+      [u1, u2],
+    );
     // Also cleanup requests
     await pool.query(
       "DELETE FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
-      [userId, friendId]
+      [userId, friendId],
     );
     res.json({ message: "Friend removed" });
   } catch (err) {
@@ -1762,7 +1911,10 @@ app.get("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
 
   try {
     // Get friend's internal ID and verify friend relationship
-    const friendRes = await pool.query("SELECT id, uid FROM users WHERE uid = $1", [friendUid]);
+    const friendRes = await pool.query(
+      "SELECT id, uid FROM users WHERE uid = $1",
+      [friendUid],
+    );
     if (friendRes.rows.length === 0) {
       console.warn(`DM fetch failed: User with UID ${friendUid} not found`);
       return res.status(404).json({ error: "User not found" });
@@ -1772,17 +1924,23 @@ app.get("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
     // Check friend status
     const friendCheck = await pool.query(
       "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
-      [userId, friendId]
+      [userId, friendId],
     );
     if (friendCheck.rows.length === 0) {
-      console.warn(`DM access denied: Users ${userId} and ${friendId} are not friends`);
-      return res.status(403).json({ error: "You must be friends to exchange DMs" });
+      console.warn(
+        `DM access denied: Users ${userId} and ${friendId} are not friends`,
+      );
+      return res
+        .status(403)
+        .json({ error: "You must be friends to exchange DMs" });
     }
 
     // Get current user's UID if not in token
     let myUid = req.user.uid;
     if (!myUid) {
-      const me = await pool.query("SELECT uid FROM users WHERE id = $1", [userId]);
+      const me = await pool.query("SELECT uid FROM users WHERE id = $1", [
+        userId,
+      ]);
       myUid = me.rows[0]?.uid;
     }
 
@@ -1795,7 +1953,7 @@ app.get("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
        WHERE m.post_type = 'DM' 
        AND ((m.user_id = $1 AND m.poston = $2) OR (m.user_id = $3 AND m.poston = $4))
        ORDER BY m.created_at ASC`,
-      [userId, friendUid, friendId, myUid]
+      [userId, friendUid, friendId, myUid],
     );
     res.json(result.rows);
   } catch (err) {
@@ -1816,20 +1974,29 @@ app.post("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
 
   try {
     // Get friend's internal ID
-    const friendRes = await pool.query("SELECT id, username FROM users WHERE uid = $1", [friendUid]);
-    if (friendRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    const friendRes = await pool.query(
+      "SELECT id, username FROM users WHERE uid = $1",
+      [friendUid],
+    );
+    if (friendRes.rows.length === 0)
+      return res.status(404).json({ error: "User not found" });
     const friendId = friendRes.rows[0].id;
 
     // Check if they are friends
     const friendCheck = await pool.query(
       "SELECT 1 FROM friends WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)",
-      [userId, friendId]
+      [userId, friendId],
     );
     if (friendCheck.rows.length === 0) {
-      return res.status(403).json({ error: "You must be friends to exchange DMs" });
+      return res
+        .status(403)
+        .json({ error: "You must be friends to exchange DMs" });
     }
 
-    const authorRes = await pool.query("SELECT username, uid FROM users WHERE id = $1", [userId]);
+    const authorRes = await pool.query(
+      "SELECT username, uid FROM users WHERE id = $1",
+      [userId],
+    );
     const author_name = authorRes.rows[0].username;
     const userUid = authorRes.rows[0].uid;
 
@@ -1847,14 +2014,14 @@ app.post("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
 
     const userResult = await pool.query(
       "SELECT avatar_url, userid FROM users WHERE id = $1",
-      [userId]
+      [userId],
     );
-    
+
     let parent_msg = null;
     if (parent_id) {
       const pResult = await pool.query(
         "SELECT author_name, content, created_at FROM messages WHERE id = $1",
-        [parent_id]
+        [parent_id],
       );
       parent_msg = pResult.rows[0];
     }
@@ -1863,10 +2030,10 @@ app.post("/api/messages/dm/:friendUid", authenticateToken, async (req, res) => {
       ...result.rows[0],
       avatar_url: userResult.rows[0].avatar_url,
       author_handle: userResult.rows[0].userid,
-      parent_msg
+      parent_msg,
     };
 
-    await createNotification(friendId, userId, 'dm', newMessage.id);
+    await createNotification(friendId, userId, "dm", newMessage.id);
 
     // Notify both users via socket
     io.emit(`dm-receive-${userUid}`, newMessage);

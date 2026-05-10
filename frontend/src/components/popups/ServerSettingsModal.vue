@@ -9,7 +9,7 @@ import {
   Crop as CropIcon,
   Layout,
   Globe,
-  Palette
+  Palette,
 } from "lucide-vue-next";
 import { Cropper, CircleStencil } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
@@ -47,9 +47,13 @@ onMounted(() => {
   }
 });
 
-watch(() => props.server, (newVal) => {
-  if (newVal) initFields();
-}, { deep: true });
+watch(
+  () => props.server,
+  (newVal) => {
+    if (newVal) initFields();
+  },
+  { deep: true },
+);
 
 function initFields() {
   serverName.value = props.server.name || "";
@@ -88,7 +92,8 @@ async function handleCrop() {
         const fieldName = cropTarget.value === "icon" ? "icon" : "header";
         formData.append(fieldName, file);
 
-        const endpoint = cropTarget.value === "icon" ? "upload-icon" : "upload-header";
+        const endpoint =
+          cropTarget.value === "icon" ? "upload-icon" : "upload-header";
         const res = await fetch(`/api/servers/${props.server.id}/${endpoint}`, {
           method: "POST",
           headers: {
@@ -132,15 +137,15 @@ async function handleUpdate() {
       body: JSON.stringify({
         name: serverName.value,
         settings: {
-          visibility: visibility.value
-        }
+          visibility: visibility.value,
+        },
       }),
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Update failed");
 
-    message.value = "サーバー設定を更新しました";
+    message.value = "コミュニティ設定を更新しました";
     error.value = "";
     emit("updated", data);
     setTimeout(() => {
@@ -160,7 +165,7 @@ async function handleUpdate() {
       <div class="settings-sidebar">
         <div class="sidebar-header">
           <SettingsIcon :size="20" />
-          <h3>サーバー設定</h3>
+          <h3>コミュニティ設定</h3>
         </div>
         <div
           class="menu-item"
@@ -188,7 +193,7 @@ async function handleUpdate() {
       <div class="settings-content">
         <!-- Overview Section -->
         <div v-if="activeMenu === 'overview'" class="section">
-          <h2>サーバー概要</h2>
+          <h2>コミュニティ概要</h2>
 
           <!-- Preview Card -->
           <div class="server-preview-card">
@@ -203,20 +208,24 @@ async function handleUpdate() {
                 />
               </div>
               <div class="preview-text">
-                <span class="preview-name">{{ serverName || "Server Name" }}</span>
-                <span class="preview-meta">ID: {{ props.server.serverid }}</span>
+                <span class="preview-name">{{
+                  serverName || "Server Name"
+                }}</span>
+                <span class="preview-meta"
+                  >ID: {{ props.server.serverid }}</span
+                >
               </div>
             </div>
           </div>
 
           <div class="form-grid">
             <div class="form-group full-width">
-              <label>サーバー名</label>
+              <label>コミュニティ名</label>
               <input v-model="serverName" type="text" />
             </div>
 
             <div class="form-group full-width">
-              <label>サーバーヘッダー (3:1)</label>
+              <label>コミュニティヘッダー (3:1)</label>
               <div class="upload-area" @click="headerInput?.click()">
                 <Upload :size="24" />
                 <span>クリックしてヘッダーをアップロード</span>
@@ -231,7 +240,7 @@ async function handleUpdate() {
             </div>
 
             <div class="form-group">
-              <label>サーバーアイコン (1:1)</label>
+              <label>コミュニティアイコン (1:1)</label>
               <div class="upload-area square" @click="iconInput?.click()">
                 <Upload :size="24" />
                 <span>アイコン</span>
@@ -255,21 +264,30 @@ async function handleUpdate() {
         <div v-if="activeMenu === 'visibility'" class="section">
           <h2>公開設定</h2>
           <div class="radio-group">
-            <label class="radio-option" :class="{ active: visibility === 'public' }">
+            <label
+              class="radio-option"
+              :class="{ active: visibility === 'public' }"
+            >
               <input type="radio" value="public" v-model="visibility" />
               <div class="radio-content">
                 <span class="title">公開</span>
                 <span class="desc">誰でも見つけて参加できます。</span>
               </div>
             </label>
-            <label class="radio-option" :class="{ active: visibility === 'private' }">
+            <label
+              class="radio-option"
+              :class="{ active: visibility === 'private' }"
+            >
               <input type="radio" value="private" v-model="visibility" />
               <div class="radio-content">
                 <span class="title">非公開</span>
                 <span class="desc">サーバー一覧に表示されません。</span>
               </div>
             </label>
-            <label class="radio-option" :class="{ active: visibility === 'limited' }">
+            <label
+              class="radio-option"
+              :class="{ active: visibility === 'limited' }"
+            >
               <input type="radio" value="limited" v-model="visibility" />
               <div class="radio-content">
                 <span class="title">限定</span>
@@ -277,7 +295,11 @@ async function handleUpdate() {
               </div>
             </label>
           </div>
-          <button class="save-btn" @click="handleUpdate" style="margin-top: 2rem;">
+          <button
+            class="save-btn"
+            @click="handleUpdate"
+            style="margin-top: 2rem"
+          >
             <CheckCircle2 :size="18" /> 保存
           </button>
         </div>
@@ -301,7 +323,9 @@ async function handleUpdate() {
             <Cropper
               ref="cropperRef"
               :src="cropImage"
-              :stencil-component="cropTarget === 'icon' ? CircleStencil : undefined"
+              :stencil-component="
+                cropTarget === 'icon' ? CircleStencil : undefined
+              "
               :stencil-props="{
                 aspectRatio: cropTarget === 'icon' ? 1 / 1 : 3 / 1,
               }"

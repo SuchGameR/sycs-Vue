@@ -67,9 +67,9 @@ const fetchMessages = async (isLoadMore = false) => {
 const handlePost = async (postData) => {
   if (isPosting.value) return;
   isPosting.value = true;
-  
-  const content = typeof postData === 'string' ? postData : postData.content;
-  const attachment = typeof postData === 'object' ? postData.attachment : [];
+
+  const content = typeof postData === "string" ? postData : postData.content;
+  const attachment = typeof postData === "object" ? postData.attachment : [];
 
   try {
     const res = await fetch(`/api/messages/global`, {
@@ -299,11 +299,11 @@ watch(activeTab, () => {
         </div>
       </section>
 
-      <!-- インライン投稿エリア (Twitter風) -->
-      <InlinePost :loading="isPosting" @submit="handlePost" />
-
       <!-- タイムラインエリア -->
       <div class="timeline" ref="messageListRef" @scroll="handleScroll">
+        <!-- インライン投稿エリア (Twitter風) -->
+        <InlinePost :loading="isPosting" @submit="handlePost" />
+
         <TweetItem
           v-for="msg in messages"
           :key="msg.id"

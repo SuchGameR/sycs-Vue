@@ -49,7 +49,9 @@ async function fetchUserData() {
   hasMore.value = true;
   try {
     const response = await fetch(`/api/users/${handle}`, {
-      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {},
+      headers: authStore.token
+        ? { Authorization: `Bearer ${authStore.token}` }
+        : {},
     });
     if (!response.ok) throw new Error("User not found");
     const data = await response.json();
@@ -86,16 +88,19 @@ async function handleFriendAction() {
   }
 
   try {
-    if (!friendRequestStatus.value || friendRequestStatus.value === 'rejected') {
+    if (
+      !friendRequestStatus.value ||
+      friendRequestStatus.value === "rejected"
+    ) {
       const res = await fetch(`/api/friends/request/${user.value.id}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${authStore.token}` },
       });
       if (res.ok) {
-        friendRequestStatus.value = 'pending';
+        friendRequestStatus.value = "pending";
         friendRequestSenderId.value = authStore.user?.id || null;
       }
-    } else if (friendRequestStatus.value === 'pending') {
+    } else if (friendRequestStatus.value === "pending") {
       if (friendRequestSenderId.value !== authStore.user?.id) {
         // Redirect to message page to accept
         router.push("/message?view=requests");
@@ -112,13 +117,18 @@ async function fetchUserPosts(isLoadMore = false) {
   loadingPosts.value = true;
 
   try {
-    const postsRes = await fetch(`/api/users/${handle}/messages?limit=${limit}&offset=${offset.value}`, {
-      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {},
-    });
+    const postsRes = await fetch(
+      `/api/users/${handle}/messages?limit=${limit}&offset=${offset.value}`,
+      {
+        headers: authStore.token
+          ? { Authorization: `Bearer ${authStore.token}` }
+          : {},
+      },
+    );
     if (postsRes.ok) {
       const data = await postsRes.json();
       if (data.length < limit) hasMore.value = false;
-      
+
       if (isLoadMore) {
         posts.value = [...posts.value, ...data];
       } else {
@@ -221,14 +231,21 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
               プロフィールを編集
             </button>
             <template v-else>
-              <button 
-                class="friend-btn" 
+              <button
+                class="friend-btn"
                 @click="handleFriendAction"
-                :class="{ 'is-friend': isFriend, 'is-pending': friendRequestStatus === 'pending' }"
+                :class="{
+                  'is-friend': isFriend,
+                  'is-pending': friendRequestStatus === 'pending',
+                }"
               >
                 <template v-if="isFriend">メッセージ</template>
                 <template v-else-if="friendRequestStatus === 'pending'">
-                  {{ friendRequestSenderId === authStore.user?.id ? '申請中' : '承認する' }}
+                  {{
+                    friendRequestSenderId === authStore.user?.id
+                      ? "申請中"
+                      : "承認する"
+                  }}
                 </template>
                 <template v-else>フレンド申請</template>
               </button>
@@ -296,7 +313,7 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
       <!-- Timeline -->
       <div class="timeline">
         <TweetItem v-for="post in posts" :key="post.id" :msg="post" />
-        
+
         <div v-if="loadingPosts" class="loading-more">
           <div class="small-spinner"></div>
           読み込み中...
@@ -605,7 +622,8 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
   font-size: 1.1rem;
 }
 
-.loading-more, .no-more {
+.loading-more,
+.no-more {
   padding: 20px;
   text-align: center;
   color: var(--text-secondary);
@@ -627,6 +645,6 @@ const isMe = computed(() => authStore.user?.id === user.value?.id);
 }
 
 .profile-content {
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 </style>

@@ -260,6 +260,32 @@ const totalLikes = computed(() => {
   return likes.length;
 });
 
+function localeOptions() {
+  return authStore.lang === "ja"
+    ? { locale: "ja-JP", hourCycle: "h24" as const }
+    : { locale: undefined, hourCycle: undefined };
+}
+
+function formatTime(date: Date) {
+  const { locale, hourCycle } = localeOptions();
+  return date.toLocaleTimeString(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle,
+  });
+}
+
+function formatDateTime(date: Date) {
+  const { locale, hourCycle } = localeOptions();
+  return date.toLocaleDateString(locale, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle,
+  });
+}
+
 const formattedTime = computed(() => {
   const mode = authStore.timeDisplayMode;
   if (mode === "none") return "";
@@ -287,17 +313,9 @@ const formattedTime = computed(() => {
       date.getFullYear() === now.getFullYear();
 
     if (isToday) {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return formatTime(date);
     } else {
-      return date.toLocaleDateString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return formatDateTime(date);
     }
   }
 

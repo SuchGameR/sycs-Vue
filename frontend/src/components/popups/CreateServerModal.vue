@@ -47,17 +47,15 @@ const createServer = async () => {
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content">
-      <h2>サーバーを作成</h2>
-      <p class="description">
-        サーバーはあなたとフレンドが一緒に過ごす場所です。自分だけのサーバーを作って、会話を始めましょう。
-      </p>
+      <h2>コミュニティを作成</h2>
+      <p class="description">自分だけのコミュニティを作ろう！</p>
 
       <div class="input-group">
-        <label>サーバー名 <span class="required">*</span></label>
+        <label>コミュニティ名 <span class="required">*</span></label>
         <input
           v-model="serverName"
           type="text"
-          placeholder="新規サーバー"
+          placeholder="新規コミュニティ"
           @keyup.enter="createServer"
           ref="nameInput"
           autofocus
@@ -65,10 +63,10 @@ const createServer = async () => {
       </div>
 
       <div class="input-group">
-        <label>サーバー説明</label>
+        <label>コミュニティ説明</label>
         <textarea
           v-model="description"
-          placeholder="サーバーの目的や案内を入力してください"
+          placeholder="コミュニティの目的や案内を入力してください"
           rows="3"
         ></textarea>
       </div>
@@ -93,7 +91,7 @@ const createServer = async () => {
             <input type="radio" v-model="visibility" value="private" />
             <div class="radio-info">
               <span class="label">非公開</span>
-              <span class="desc">サーバー一覧に表示されません。</span>
+              <span class="desc">コミュニティ一覧に表示されません。</span>
             </div>
           </label>
           <label

@@ -237,6 +237,36 @@ function copyToClipboard() {
 const isAuthor = computed(() => authStore.user?.id === props.msg.user_id);
 const hasMyReaction = (emoji: string) =>
   (props.msg.reactions?.[emoji] || []).includes(authStore.user?.id);
+
+function parseMessageDate(rawDate: string) {
+  let dateStr = rawDate;
+  if (typeof dateStr === "string") {
+    const hasTZ = /Z|[+-]\d{2}(?::?\d{2})?$/.test(dateStr);
+    if (!hasTZ) {
+      dateStr = dateStr.replace(" ", "T") + "Z";
+    } else if (dateStr.includes(" ") && !dateStr.includes("T")) {
+      dateStr = dateStr.replace(" ", "T");
+    }
+  }
+  return new Date(dateStr);
+}
+
+function formatMessageTimestamp(rawDate: string) {
+  if (!rawDate) return "";
+
+  const date = parseMessageDate(rawDate);
+  const now = new Date();
+  const locale = authStore.lang === "ja" ? "ja-JP" : undefined;
+  const hourCycle = authStore.lang === "ja" ? "h24" : undefined;
+
+  return date.toLocaleDateString() === now.toLocaleDateString()
+    ? date.toLocaleTimeString(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle,
+      })
+    : date.toLocaleDateString(locale);
+}
 </script>
 
 <template>
@@ -333,27 +363,7 @@ const hasMyReaction = (emoji: string) =>
             >
             <span class="dot">·</span>
             <span class="timestamp">{{
-              (() => {
-                let rawDate = msg.created_at;
-                if (!rawDate) return "";
-                let dateStr = rawDate;
-                if (typeof dateStr === "string") {
-                  const hasTZ = /Z|[+-]\d{2}(?::?\d{2})?$/.test(dateStr);
-                  if (!hasTZ) {
-                    dateStr = dateStr.replace(" ", "T") + "Z";
-                  } else if (dateStr.includes(" ") && !dateStr.includes("T")) {
-                    dateStr = dateStr.replace(" ", "T");
-                  }
-                }
-                const date = new Date(dateStr);
-                const now = new Date();
-                return date.toLocaleDateString() === now.toLocaleDateString()
-                  ? date.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : date.toLocaleDateString();
-              })()
+              formatMessageTimestamp(msg.created_at)
             }}</span>
             <span
               v-if="msg.edit_history?.length > 0"

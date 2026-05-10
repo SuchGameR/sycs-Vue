@@ -16,6 +16,7 @@ import { useAuthStore } from "../../stores/auth";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
 import ServerSettingsModal from "../popups/ServerSettingsModal.vue";
+import { uploadAttachments } from "../../utils/upload";
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -32,30 +33,50 @@ const isUploading = ref(false);
 const selectedFiles = ref([]);
 const previews = ref([]);
 const fileInput = ref(null);
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_INLINE_PREVIEW_SIZE = 5 * 1024 * 1024;
+
+const createPreview = (file) => {
+  const canPreview =
+    file.type.startsWith("image/") && file.size <= MAX_INLINE_PREVIEW_SIZE;
+
+  return {
+    url: canPreview ? URL.createObjectURL(file) : "",
+    type: file.type,
+    name: file.name,
+  };
+};
+
+const clearPreviews = () => {
+  previews.value.forEach((preview) => {
+    if (preview.url) URL.revokeObjectURL(preview.url);
+  });
+  previews.value = [];
+};
 
 const handleFileSelect = (e) => {
-  const files = Array.from(e.target.files);
+  const target = e.target;
+  const files = Array.from(target.files || []);
   files.forEach((file) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      previews.value.push({
-        url: event.target.result,
-        type: file.type,
-        name: file.name,
-      });
-      selectedFiles.value.push({
-        file,
-        options: {
-          blur: false,
-          downloadable: true,
-        },
-      });
-    };
-    reader.readAsDataURL(file);
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`ファイルサイズが大きすぎます: ${file.name}\n1ファイル20MBまで添付できます`);
+      return;
+    }
+    previews.value.push(createPreview(file));
+    selectedFiles.value.push({
+      file,
+      options: {
+        blur: false,
+        downloadable: true,
+      },
+    });
   });
+  target.value = "";
 };
 
 const removeFile = (idx) => {
+  const preview = previews.value[idx];
+  if (preview?.url) URL.revokeObjectURL(preview.url);
   previews.value.splice(idx, 1);
   selectedFiles.value.splice(idx, 1);
 };
@@ -132,24 +153,12 @@ const sendMessage = async () => {
   newMessage.value = "";
   replyingTo.value = null;
   selectedFiles.value = [];
-  previews.value = [];
+  clearPreviews();
 
   try {
     let attachment = [];
     if (currentFiles.length > 0) {
-      const formData = new FormData();
-      currentFiles.forEach(({ file }) => formData.append("files", file));
-      formData.append(
-        "options",
-        JSON.stringify(currentFiles.map((f) => f.options)),
-      );
-
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${authStore.token}` },
-        body: formData,
-      });
-      if (uploadRes.ok) attachment = await uploadRes.json();
+      attachment = await uploadAttachments(currentFiles, authStore.token);
     }
 
     const res = await fetch(
@@ -359,13 +368,13 @@ watch(
                 <X :size="12" />
               </button>
               <img
-                v-if="file.type.startsWith('image/')"
+                v-if="file.url && file.type.startsWith('image/')"
                 :src="file.url"
                 class="preview-media"
                 :class="{ 'preview-blur': selectedFiles[idx].options.blur }"
               />
               <video
-                v-else-if="file.type.startsWith('video/')"
+                v-else-if="file.url && file.type.startsWith('video/')"
                 :src="file.url"
                 class="preview-media"
                 muted
@@ -418,7 +427,6 @@ watch(
               multiple
               hidden
               @change="handleFileSelect"
-              accept=".jpeg,.jpg,.png,.gif,.svg,.webm,.mp3,.wav,.ogg,.mp4,.mov,.md"
             />
             <button
               class="attach-btn"

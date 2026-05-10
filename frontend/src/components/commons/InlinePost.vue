@@ -11,6 +11,7 @@ import {
   Film,
   Music,
 } from "lucide-vue-next";
+import { uploadAttachments } from "../../utils/upload";
 
 const props = defineProps<{
   loading?: boolean;
@@ -26,20 +27,8 @@ const previews = ref<{ url: string; type: string; name: string }[]>([]);
 const isUploading = ref(false);
 const emit = defineEmits(["submit"]);
 
-const ALLOWED_EXTENSIONS = [
-  "jpeg",
-  "jpg",
-  "png",
-  "gif",
-  "svg",
-  "webm",
-  "mp3",
-  "wav",
-  "ogg",
-  "mp4",
-  "mov",
-  "md",
-];
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_INLINE_PREVIEW_SIZE = 5 * 1024 * 1024;
 
 const canPost = computed(
   () =>
@@ -55,12 +44,11 @@ function handleFileSelect(e: Event) {
   const validFiles: File[] = [];
 
   files.forEach((file) => {
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (ext && ALLOWED_EXTENSIONS.includes(ext)) {
+    if (file.size <= MAX_FILE_SIZE) {
       validFiles.push(file);
     } else {
       alert(
-        `非対応のファイル形式です: ${file.name}\n対応形式: ${ALLOWED_EXTENSIONS.join(", ")}`,
+        `ファイルサイズが大きすぎます: ${file.name}\n1ファイル20MBまで添付できます`,
       );
     }
   });
@@ -74,66 +62,36 @@ function handleFileSelect(e: Event) {
   ].slice(0, 10);
 
   selectedFiles.value = nextFiles;
+  target.value = "";
   updatePreviews();
 }
 
 function updatePreviews() {
+  previews.value.forEach((preview) => {
+    if (preview.url) URL.revokeObjectURL(preview.url);
+  });
   previews.value = [];
   selectedFiles.value.forEach(({ file }) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      previews.value.push({
-        url: e.target?.result as string,
-        type: file.type,
-        name: file.name,
-      });
-    };
-    if (
-      file.type.startsWith("image/") ||
-      file.type.startsWith("video/") ||
-      file.type.startsWith("audio/")
-    ) {
-      reader.readAsDataURL(file);
-    } else {
-      previews.value.push({
-        url: "",
-        type: file.type,
-        name: file.name,
-      });
-    }
+    const canPreview =
+      file.type.startsWith("image/") && file.size <= MAX_INLINE_PREVIEW_SIZE;
+
+    previews.value.push({
+      url: canPreview ? URL.createObjectURL(file) : "",
+      type: file.type,
+      name: file.name,
+    });
   });
 }
 
 function removeFile(index: number) {
+  const preview = previews.value[index];
+  if (preview?.url) URL.revokeObjectURL(preview.url);
   selectedFiles.value.splice(index, 1);
   previews.value.splice(index, 1);
 }
 
 async function uploadFiles() {
-  if (selectedFiles.value.length === 0) return [];
-
-  const formData = new FormData();
-  selectedFiles.value.forEach(({ file }) => {
-    formData.append("files", file);
-  });
-  formData.append(
-    "options",
-    JSON.stringify(selectedFiles.value.map((f) => f.options)),
-  );
-
-  const response = await fetch("/api/upload", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${authStore.token}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error("Upload failed");
-  }
-
-  return await response.json();
+  return uploadAttachments(selectedFiles.value, authStore.token);
 }
 
 async function handleSubmit() {
@@ -145,6 +103,9 @@ async function handleSubmit() {
     emit("submit", { content: content.value, attachment: attachments });
     content.value = "";
     selectedFiles.value = [];
+    previews.value.forEach((preview) => {
+      if (preview.url) URL.revokeObjectURL(preview.url);
+    });
     previews.value = [];
 
     // Reset height
@@ -182,7 +143,7 @@ function handleKeydown(e: KeyboardEvent) {
     <div class="post-layout">
       <div class="avatar-col">
         <img
-          :src="authStore.user?.avatar_url || '/kiwibird-discord.png'"
+          :src="authStore.user?.avatar_url || '/default-avatar.png'"
           class="user-avatar"
         />
       </div>
@@ -203,12 +164,12 @@ function handleKeydown(e: KeyboardEvent) {
             </button>
 
             <img
-              v-if="file.type.startsWith('image/')"
+              v-if="file.url && file.type.startsWith('image/')"
               :src="file.url"
               class="preview-media"
             />
             <video
-              v-else-if="file.type.startsWith('video/')"
+              v-else-if="file.url && file.type.startsWith('video/')"
               :src="file.url"
               class="preview-media"
               muted
@@ -235,7 +196,6 @@ function handleKeydown(e: KeyboardEvent) {
               multiple
               hidden
               @change="handleFileSelect"
-              accept="image/*,video/*,audio/*,.md,text/markdown,text/plain,application/pdf"
             />
             <button
               class="icon-btn"
