@@ -12,6 +12,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
+import webpush from "web-push";
 console.log("Sharp library loaded:", !!sharp);
 
 const { Pool } = pkg;
@@ -39,6 +40,15 @@ const io = new Server(httpServer, {
 
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BOlu8bhoO2He4swaOFcU80hTZgU9phJr9O0-dpWa5vv6fUEa0AkE5arBgCq_U12QOMaT-yeA6BgMJNH1GWRU4sA";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "lO4V1fwbRqdbp16ksLEju7xyPzL6KJ9MTGooKHiCg0Y";
+
+webpush.setVapidDetails(
+  "mailto:example@yourdomain.com",
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
 
 // Socket.io connection
 io.on("connection", (socket) => {
@@ -182,11 +192,90 @@ async function createNotification(userId, actorId, type, messageId = null, relat
     const fullNotification = { ...notification, actor: actorRes.rows[0] };
 
     io.emit(`notification-${userId}`, fullNotification);
+
+    // --- Web Push ---
+    try {
+      const subResult = await pool.query("SELECT subscription FROM push_subscriptions WHERE user_id = $1", [userId]);
+      if (subResult.rows.length > 0) {
+        let title = "SYCS通知";
+        let body = "";
+        
+        switch (type) {
+          case 'like': body = `${fullNotification.actor.username}さんがいいねしました`; break;
+          case 'retweet': body = `${fullNotification.actor.username}さんがリポストしました`; break;
+          case 'follow': body = `${fullNotification.actor.username}さんにフォローされました`; break;
+          case 'friend_request': body = `${fullNotification.actor.username}さんからフレンド申請が届きました`; break;
+          case 'dm': body = `${fullNotification.actor.username}さんからメッセージが届きました`; break;
+        }
+
+        const payload = JSON.stringify({
+          title,
+          body,
+          icon: fullNotification.actor.avatar_url || "/default-avatar.png",
+          url: type === 'dm' ? '/message' : (type === 'friend_request' ? '/message?view=requests' : '/')
+        });
+
+        subResult.rows.forEach(row => {
+          webpush.sendNotification(row.subscription, payload).catch(err => {
+            if (err.statusCode === 410) {
+              // Subscription has expired or is no longer valid
+              pool.query("DELETE FROM push_subscriptions WHERE subscription = $1", [JSON.stringify(row.subscription)]);
+            } else {
+              console.error("Web Push error:", err);
+            }
+          });
+        });
+      }
+    } catch (pushErr) {
+      console.error("Push notification failed:", pushErr);
+    }
+
     return fullNotification;
   } catch (err) {
     console.error("Failed to create notification:", err);
   }
 }
+
+// Push Subscription Endpoints
+app.post("/api/notifications/subscribe", authenticateToken, async (req, res) => {
+  const { subscription } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Check if subscription already exists for this user
+    const check = await pool.query(
+      "SELECT id FROM push_subscriptions WHERE user_id = $1 AND subscription @> $2",
+      [userId, JSON.stringify(subscription)]
+    );
+
+    if (check.rows.length === 0) {
+      await pool.query(
+        "INSERT INTO push_subscriptions (user_id, subscription) VALUES ($1, $2)",
+        [userId, JSON.stringify(subscription)]
+      );
+    }
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to subscribe" });
+  }
+});
+
+app.post("/api/notifications/unsubscribe", authenticateToken, async (req, res) => {
+  const { subscription } = req.body;
+  const userId = req.user.id;
+
+  try {
+    await pool.query(
+      "DELETE FROM push_subscriptions WHERE user_id = $1 AND subscription @> $2",
+      [userId, JSON.stringify(subscription)]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to unsubscribe" });
+  }
+});
 
 // ... existing code ...
 

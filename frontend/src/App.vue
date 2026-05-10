@@ -37,6 +37,7 @@ const addToast = (message, type = "info") => {
 onMounted(() => {
   if (authStore.user) {
     setupSocket();
+    setupPush();
     authStore.fetchNotificationCount();
   }
 });
@@ -44,6 +45,7 @@ onMounted(() => {
 watch(() => authStore.user, (newUser) => {
   if (newUser) {
     setupSocket();
+    setupPush();
     authStore.fetchNotificationCount();
   } else {
     socket.off(`notification-${authStore.user?.id}`);
@@ -68,6 +70,51 @@ const setupSocket = () => {
     if (text) addToast(text);
   });
 };
+
+const setupPush = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log('Service Worker registered');
+
+    // Request permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array('BOlu8bhoO2He4swaOFcU80hTZgU9phJr9O0-dpWa5vv6fUEa0AkE5arBgCq_U12QOMaT-yeA6BgMJNH1GWRU4sA')
+    });
+
+    await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({ subscription })
+    });
+    console.log('Push subscription successful');
+  } catch (err) {
+    console.error('Push setup failed:', err);
+  }
+};
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 onUnmounted(() => {
   socket.disconnect();

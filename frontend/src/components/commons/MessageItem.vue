@@ -2,9 +2,9 @@
 import { computed, ref, onMounted, watch, onUnmounted } from "vue";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import { 
-  Reply, 
-  Smile, 
+import {
+  Reply,
+  Smile,
   MoreHorizontal,
   CornerDownRight,
   Copy,
@@ -17,27 +17,27 @@ import {
   Repeat2,
   Share,
   BarChart3,
-  Info
-} from 'lucide-vue-next';
-import { useAuthStore } from '../../stores/auth';
-import { createHighlighter } from 'shiki';
-import MessageDetailsModal from '../popups/MessageDetailsModal.vue';
-import { useRouter } from 'vue-router';
-import UserProfileCard from './UserProfileCard.vue';
-import MediaPreview from './MediaPreview.vue';
+  Info,
+} from "lucide-vue-next";
+import { useAuthStore } from "../../stores/auth";
+import { createHighlighter } from "shiki";
+import MessageDetailsModal from "../popups/MessageDetailsModal.vue";
+import { useRouter } from "vue-router";
+import UserProfileCard from "./UserProfileCard.vue";
+import MediaPreview from "./MediaPreview.vue";
 
 const props = defineProps<{
   msg: any;
   isReply?: boolean;
-  variant?: 'discord' | 'twitter';
+  variant?: "discord" | "twitter";
 }>();
 
-const emit = defineEmits(['reply', 'react', 'edit', 'delete']);
+const emit = defineEmits(["reply", "react", "edit", "delete"]);
 
 const authStore = useAuthStore();
 const router = useRouter();
 const showEmojiPicker = ref(false);
-const highlightedHtml = ref('');
+const highlightedHtml = ref("");
 const isCopying = ref(false);
 const showDetailsModal = ref(false);
 const showEditHistory = ref(false);
@@ -67,12 +67,11 @@ function handleMouseLeave() {
 }
 
 function goToProfile() {
-  const handle = props.msg.author_handle || props.msg.email?.split('@')[0];
+  const handle = props.msg.author_handle || props.msg.email?.split("@")[0];
   if (handle) {
     router.push(`/user/${handle}`);
   }
 }
-
 
 // Edit State
 const isEditing = ref(false);
@@ -114,7 +113,7 @@ async function initHighlighter() {
 async function renderContent() {
   await initHighlighter();
   const contentToRender = props.msg.content || "";
-  
+
   let processed = contentToRender.replace(
     /[&<>"']/g,
     (m) =>
@@ -129,7 +128,7 @@ async function renderContent() {
 
   processed = processed.replace(
     /@([a-zA-Z0-9_]+)/g,
-    '<a href="#" class="mention">@$1</a>'
+    '<a href="#" class="mention">@$1</a>',
   );
 
   const renderer = new marked.Renderer();
@@ -148,14 +147,14 @@ async function renderContent() {
   renderer.link = ({ href, title, text }) => {
     return `<a href="${href}" title="${title || ""}" target="_blank" rel="noopener noreferrer">${text}</a>`;
   };
-  const rawHtml = await marked.parse(processed, { 
-    renderer, 
+  const rawHtml = await marked.parse(processed, {
+    renderer,
     async: true,
     breaks: true,
-    gfm: true
+    gfm: true,
   });
   highlightedHtml.value = DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ["target", "class", "rel"]
+    ADD_ATTR: ["target", "class", "rel"],
   });
 }
 
@@ -340,12 +339,13 @@ const hasMyReaction = (emoji: string) =>
       <div class="content-column">
         <div class="message-header">
           <div class="header-left">
-            <span 
+            <span
               class="author-name"
               @mouseenter="handleMouseEnter"
               @mouseleave="handleMouseLeave"
               @click.stop="goToProfile"
-            >{{ msg.author_name }}</span>
+              >{{ msg.author_name }}</span
+            >
             <span v-if="msg.author_handle" class="author-handle"
               >@{{ msg.author_handle }}</span
             >
@@ -355,12 +355,12 @@ const hasMyReaction = (emoji: string) =>
                 let rawDate = msg.created_at;
                 if (!rawDate) return "";
                 let dateStr = rawDate;
-                if (typeof dateStr === 'string') {
+                if (typeof dateStr === "string") {
                   const hasTZ = /Z|[+-]\d{2}(?::?\d{2})?$/.test(dateStr);
                   if (!hasTZ) {
-                    dateStr = dateStr.replace(' ', 'T') + 'Z';
-                  } else if (dateStr.includes(' ') && !dateStr.includes('T')) {
-                    dateStr = dateStr.replace(' ', 'T');
+                    dateStr = dateStr.replace(" ", "T") + "Z";
+                  } else if (dateStr.includes(" ") && !dateStr.includes("T")) {
+                    dateStr = dateStr.replace(" ", "T");
                   }
                 }
                 const date = new Date(dateStr);
@@ -373,7 +373,10 @@ const hasMyReaction = (emoji: string) =>
                   : date.toLocaleDateString();
               })()
             }}</span>
-            <span v-if="msg.edit_history?.length > 0" class="edited-tag" @click.stop="showEditHistory = true"
+            <span
+              v-if="msg.edit_history?.length > 0"
+              class="edited-tag"
+              @click.stop="showEditHistory = true"
               >(編集済)</span
             >
           </div>
@@ -490,14 +493,24 @@ const hasMyReaction = (emoji: string) =>
 
     <!-- Edit History Popup -->
     <Teleport to="body">
-      <div v-if="showEditHistory" class="history-overlay" @click="showEditHistory = false">
+      <div
+        v-if="showEditHistory"
+        class="history-overlay"
+        @click="showEditHistory = false"
+      >
         <div class="history-popup" @click.stop>
           <div class="history-header">
             <h3>編集履歴</h3>
-            <button @click="showEditHistory = false" class="close-history"><X :size="20" /></button>
+            <button @click="showEditHistory = false" class="close-history">
+              <X :size="20" />
+            </button>
           </div>
           <div class="history-list">
-            <div v-for="(item, idx) in msg.edit_history" :key="idx" class="history-item">
+            <div
+              v-for="(item, idx) in msg.edit_history"
+              :key="idx"
+              class="history-item"
+            >
               <div class="history-time">
                 {{ new Date(item.edited_at).toLocaleString() }}
               </div>
@@ -507,9 +520,7 @@ const hasMyReaction = (emoji: string) =>
             </div>
             <!-- Current version -->
             <div class="history-item current">
-              <div class="history-time">
-                現在
-              </div>
+              <div class="history-time">現在</div>
               <div class="history-content">
                 {{ msg.content }}
               </div>
@@ -892,7 +903,7 @@ const hasMyReaction = (emoji: string) =>
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -908,7 +919,7 @@ const hasMyReaction = (emoji: string) =>
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border);
 }
 .history-header {
@@ -1022,7 +1033,6 @@ const hasMyReaction = (emoji: string) =>
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: var(--secondary);
   border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;

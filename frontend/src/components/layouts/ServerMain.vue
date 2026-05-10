@@ -139,8 +139,11 @@ const sendMessage = async () => {
     if (currentFiles.length > 0) {
       const formData = new FormData();
       currentFiles.forEach(({ file }) => formData.append("files", file));
-      formData.append("options", JSON.stringify(currentFiles.map(f => f.options)));
-      
+      formData.append(
+        "options",
+        JSON.stringify(currentFiles.map((f) => f.options)),
+      );
+
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${authStore.token}` },
@@ -149,14 +152,17 @@ const sendMessage = async () => {
       if (uploadRes.ok) attachment = await uploadRes.json();
     }
 
-    const res = await fetch(`/api/channels/${currentChannelId.value}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authStore.token}`,
+    const res = await fetch(
+      `/api/channels/${currentChannelId.value}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        body: JSON.stringify({ content, parent_id, attachment }),
       },
-      body: JSON.stringify({ content, parent_id, attachment }),
-    });
+    );
     if (!res.ok) {
       alert("メッセージの送信に失敗しました");
     }
@@ -344,11 +350,31 @@ watch(
 
           <!-- File Previews -->
           <div v-if="previews.length > 0" class="previews-container">
-            <div v-for="(file, idx) in previews" :key="idx" class="preview-item">
-              <button class="remove-file" @click="removeFile(idx)"><X :size="12" /></button>
-              <img v-if="file.type.startsWith('image/')" :src="file.url" class="preview-media" :class="{ 'preview-blur': selectedFiles[idx].options.blur }" />
-              <video v-else-if="file.type.startsWith('video/')" :src="file.url" class="preview-media" muted :class="{ 'preview-blur': selectedFiles[idx].options.blur }"></video>
-              <div v-else-if="file.type.startsWith('audio/')" class="preview-file-icon audio">
+            <div
+              v-for="(file, idx) in previews"
+              :key="idx"
+              class="preview-item"
+            >
+              <button class="remove-file" @click="removeFile(idx)">
+                <X :size="12" />
+              </button>
+              <img
+                v-if="file.type.startsWith('image/')"
+                :src="file.url"
+                class="preview-media"
+                :class="{ 'preview-blur': selectedFiles[idx].options.blur }"
+              />
+              <video
+                v-else-if="file.type.startsWith('video/')"
+                :src="file.url"
+                class="preview-media"
+                muted
+                :class="{ 'preview-blur': selectedFiles[idx].options.blur }"
+              ></video>
+              <div
+                v-else-if="file.type.startsWith('audio/')"
+                class="preview-file-icon audio"
+              >
                 <Music :size="20" />
                 <span class="file-name">{{ file.name }}</span>
               </div>
@@ -359,18 +385,24 @@ watch(
 
               <!-- Options Overlay -->
               <div class="preview-options">
-                <button 
-                  class="opt-btn" 
-                  :class="{ active: selectedFiles[idx].options.downloadable }" 
-                  @click="selectedFiles[idx].options.downloadable = !selectedFiles[idx].options.downloadable"
+                <button
+                  class="opt-btn"
+                  :class="{ active: selectedFiles[idx].options.downloadable }"
+                  @click="
+                    selectedFiles[idx].options.downloadable =
+                      !selectedFiles[idx].options.downloadable
+                  "
                   title="ダウンロード許可"
                 >
                   <Download :size="12" />
                 </button>
-                <button 
-                  class="opt-btn" 
-                  :class="{ active: selectedFiles[idx].options.blur }" 
-                  @click="selectedFiles[idx].options.blur = !selectedFiles[idx].options.blur"
+                <button
+                  class="opt-btn"
+                  :class="{ active: selectedFiles[idx].options.blur }"
+                  @click="
+                    selectedFiles[idx].options.blur =
+                      !selectedFiles[idx].options.blur
+                  "
                   title="ぼかし"
                 >
                   <EyeOff :size="12" />
@@ -388,7 +420,11 @@ watch(
               @change="handleFileSelect"
               accept=".jpeg,.jpg,.png,.gif,.svg,.webm,.mp3,.wav,.ogg,.mp4,.mov,.md"
             />
-            <button class="attach-btn" @click="fileInput.click()" title="ファイルを添付">
+            <button
+              class="attach-btn"
+              @click="fileInput.click()"
+              title="ファイルを添付"
+            >
               <Plus :size="20" />
             </button>
             <textarea
@@ -401,7 +437,14 @@ watch(
               rows="1"
               @keydown.enter="handleKeydown"
             ></textarea>
-            <button @click="sendMessage" :disabled="(!newMessage.trim() && selectedFiles.length === 0) || isUploading" class="send-btn">
+            <button
+              @click="sendMessage"
+              :disabled="
+                (!newMessage.trim() && selectedFiles.length === 0) ||
+                isUploading
+              "
+              class="send-btn"
+            >
               <Send v-if="!isUploading" :size="20" />
               <div v-else class="upload-spinner"></div>
             </button>
@@ -421,12 +464,14 @@ watch(
 
 <style scoped>
 main {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  width: 100%;
   background-color: var(--background);
   color: var(--text-primary);
   min-width: 350px;
+  width: 100%;
+  max-width: 800px;
 }
 
 .server-banner {
@@ -759,7 +804,9 @@ main {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @container small (max-width: 400px) {

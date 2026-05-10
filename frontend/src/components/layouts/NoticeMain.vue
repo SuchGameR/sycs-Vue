@@ -135,7 +135,7 @@ onMounted(fetchNotifications);
             :is="getIcon(note.type)"
             :size="24"
             :color="getIconColor(note.type)"
-            fill="currentColor"
+            :fill="getIconColor(note.type)"
             v-if="note.type === 'like'"
           />
           <component
