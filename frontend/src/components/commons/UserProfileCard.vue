@@ -93,70 +93,72 @@ const avatarUrl = computed(() => fullUser.value?.avatar_url || props.user.avatar
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="discord-fade">
-      <div 
-        v-if="show" 
-        class="discord-profile-card" 
-        :style="{ top: position.top + 'px', left: position.left + 'px' }"
-        @click.stop="goToProfile"
-      >
-        <div class="card-inner">
-          <!-- Banner -->
-          <div class="card-banner" :style="{ backgroundColor: 'var(--accent)', backgroundImage: `url(${headerUrl || '/image.png'})` }"></div>
-          
-          <div class="card-body">
-            <!-- Avatar & Follow -->
-            <div class="avatar-row">
-              <div class="avatar-container">
-                <img :src="avatarUrl || '/default-avatar.png'" class="card-avatar" />
-                <div class="status-dot"></div>
+  <div class="profile-card-root" style="display: contents;">
+    <Teleport to="body">
+      <Transition name="discord-fade">
+        <div 
+          v-if="show" 
+          class="discord-profile-card" 
+          :style="{ top: position.top + 'px', left: position.left + 'px' }"
+          @click.stop="goToProfile"
+        >
+          <div class="card-inner">
+            <!-- Banner -->
+            <div class="card-banner" :style="{ backgroundColor: 'var(--accent)', backgroundImage: `url(${headerUrl || '/image.png'})` }"></div>
+            
+            <div class="card-body">
+              <!-- Avatar & Follow -->
+              <div class="avatar-row">
+                <div class="avatar-container">
+                  <img :src="avatarUrl || '/default-avatar.png'" class="card-avatar" />
+                  <div class="status-dot"></div>
+                </div>
+                <button 
+                  v-if="authStore.user?.id !== (fullUser?.id || user.user_id || user.id)" 
+                  :class="['card-follow-btn', { 'is-following': isFollowing }]"
+                  @click="toggleFollow"
+                >
+                  {{ isFollowing ? 'フォロー中' : 'フォロー' }}
+                </button>
               </div>
-              <button 
-                v-if="authStore.user?.id !== (fullUser?.id || user.user_id || user.id)" 
-                :class="['card-follow-btn', { 'is-following': isFollowing }]"
-                @click="toggleFollow"
-              >
-                {{ isFollowing ? 'フォロー中' : 'フォロー' }}
-              </button>
-            </div>
 
-            <!-- User Info -->
-            <div class="user-info-section">
-              <div class="name-container">
-                <span class="display-name">{{ name }}</span>
-                <span class="user-handle">{{ handle }}</span>
+              <!-- User Info -->
+              <div class="user-info-section">
+                <div class="name-container">
+                  <span class="display-name">{{ name }}</span>
+                  <span class="user-handle">{{ handle }}</span>
+                </div>
               </div>
-            </div>
 
-            <div class="divider"></div>
+              <div class="divider"></div>
 
-            <!-- Bio -->
-            <div class="section bio-section" v-if="bio">
-              <h4 class="section-title">自己紹介</h4>
-              <p class="bio-text">{{ bio }}</p>
-            </div>
-
-            <!-- Stats/Meta -->
-            <div class="section meta-section">
-              <div class="meta-item">
-                <Calendar :size="14" />
-                <span>{{ joinedDate }}に登録</span>
+              <!-- Bio -->
+              <div class="section bio-section" v-if="bio">
+                <h4 class="section-title">自己紹介</h4>
+                <p class="bio-text">{{ bio }}</p>
               </div>
-              <div class="meta-item">
-                <Users :size="14" />
-                <span><strong>{{ followersCount }}</strong> フォロワー</span>
-              </div>
-            </div>
 
-            <div class="card-footer">
-              <span class="footer-hint">クリックしてプロフィールを表示</span>
+              <!-- Stats/Meta -->
+              <div class="section meta-section">
+                <div class="meta-item">
+                  <Calendar :size="14" />
+                  <span>{{ joinedDate }}に登録</span>
+                </div>
+                <div class="meta-item">
+                  <Users :size="14" />
+                  <span><strong>{{ followersCount }}</strong> フォロワー</span>
+                </div>
+              </div>
+
+              <div class="card-footer">
+                <span class="footer-hint">クリックしてプロフィールを表示</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+      </Transition>
+    </Teleport>
+  </div>
 </template>
 
 <style scoped>

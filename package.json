@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "node patch-vite.js",
     "dev": "bun run-p dev:ui dev:server dev:ready",
     "dev:ui": "cd frontend && bunx --bun vite",
     "dev:server": "cd backend && bun --watch server/index.js",
@@ -73,7 +74,8 @@
     "wait-on": "^9.0.5"
   },
   "resolutions": {
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "http-proxy": "1.18.1"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

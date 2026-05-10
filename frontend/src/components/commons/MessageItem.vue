@@ -20,11 +20,11 @@ import {
   Info,
 } from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
-import { createHighlighter } from "shiki";
 import MessageDetailsModal from "../popups/MessageDetailsModal.vue";
 import { useRouter } from "vue-router";
 import UserProfileCard from "./UserProfileCard.vue";
 import MediaPreview from "./MediaPreview.vue";
+import { getHighlighter } from "../../utils/shiki";
 
 const props = defineProps<{
   msg: any;
@@ -91,27 +91,8 @@ function escapeHtml(unsafe: string) {
     .replace(/'/g, "&#039;");
 }
 
-let highlighter: any = null;
-async function initHighlighter() {
-  if (!highlighter) {
-    highlighter = await createHighlighter({
-      themes: ["github-dark", "github-light"],
-      langs: [
-        "javascript",
-        "typescript",
-        "vue",
-        "css",
-        "html",
-        "bash",
-        "json",
-        "sql",
-      ],
-    });
-  }
-}
-
 async function renderContent() {
-  await initHighlighter();
+  const highlighter = await getHighlighter();
   const contentToRender = props.msg.content || "";
 
   let processed = contentToRender.replace(
@@ -259,8 +240,9 @@ const hasMyReaction = (emoji: string) =>
 </script>
 
 <template>
-  <div
-    class="message-container"
+  <div class="message-item-root" style="display: contents;">
+    <div
+      class="message-container"
     :class="{
       'is-reply': isReply,
       'is-editing': isEditing,
@@ -575,9 +557,9 @@ const hasMyReaction = (emoji: string) =>
       @mouseenter="clearTimeout(hoverTimer)"
       @mouseleave="handleMouseLeave"
     />
-  </div>
-</template>
-
+    </div>
+    </div>
+    </template>
 <style scoped>
 .message-container {
   display: flex;

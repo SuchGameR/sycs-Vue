@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useAuthStore } from "../stores/auth";
+import { useUIStore } from "../stores/ui";
 import Horizontal from "../components/configurations/Horizontal.vue";
 import Landing from "../components/layouts/Landing.vue";
 import Sidebar from "../components/layouts/Sidebar.vue";
@@ -8,7 +9,7 @@ import List from "../components/layouts/List.vue";
 import { Menu, X } from "lucide-vue-next";
 
 const authStore = useAuthStore();
-const isListOpen = ref(false);
+const uiStore = useUIStore();
 </script>
 
 <template>
@@ -19,16 +20,16 @@ const isListOpen = ref(false);
         <router-view />
 
         <!-- Mobile Toggle Button -->
-        <button class="mobile-list-toggle" @click="isListOpen = !isListOpen">
+        <button class="mobile-list-toggle" @click="uiStore.toggleList">
           <Menu :size="24" />
         </button>
       </div>
 
       <!-- User List (Desktop: Sidebar, Mobile: Drawer) -->
-      <div :class="['list-wrapper', { 'is-open': isListOpen }]">
-        <div class="drawer-header" v-if="isListOpen">
+      <div :class="['list-wrapper', { 'is-open': uiStore.isListOpen }]">
+        <div class="drawer-header" v-if="uiStore.isListOpen">
           <span>メンバーリスト</span>
-          <button class="close-drawer" @click="isListOpen = false">
+          <button class="close-drawer" @click="uiStore.setListOpen(false)">
             <X :size="24" />
           </button>
         </div>
@@ -38,9 +39,9 @@ const isListOpen = ref(false);
       <!-- Drawer Overlay -->
       <Transition name="fade">
         <div
-          v-if="isListOpen"
+          v-if="uiStore.isListOpen"
           class="drawer-overlay"
-          @click="isListOpen = false"
+          @click="uiStore.setListOpen(false)"
         ></div>
       </Transition>
     </Horizontal>

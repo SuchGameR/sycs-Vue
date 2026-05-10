@@ -16,10 +16,10 @@ import {
   Check,
 } from "lucide-vue-next";
 import { useAuthStore } from "../../stores/auth";
-import { createHighlighter } from "shiki";
 import { useRouter } from "vue-router";
 import UserProfileCard from "./UserProfileCard.vue";
 import MediaPreview from "./MediaPreview.vue";
+import { getHighlighter } from "../../utils/shiki";
 
 const props = defineProps<{
   msg: any;
@@ -92,28 +92,8 @@ function stopTimer() {
   if (timer) { clearInterval(timer); timer = null; }
 }
 
-// Shiki Highlighter
-let highlighter: any = null;
-async function initHighlighter() {
-  if (!highlighter) {
-    highlighter = await createHighlighter({
-      themes: ["github-dark", "github-light"],
-      langs: [
-        "javascript",
-        "typescript",
-        "vue",
-        "css",
-        "html",
-        "bash",
-        "json",
-        "sql",
-      ],
-    });
-  }
-}
-
 async function renderContent() {
-  await initHighlighter();
+  const highlighter = await getHighlighter();
   const contentToRender = props.msg.content || "";
   
   // URL and Mention processing
@@ -168,7 +148,7 @@ async function renderContent() {
 // 引用されたコンテンツのレンダリング用
 async function renderOrigContent() {
   if (!props.msg.retweet_id) return;
-  await initHighlighter();
+  const highlighter = await getHighlighter();
   const contentToRender = props.msg.orig_content || "";
   
   let processed = contentToRender.replace(
@@ -340,7 +320,8 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div class="tweet-container" @contextmenu="openContextMenu" @click="goToDetail">
+  <div class="tweet-item-root" style="display: contents;">
+    <div class="tweet-container" @contextmenu="openContextMenu" @click="goToDetail">
     <!-- Retweet Indicator -->
     <div v-if="msg.retweet_id" class="retweet-indicator">
       <Repeat2 :size="14" />
@@ -503,6 +484,7 @@ const formattedTime = computed(() => {
         </div>
       </div>
     </Teleport>
+    </div>
   </div>
 </template>
 
