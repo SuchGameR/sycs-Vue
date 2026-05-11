@@ -69,7 +69,9 @@ const handleFileSelect = (e) => {
   const files = Array.from(target.files || []);
   files.forEach((file) => {
     if (file.size > MAX_FILE_SIZE) {
-      alert(`ファイルサイズが大きすぎます: ${file.name}\n1ファイル20MBまで添付できます`);
+      alert(
+        `ファイルサイズが大きすぎます: ${file.name}\n1ファイル20MBまで添付できます`,
+      );
       return;
     }
     previews.value.push(createPreview(file));
@@ -176,7 +178,7 @@ const sendDM = async () => {
   const content = newMessage.value;
   const parent_id = replyingTo.value?.id;
   isSending.value = true;
-  
+
   const currentFiles = [...selectedFiles.value];
   newMessage.value = "";
   replyingTo.value = null;
@@ -411,16 +413,27 @@ onUnmounted(() => {
     <div class="friend-sidebar">
       <div class="sidebar-header">
         <h2>メッセージ</h2>
-        <button
-          class="request-badge-btn"
-          :class="{ active: activeView === 'requests' }"
-          @click="activeView = 'requests'"
-        >
-          <UserPlus :size="20" />
-          <span v-if="pendingRequests.length > 0" class="badge">
-            {{ pendingRequests.length }}
-          </span>
-        </button>
+        <div class="header-actions">
+          <button
+            class="request-badge-btn"
+            :class="{ active: activeView === 'requests' }"
+            @click="activeView = 'requests'"
+          >
+            <UserPlus :size="20" />
+            <span v-if="pendingRequests.length > 0" class="badge">
+              {{ pendingRequests.length }}
+            </span>
+          </button>
+          <!-- Toggle button for List.vue (Small Window) -->
+          <button
+            v-if="uiStore.isSmallWindow"
+            class="list-toggle-btn"
+            @click="uiStore.toggleList"
+            title="メンバーリストを表示"
+          >
+            <Menu :size="20" />
+          </button>
+        </div>
       </div>
 
       <div class="friend-list">
@@ -529,11 +542,31 @@ onUnmounted(() => {
 
           <!-- File Previews -->
           <div v-if="previews.length > 0" class="previews-container">
-            <div v-for="(file, idx) in previews" :key="idx" class="preview-item">
-              <button class="remove-file" @click="removeFile(idx)"><X :size="12" /></button>
-              <img v-if="file.url && file.type.startsWith('image/')" :src="file.url" class="preview-media" :class="{ 'preview-blur': selectedFiles[idx].options.blur }" />
-              <video v-else-if="file.url && file.type.startsWith('video/')" :src="file.url" class="preview-media" muted :class="{ 'preview-blur': selectedFiles[idx].options.blur }"></video>
-              <div v-else-if="file.type.startsWith('audio/')" class="preview-file-icon audio">
+            <div
+              v-for="(file, idx) in previews"
+              :key="idx"
+              class="preview-item"
+            >
+              <button class="remove-file" @click="removeFile(idx)">
+                <X :size="12" />
+              </button>
+              <img
+                v-if="file.url && file.type.startsWith('image/')"
+                :src="file.url"
+                class="preview-media"
+                :class="{ 'preview-blur': selectedFiles[idx].options.blur }"
+              />
+              <video
+                v-else-if="file.url && file.type.startsWith('video/')"
+                :src="file.url"
+                class="preview-media"
+                muted
+                :class="{ 'preview-blur': selectedFiles[idx].options.blur }"
+              ></video>
+              <div
+                v-else-if="file.type.startsWith('audio/')"
+                class="preview-file-icon audio"
+              >
                 <Music :size="20" />
                 <span class="file-name">{{ file.name }}</span>
               </div>
@@ -544,18 +577,24 @@ onUnmounted(() => {
 
               <!-- Options Overlay -->
               <div class="preview-options">
-                <button 
-                  class="opt-btn" 
-                  :class="{ active: selectedFiles[idx].options.downloadable }" 
-                  @click="selectedFiles[idx].options.downloadable = !selectedFiles[idx].options.downloadable"
+                <button
+                  class="opt-btn"
+                  :class="{ active: selectedFiles[idx].options.downloadable }"
+                  @click="
+                    selectedFiles[idx].options.downloadable =
+                      !selectedFiles[idx].options.downloadable
+                  "
                   title="ダウンロード許可"
                 >
                   <Download :size="12" />
                 </button>
-                <button 
-                  class="opt-btn" 
-                  :class="{ active: selectedFiles[idx].options.blur }" 
-                  @click="selectedFiles[idx].options.blur = !selectedFiles[idx].options.blur"
+                <button
+                  class="opt-btn"
+                  :class="{ active: selectedFiles[idx].options.blur }"
+                  @click="
+                    selectedFiles[idx].options.blur =
+                      !selectedFiles[idx].options.blur
+                  "
                   title="ぼかし"
                 >
                   <EyeOff :size="12" />
@@ -611,6 +650,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+@media screen and (max-width: 510px) {
+  .message-layout {
+    height: calc(100vh - 90px) !important;
+  }
+}
+
 .message-layout {
   display: flex;
   width: 100%;
@@ -624,14 +669,39 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   background: var(--surface);
+  transition: all 0.3s;
+  white-space: nowrap;
 }
-
 .sidebar-header {
   padding: 1.5rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.list-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 50%;
+}
+
+.list-toggle-btn:hover {
+  background-color: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
 }
 
 .sidebar-header h2 {
@@ -986,7 +1056,7 @@ onUnmounted(() => {
   padding: 8px 16px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  align-items: flex-end;
+  align-items: center;
 }
 
 .attach-btn {

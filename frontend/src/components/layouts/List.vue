@@ -12,21 +12,25 @@ const allUsers = [
   { id: 2, name: "Antigravity", status: "online", userid: "anti" },
   { id: 3, name: "User123", status: "offline", userid: "user123" },
   // ログインユーザー自身も含めておく
-  { 
-    id: authStore.user?.id || 0, 
-    name: authStore.user?.username || "", 
+  {
+    id: authStore.user?.id || 0,
+    name: authStore.user?.username || "",
     status: "online",
-    userid: authStore.user?.userid || ""
-  }
+    userid: authStore.user?.userid || "",
+  },
 ];
 
 // モバイルの場合は自分を非表示にする
 const displayUsers = computed(() => {
   if (uiStore.isMobile) {
-    return allUsers.filter(user => user.userid !== authStore.user?.userid);
+    return allUsers.filter((user) => user.userid !== authStore.user?.userid);
   }
   return allUsers;
 });
+
+const HambugerMenu = () => {
+  uiStore.toggleList();
+};
 </script>
 
 <template>
@@ -42,6 +46,32 @@ const displayUsers = computed(() => {
 </template>
 
 <style scoped>
+@keyframes entry {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes close {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  99% {
+    opacity: 0;
+    transform: translateX(100%);
+    display: block;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
 .user-list-sidebar {
   width: 100%;
   max-width: 100%;
@@ -52,11 +82,21 @@ const displayUsers = computed(() => {
   height: 100%;
   overflow-y: auto;
   border-left: 1px solid var(--border);
+  transition: transform 0.3s ease;
+  animation: entry 0.3s ease;
 }
 
 @media (max-width: 510px) {
   .user-list-sidebar {
     border-left: none;
+  }
+}
+
+@media screen and (max-width: 800px) {
+  .user-list-sidebar {
+    animation: close 0.3s ease forwards;
+    position: absolute;
+    right: 0;
   }
 }
 

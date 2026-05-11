@@ -16,13 +16,16 @@ const uiStore = useUIStore();
     <Horizontal class="home-layout">
       <!-- Desktop Sidebar -->
       <Sidebar v-if="!uiStore.isMobile" class="main-sidebar" />
-      
+
       <div class="center-content">
         <router-view />
       </div>
 
       <!-- Desktop User List -->
-      <List v-if="!uiStore.isMobile" class="desktop-list" />
+      <List
+        v-if="!uiStore.isMobile && !uiStore.isSmallWindow"
+        class="desktop-list"
+      />
     </Horizontal>
   </div>
   <div v-else>

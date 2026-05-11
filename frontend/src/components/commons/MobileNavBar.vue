@@ -34,42 +34,44 @@ const ITEM_WIDTH = ITEM_SIZE + GAP;
 
 const updateActiveByScroll = () => {
   if (!scrollContainer.value || isInternalAction || isResizing) return;
-  
+
   const container = scrollContainer.value;
   const scrollLeft = container.scrollLeft;
   const index = Math.round(scrollLeft / ITEM_WIDTH);
-  
+
   if (index >= 0 && index < navItems.length) {
     if (activeIndex.value !== index) {
       activeIndex.value = index;
     }
-    
+
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
       if (isInternalAction || isResizing) return;
-      
+
       const item = navItems[index];
-      
+
       // プロフィール項目が中央に来た時、自動遷移はさせない（クリックで設定を開くため）
       if (item.isProfile) return;
 
       const targetUrl = item.url;
-      
+
       if (targetUrl && route.path !== targetUrl) {
         isInternalAction = true;
         router.push(targetUrl).then(() => {
-          setTimeout(() => { isInternalAction = false; }, 300);
+          setTimeout(() => {
+            isInternalAction = false;
+          }, 300);
         });
       }
-    }, 250);
+    }, 50);
   }
 };
 
 const handleItemClick = (index, url) => {
   if (isResizing) return;
-  
+
   const item = navItems[index];
-  
+
   // プロフィールアイコンをクリックしたら即座に設定を開く
   if (item.isProfile) {
     uiStore.setSettingsOpen(true);
@@ -77,7 +79,7 @@ const handleItemClick = (index, url) => {
     if (scrollContainer.value) {
       scrollContainer.value.scrollTo({
         left: index * ITEM_WIDTH,
-        behavior: "smooth"
+        behavior: "smooth",
       });
     }
     return;
@@ -85,26 +87,31 @@ const handleItemClick = (index, url) => {
 
   isInternalAction = true;
   activeIndex.value = index;
-  
+
   if (url) {
     router.push(url);
   }
-  
+
   if (scrollContainer.value) {
     scrollContainer.value.scrollTo({
       left: index * ITEM_WIDTH,
-      behavior: "smooth"
+      behavior: "smooth",
     });
   }
-  
-  setTimeout(() => { isInternalAction = false; }, 800);
+
+  setTimeout(() => {
+    isInternalAction = false;
+  }, 800);
 };
 
 const handleResize = () => {
   isResizing = true;
   clearTimeout(resizeTimeout);
   if (scrollContainer.value) {
-    scrollContainer.value.scrollTo({ left: activeIndex.value * ITEM_WIDTH, behavior: "auto" });
+    scrollContainer.value.scrollTo({
+      left: activeIndex.value * ITEM_WIDTH,
+      behavior: "auto",
+    });
   }
   resizeTimeout = setTimeout(() => {
     isResizing = false;
@@ -112,45 +119,65 @@ const handleResize = () => {
 };
 
 const syncCarouselToRoute = (newPath) => {
-  const index = navItems.findIndex(item => 
-    item.url === newPath || (item.isProfile && uiStore.isSettingsOpen)
+  const index = navItems.findIndex(
+    (item) =>
+      item.url === newPath || (item.isProfile && uiStore.isSettingsOpen),
   );
-  
+
   if (index !== -1) {
     activeIndex.value = index;
     nextTick(() => {
       if (scrollContainer.value) {
-        if (Math.abs(scrollContainer.value.scrollLeft - index * ITEM_WIDTH) > 2) {
+        if (
+          Math.abs(scrollContainer.value.scrollLeft - index * ITEM_WIDTH) > 2
+        ) {
           isInternalAction = true;
-          scrollContainer.value.scrollTo({ left: index * ITEM_WIDTH, behavior: "smooth" });
-          setTimeout(() => { isInternalAction = false; }, 800);
+          scrollContainer.value.scrollTo({
+            left: index * ITEM_WIDTH,
+            behavior: "smooth",
+          });
+          setTimeout(() => {
+            isInternalAction = false;
+          }, 800);
         }
       }
     });
   }
 };
 
-watch(() => route.path, (newPath) => {
-  if (isInternalAction) return;
-  syncCarouselToRoute(newPath);
-}, { immediate: true });
+watch(
+  () => route.path,
+  (newPath) => {
+    if (isInternalAction) return;
+    syncCarouselToRoute(newPath);
+  },
+  { immediate: true },
+);
 
 // 設定画面の開閉を監視して同期
-watch(() => uiStore.isSettingsOpen, (isOpen) => {
-  if (isOpen) {
-    const index = navItems.findIndex(item => item.isProfile);
-    if (index !== -1) {
-      activeIndex.value = index;
-      if (scrollContainer.value) {
-        scrollContainer.value.scrollTo({ left: index * ITEM_WIDTH, behavior: "smooth" });
+watch(
+  () => uiStore.isSettingsOpen,
+  (isOpen) => {
+    if (isOpen) {
+      const index = navItems.findIndex((item) => item.isProfile);
+      if (index !== -1) {
+        activeIndex.value = index;
+        if (scrollContainer.value) {
+          scrollContainer.value.scrollTo({
+            left: index * ITEM_WIDTH,
+            behavior: "smooth",
+          });
+        }
       }
     }
-  }
-});
+  },
+);
 
 onMounted(() => {
   if (scrollContainer.value) {
-    scrollContainer.value.addEventListener("scroll", updateActiveByScroll, { passive: true });
+    scrollContainer.value.addEventListener("scroll", updateActiveByScroll, {
+      passive: true,
+    });
     window.addEventListener("resize", handleResize);
     syncCarouselToRoute(route.path);
   }
@@ -185,14 +212,23 @@ onUnmounted(() => {
           >
             <div class="icon-wrapper">
               <template v-if="item.isProfile">
-                <div class="nav-avatar-wrapper" :class="{ 'active-border': activeIndex === index }">
-                  <img :src="authStore.user?.avatar_url || '/default-avatar.png'" class="nav-avatar" />
+                <div
+                  class="nav-avatar-wrapper"
+                  :class="{ 'active-border': activeIndex === index }"
+                >
+                  <img
+                    :src="authStore.user?.avatar_url || '/default-avatar.png'"
+                    class="nav-avatar"
+                  />
                 </div>
               </template>
               <template v-else>
                 <component :is="icons[item.ui]" :size="30" />
                 <Transition name="scale">
-                  <span v-if="item.badge && authStore.notificationCount > 0" class="badge">
+                  <span
+                    v-if="item.badge && authStore.notificationCount > 0"
+                    class="badge"
+                  >
                     {{ authStore.notificationCount }}
                   </span>
                 </Transition>
@@ -206,7 +242,10 @@ onUnmounted(() => {
 
     <!-- 右: メンバーリストアイコン -->
     <button class="side-icon-btn list-btn" @click="uiStore.toggleList">
-      <icons.ChevronLeft :size="28" :class="{ 'rotate-180': uiStore.isListOpen }" />
+      <icons.ChevronLeft
+        :size="28"
+        :class="{ 'rotate-180': uiStore.isListOpen }"
+      />
     </button>
   </div>
 </template>
@@ -220,7 +259,7 @@ onUnmounted(() => {
   border-top: 1px solid var(--border);
   padding: 0 10px;
   backdrop-filter: blur(25px);
-  background: rgba(var(--surface-rgb, 255, 255, 255), 0.88);
+  background: rgba(var(--surface, 255, 255, 255), 0.88);
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 100;
@@ -268,12 +307,12 @@ onUnmounted(() => {
 
 .carousel-mask.left {
   left: 0;
-  background: linear-gradient(to right, var(--surface) 30%, transparent);
+  background: linear-gradient(to right, var(--surface) 10%, transparent);
 }
 
 .carousel-mask.right {
   right: 0;
-  background: linear-gradient(to left, var(--surface) 30%, transparent);
+  background: linear-gradient(to left, var(--surface) 10%, transparent);
 }
 
 .center-scroll-nav {
@@ -285,6 +324,7 @@ onUnmounted(() => {
   align-items: center;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-align: start;
   /* アイテムサイズ 56px の半分 = 28px */
   padding-left: calc(50% - 28px);
   padding-right: calc(50% - 28px);
@@ -316,7 +356,11 @@ onUnmounted(() => {
 
 .snap-item.active {
   color: var(--accent);
-  transform: scale(1.35) translateY(-6px);
+  /* transform: scale(1.35) translateY(-6px); */
+  transform: scale(1.35);
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.1);
+  /* box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3); */
 }
 
 .icon-wrapper {
@@ -334,7 +378,7 @@ onUnmounted(() => {
   border: 2px solid var(--border);
   transition: all 0.3s;
   overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .nav-avatar-wrapper.active-border {
@@ -363,13 +407,15 @@ onUnmounted(() => {
   min-width: 20px;
   font-weight: 900;
   border: 2px solid var(--surface);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-.scale-enter-active, .scale-leave-active {
+.scale-enter-active,
+.scale-leave-active {
   transition: transform 0.2s;
 }
-.scale-enter-from, .scale-leave-to {
+.scale-enter-from,
+.scale-leave-to {
   transform: scale(0);
 }
 

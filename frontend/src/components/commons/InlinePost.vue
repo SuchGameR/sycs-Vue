@@ -10,6 +10,7 @@ import {
   FileIcon,
   Film,
   Music,
+  Lightbulb,
 } from "lucide-vue-next";
 import { uploadAttachments } from "../../utils/upload";
 
@@ -139,6 +140,10 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
+  <p class="top-message">
+    <Lightbulb :size="24" class="hint-icon" />
+    ここまでが、最新の投稿です。
+  </p>
   <div class="inline-post">
     <div class="post-layout">
       <div class="avatar-col">
@@ -219,6 +224,27 @@ function handleKeydown(e: KeyboardEvent) {
 </template>
 
 <style scoped>
+@media (max-width: 510px) {
+  .inline-post {
+    display: none !important;
+  }
+  .top-message {
+    display: flex !important;
+    margin: 12px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+}
+
+.top-message {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin: 16px;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
 @container small (max-width: 500px) {
   .user-avatar {
     width: 40px;

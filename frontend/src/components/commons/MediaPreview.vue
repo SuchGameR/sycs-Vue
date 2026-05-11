@@ -246,13 +246,13 @@ const documents = computed(
   gap: 2px;
 
   border: 1px solid var(--border);
-  aspect-ratio: 16 / 9;
+  /* aspect-ratio: 16 / 9; */
 }
 
 .image-grid.grid-1 {
   grid-template-columns: 1fr;
-  aspect-ratio: auto;
-  max-height: 500px;
+  /* aspect-ratio: auto; */
+  /* max-height: 500px; */
 }
 .image-grid.grid-2 {
   grid-template-columns: 1fr 1fr;

@@ -7,6 +7,7 @@ export const useUIStore = defineStore("ui", () => {
   const isSettingsOpen = ref(false);
   const isCreateServerModalOpen = ref(false);
   const isMobile = ref(window.innerWidth < 510);
+  const isSmallWindow = ref(window.innerWidth < 800);
 
   function toggleList() {
     isListOpen.value = !isListOpen.value;
@@ -41,7 +42,9 @@ export const useUIStore = defineStore("ui", () => {
   }
 
   function updateMobile() {
-    isMobile.value = window.innerWidth < 510;
+    const w = window.innerWidth;
+    isMobile.value = w < 510;
+    isSmallWindow.value = w < 800;
   }
 
   window.addEventListener("resize", updateMobile);

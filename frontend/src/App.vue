@@ -142,9 +142,7 @@ const setupPush = async () => {
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, "+")
-    .replace(/_/g, "/");
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
 
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
@@ -162,21 +160,29 @@ onUnmounted(() => {
 
 <template>
   <div id="app">
-    <!-- Mobile Drawers -->
-    <div v-if="uiStore.isMobile" class="mobile-drawers-container">
-      <!-- Left Drawer: Servers -->
+    <!-- Mobile/Small Window Drawers -->
+    <div
+      v-if="uiStore.isMobile || uiStore.isSmallWindow"
+      class="mobile-drawers-container"
+    >
+      <!-- Left Drawer: Servers (Mobile Only) -->
       <Transition name="slide-left">
-        <div v-if="uiStore.isSidebarOpen" class="mobile-drawer left">
+        <div
+          v-if="uiStore.isMobile && uiStore.isSidebarOpen"
+          class="mobile-drawer left"
+        >
           <Sidebar />
         </div>
       </Transition>
 
-      <!-- Right Drawer: User List -->
+      <!-- Right Drawer: User List (Mobile and Small Window) -->
       <Transition name="slide-right">
         <div v-if="uiStore.isListOpen" class="mobile-drawer right">
           <div class="drawer-header">
             <span>メンバーリスト</span>
-            <button class="close-btn" @click="uiStore.setListOpen(false)"><X :size="20" /></button>
+            <button class="close-btn" @click="uiStore.setListOpen(false)">
+              <X :size="20" />
+            </button>
           </div>
           <List />
         </div>
@@ -184,10 +190,15 @@ onUnmounted(() => {
 
       <!-- Overlay for Drawers -->
       <Transition name="fade">
-        <div 
-          v-if="uiStore.isSidebarOpen || uiStore.isListOpen" 
-          class="drawer-overlay" 
-          @click="uiStore.setSidebarOpen(false); uiStore.setListOpen(false)"
+        <div
+          v-if="
+            (uiStore.isMobile && uiStore.isSidebarOpen) || uiStore.isListOpen
+          "
+          class="drawer-overlay"
+          @click="
+            uiStore.setSidebarOpen(false);
+            uiStore.setListOpen(false);
+          "
         ></div>
       </Transition>
     </div>
@@ -195,15 +206,21 @@ onUnmounted(() => {
     <router-view />
 
     <!-- Global Modals -->
-    <SettingsModal :show="uiStore.isSettingsOpen" @close="uiStore.setSettingsOpen(false)" />
-    <CreateServerModal 
-      :show="uiStore.isCreateServerModalOpen" 
+    <SettingsModal
+      :show="uiStore.isSettingsOpen"
+      @close="uiStore.setSettingsOpen(false)"
+    />
+    <CreateServerModal
+      :show="uiStore.isCreateServerModalOpen"
       @close="uiStore.setCreateServerOpen(false)"
       @created="uiStore.setCreateServerOpen(false)"
     />
 
     <!-- Bottom Navigation Bar (Mobile) -->
-    <nav v-if="authStore.isAuthenticated && uiStore.isMobile" class="bottom-nav">
+    <nav
+      v-if="authStore.isAuthenticated && uiStore.isMobile"
+      class="bottom-nav"
+    >
       <MobileNavBar />
     </nav>
 
@@ -230,8 +247,21 @@ onUnmounted(() => {
   /* Global styles for the app */
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .bottom-nav {
+  transition: 0.3s ease;
   display: none;
+  animation: fadeIn 0.3s ease forwards;
 }
 
 @media (max-width: 510px) {
@@ -248,7 +278,7 @@ onUnmounted(() => {
   }
 
   #app {
-    padding-bottom: 60px; /* Space for bottom nav */
+    padding-bottom: 0px; /* Space for bottom nav */
   }
 }
 
@@ -306,23 +336,29 @@ onUnmounted(() => {
 }
 
 /* Transitions */
-.slide-left-enter-active, .slide-left-leave-active,
-.slide-right-enter-active, .slide-right-leave-active {
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
   transition: transform 0.6s cubic-bezier(0.2, 1, 0.3, 1);
 }
 
-.slide-left-enter-from, .slide-left-leave-to {
+.slide-left-enter-from,
+.slide-left-leave-to {
   transform: translateX(-100%);
 }
 
-.slide-right-enter-from, .slide-right-leave-to {
+.slide-right-enter-from,
+.slide-right-leave-to {
   transform: translateX(100%);
 }
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.3s;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 

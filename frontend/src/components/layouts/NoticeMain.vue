@@ -121,6 +121,15 @@ onMounted(fetchNotifications);
   <div class="notice-layout">
     <div class="header">
       <h2>通知</h2>
+      <!-- Toggle button for List.vue (Small Window) -->
+      <button 
+        v-if="uiStore.isSmallWindow" 
+        class="list-toggle-btn" 
+        @click="uiStore.toggleList"
+        title="メンバーリストを表示"
+      >
+        <Menu :size="20" />
+      </button>
     </div>
 
     <div class="notification-list">
@@ -200,6 +209,27 @@ onMounted(fetchNotifications);
   position: sticky;
   top: 0;
   z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.list-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 50%;
+}
+
+.list-toggle-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--accent);
 }
 
 .header h2 {

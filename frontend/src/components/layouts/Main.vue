@@ -46,10 +46,10 @@ const handleTouchStart = (e) => {
 
 const handleTouchMove = (e) => {
   if (startTouchY.value === 0) return;
-  
+
   const currentY = e.touches[0].clientY;
   const distance = currentY - startTouchY.value;
-  
+
   if (distance > 0) {
     isPulling.value = true;
     // 指の動きに対して少し重くする（抵抗感）
@@ -59,11 +59,11 @@ const handleTouchMove = (e) => {
 
 const handleTouchEnd = async () => {
   if (!isPulling.value) return;
-  
+
   if (pullDistance.value >= REFRESH_THRESHOLD) {
     await fetchMessages();
   }
-  
+
   // Reset with animation
   const step = pullDistance.value / 10;
   const resetInterval = setInterval(() => {
@@ -75,7 +75,7 @@ const handleTouchEnd = async () => {
       pullDistance.value -= step;
     }
   }, 16);
-  
+
   startTouchY.value = 0;
 };
 
@@ -351,25 +351,37 @@ watch(activeTab, () => {
         >
           {{ authStore.t[tab] }}
         </div>
+        <!-- Toggle button for List.vue (Small Window) -->
+        <button
+          v-if="uiStore.isSmallWindow"
+          class="list-toggle-btn"
+          @click="uiStore.toggleList"
+          title="メンバーリストを表示"
+        >
+          <Menu :size="20" />
+        </button>
       </section>
 
       <!-- タイムラインエリア -->
-      <div 
-        class="timeline" 
-        ref="messageListRef" 
+      <div
+        class="timeline"
+        ref="messageListRef"
         @scroll="handleScroll"
         @touchstart="handleTouchStart"
         @touchmove="handleTouchMove"
         @touchend="handleTouchEnd"
       >
         <!-- Pull to Refresh Indicator -->
-        <div 
-          v-if="isPulling" 
+        <div
+          v-if="isPulling"
           class="pull-indicator"
-          :style="{ height: pullDistance + 'px', opacity: pullDistance / REFRESH_THRESHOLD }"
+          :style="{
+            height: pullDistance + 'px',
+            opacity: pullDistance / REFRESH_THRESHOLD,
+          }"
         >
-          <icons.RefreshCw 
-            :size="24" 
+          <icons.RefreshCw
+            :size="24"
             :class="{ rotating: pullDistance >= REFRESH_THRESHOLD || loading }"
           />
         </div>
@@ -454,6 +466,10 @@ watch(activeTab, () => {
   .main-layout {
     max-width: 100%;
   }
+
+  .fab {
+    bottom: 8rem !important;
+  }
 }
 
 .mainContainer {
@@ -508,6 +524,23 @@ watch(activeTab, () => {
   border-radius: 4px 4px 0 0;
 }
 
+.list-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.list-toggle-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--accent);
+}
+
 .badge {
   position: absolute;
   top: 6px;
@@ -545,8 +578,12 @@ watch(activeTab, () => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .fab {

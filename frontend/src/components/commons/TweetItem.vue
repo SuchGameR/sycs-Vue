@@ -89,13 +89,16 @@ function startTimer() {
   }, 1000);
 }
 function stopTimer() {
-  if (timer) { clearInterval(timer); timer = null; }
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
 }
 
 async function renderContent() {
   const highlighter = await getHighlighter();
   const contentToRender = props.msg.content || "";
-  
+
   // URL and Mention processing
   // First escape HTML
   let processed = contentToRender.replace(
@@ -114,7 +117,7 @@ async function renderContent() {
   // Since we don't have profile pages yet, we use a class for styling
   processed = processed.replace(
     /@([a-zA-Z0-9_]+)/g,
-    '<a href="#" class="mention">@$1</a>'
+    '<a href="#" class="mention">@$1</a>',
   );
 
   const renderer = new marked.Renderer();
@@ -134,14 +137,14 @@ async function renderContent() {
     return `<a href="${href}" title="${title || ""}" target="_blank" rel="noopener noreferrer">${text}</a>`;
   };
 
-  const rawHtml = await marked.parse(processed, { 
-    renderer, 
+  const rawHtml = await marked.parse(processed, {
+    renderer,
     async: true,
     breaks: true, // Support line breaks
-    gfm: true     // Support GitHub Flavored Markdown (including autolinks)
+    gfm: true, // Support GitHub Flavored Markdown (including autolinks)
   });
   highlightedHtml.value = DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ["target", "class", "rel"] // Allow target, class, and rel
+    ADD_ATTR: ["target", "class", "rel"], // Allow target, class, and rel
   });
 }
 
@@ -150,7 +153,7 @@ async function renderOrigContent() {
   if (!props.msg.retweet_id) return;
   const highlighter = await getHighlighter();
   const contentToRender = props.msg.orig_content || "";
-  
+
   let processed = contentToRender.replace(
     /[&<>"']/g,
     (m) =>
@@ -165,7 +168,7 @@ async function renderOrigContent() {
 
   processed = processed.replace(
     /@([a-zA-Z0-9_]+)/g,
-    '<a href="#" class="mention">@$1</a>'
+    '<a href="#" class="mention">@$1</a>',
   );
 
   const renderer = new marked.Renderer();
@@ -184,14 +187,14 @@ async function renderOrigContent() {
   renderer.link = ({ href, title, text }) => {
     return `<a href="${href}" title="${title || ""}" target="_blank" rel="noopener noreferrer">${text}</a>`;
   };
-  const rawHtml = await marked.parse(processed, { 
-    renderer, 
+  const rawHtml = await marked.parse(processed, {
+    renderer,
     async: true,
     breaks: true,
-    gfm: true
+    gfm: true,
   });
   highlightedOrigHtml.value = DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ["target", "class", "rel"]
+    ADD_ATTR: ["target", "class", "rel"],
   });
 }
 
@@ -199,12 +202,9 @@ async function renderOrigContent() {
 async function incrementViews() {
   try {
     const targetId = props.msg.retweet_id || props.msg.id;
-    await fetch(
-      `/api/messages/${targetId}/views`,
-      {
-        method: "POST",
-      },
-    );
+    await fetch(`/api/messages/${targetId}/views`, {
+      method: "POST",
+    });
   } catch (e) {
     console.error(e);
   }
@@ -225,10 +225,13 @@ onUnmounted(() => {
 
 watch(() => props.msg.content, renderContent);
 watch(() => props.msg.orig_content, renderOrigContent);
-watch(() => authStore.theme, () => {
-  renderContent();
-  renderOrigContent();
-});
+watch(
+  () => authStore.theme,
+  () => {
+    renderContent();
+    renderOrigContent();
+  },
+);
 
 function handleAction(type: string) {
   emit(type as any, props.msg);
@@ -256,7 +259,7 @@ const displayAuthor = computed(() => ({
 const totalLikes = computed(() => {
   if (!props.msg.reactions) return 0;
   // ハートリアクションのみ、または全リアクションの合計を返す
-  const likes = props.msg.reactions['❤️'] || [];
+  const likes = props.msg.reactions["❤️"] || [];
   return likes.length;
 });
 
@@ -338,170 +341,186 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div class="tweet-item-root" style="display: contents;">
-    <div class="tweet-container" @contextmenu="openContextMenu" @click="goToDetail">
-    <!-- Retweet Indicator -->
-    <div v-if="msg.retweet_id" class="retweet-indicator">
-      <Repeat2 :size="14" />
-      <span>{{ msg.author_name }}さんがリポストしました</span>
-    </div>
-
-    <div class="tweet-main">
-      <div class="avatar-col">
-        <img
-          :src="displayAuthor.avatar || '/default-avatar.png'"
-          class="author-avatar"
-          @mouseenter="handleMouseEnter"
-          @mouseleave="handleMouseLeave"
-          @click.stop="goToProfile"
-        />
+  <div class="tweet-item-root" style="display: contents">
+    <div
+      class="tweet-container"
+      @contextmenu="openContextMenu"
+      @click="goToDetail"
+    >
+      <!-- Retweet Indicator -->
+      <div v-if="msg.retweet_id" class="retweet-indicator">
+        <Repeat2 :size="14" />
+        <span>{{ msg.author_name }}さんがリポストしました</span>
       </div>
-      <div class="content-col">
-        <div class="tweet-header">
-          <div class="author-info">
-            <span
-              class="author-name"
-              @mouseenter="handleMouseEnter"
-              @mouseleave="handleMouseLeave"
-              @click.stop="goToProfile"
-            >{{ displayAuthor.name }}</span>
-            <span class="author-handle">@{{ displayAuthor.handle }}</span>
-            <span v-if="authStore.timeDisplayMode !== 'none'" class="dot">·</span>
-            <span class="timestamp">{{ formattedTime }}</span>
-          </div>
-          <button class="more-btn" @click.stop="openContextMenu">
-            <MoreHorizontal :size="18" />
-          </button>
+
+      <div class="tweet-main">
+        <div class="avatar-col">
+          <img
+            :src="displayAuthor.avatar || '/default-avatar.png'"
+            class="author-avatar"
+            @mouseenter="handleMouseEnter"
+            @mouseleave="handleMouseLeave"
+            @click.stop="goToProfile"
+          />
         </div>
-
-        <div v-if="msg.content" class="tweet-body markdown-body" v-html="highlightedHtml"></div>
-
-        <!-- Attachments -->
-        <MediaPreview v-if="msg.attachment" :attachments="msg.attachment" />
-
-        <!-- Quoted Post Box -->
-        <div v-if="msg.retweet_id" class="quoted-post">
-          <div class="quoted-header">
-            <img :src="msg.orig_avatar_url || '/default-avatar.png'" class="quoted-avatar" />
-            <span class="quoted-author-name">{{ msg.orig_author_name }}</span>
-            <span class="quoted-author-handle">@{{ msg.orig_author_handle }}</span>
-          </div>
-          <div class="quoted-body markdown-body" v-html="highlightedOrigHtml"></div>
-        </div>
-
-        <div class="tweet-actions">
-          <!-- Reply -->
-          <button
-            class="action-btn reply"
-            @click.stop="handleAction('reply')"
-            title="返信"
-          >
-            <div class="icon-wrap"><MessageCircle :size="18" /></div>
-            <span class="count" v-if="msg.reply_count">{{
-              msg.reply_count
-            }}</span>
-          </button>
-
-          <!-- Retweet -->
-          <button
-            class="action-btn retweet"
-            :class="{ active: msg.is_retweeted }"
-            @click.stop="handleAction('retweet')"
-            title="リポスト"
-          >
-            <div class="icon-wrap"><Repeat2 :size="18" /></div>
-            <span class="count" v-if="msg.retweet_count">{{
-              msg.retweet_count
-            }}</span>
-          </button>
-
-          <!-- Like -->
-          <button
-            class="action-btn like"
-            :class="{ active: msg.is_liked }"
-            @click.stop="handleAction('like')"
-            title="いいね"
-          >
-            <div class="icon-wrap">
-              <Heart
-                :size="18"
-                :fill="msg.is_liked ? 'currentColor' : 'none'"
-              />
+        <div class="content-col">
+          <div class="tweet-header">
+            <div class="author-info">
+              <span
+                class="author-name"
+                @mouseenter="handleMouseEnter"
+                @mouseleave="handleMouseLeave"
+                @click.stop="goToProfile"
+                >{{ displayAuthor.name }}</span
+              >
+              <span class="author-handle">@{{ displayAuthor.handle }}</span>
+              <span v-if="authStore.timeDisplayMode !== 'none'" class="dot"
+                >·</span
+              >
+              <span class="timestamp">{{ formattedTime }}</span>
             </div>
-            <span
-              class="count"
-              v-if="totalLikes"
-            >
-              {{ totalLikes }}
-            </span>
-          </button>
+            <button class="more-btn" @click.stop="openContextMenu">
+              <MoreHorizontal :size="18" />
+            </button>
+          </div>
 
-          <!-- Views -->
-          <button class="action-btn views" title="表示件数">
-            <div class="icon-wrap"><BarChart3 :size="18" /></div>
-            <span class="count">{{ msg.views_count || 0 }}</span>
-          </button>
+          <div
+            v-if="msg.content"
+            class="tweet-body markdown-body"
+            v-html="highlightedHtml"
+          ></div>
 
-          <!-- Share/Bookmark -->
-          <div class="share-group">
+          <!-- Attachments -->
+          <MediaPreview v-if="msg.attachment" :attachments="msg.attachment" />
+
+          <!-- Quoted Post Box -->
+          <div v-if="msg.retweet_id" class="quoted-post">
+            <div class="quoted-header">
+              <img
+                :src="msg.orig_avatar_url || '/default-avatar.png'"
+                class="quoted-avatar"
+              />
+              <span class="quoted-author-name">{{ msg.orig_author_name }}</span>
+              <span class="quoted-author-handle"
+                >@{{ msg.orig_author_handle }}</span
+              >
+            </div>
+            <div
+              class="quoted-body markdown-body"
+              v-html="highlightedOrigHtml"
+            ></div>
+          </div>
+
+          <div class="tweet-actions">
+            <!-- Reply -->
             <button
-              class="action-btn bookmark"
-              :class="{ active: msg.is_bookmarked }"
-              @click.stop="handleAction('bookmark')"
-              title="ブックマーク"
+              class="action-btn reply"
+              @click.stop="handleAction('reply')"
+              title="返信"
+            >
+              <div class="icon-wrap"><MessageCircle :size="18" /></div>
+              <span class="count" v-if="msg.reply_count">{{
+                msg.reply_count
+              }}</span>
+            </button>
+
+            <!-- Retweet -->
+            <button
+              class="action-btn retweet"
+              :class="{ active: msg.is_retweeted }"
+              @click.stop="handleAction('retweet')"
+              title="リポスト"
+            >
+              <div class="icon-wrap"><Repeat2 :size="18" /></div>
+              <span class="count" v-if="msg.retweet_count">{{
+                msg.retweet_count
+              }}</span>
+            </button>
+
+            <!-- Like -->
+            <button
+              class="action-btn like"
+              :class="{ active: msg.is_liked }"
+              @click.stop="handleAction('like')"
+              title="いいね"
             >
               <div class="icon-wrap">
-                <Bookmark
+                <Heart
                   :size="18"
-                  :fill="msg.is_bookmarked ? 'currentColor' : 'none'"
+                  :fill="msg.is_liked ? 'currentColor' : 'none'"
                 />
               </div>
+              <span class="count" v-if="totalLikes">
+                {{ totalLikes }}
+              </span>
             </button>
-            <button
-              class="action-btn share"
-              @click.stop="copyToClipboard"
-              title="共有"
-            >
-              <div class="icon-wrap"><Share :size="18" /></div>
+
+            <!-- Views -->
+            <button class="action-btn views" title="表示件数">
+              <div class="icon-wrap"><BarChart3 :size="18" /></div>
+              <span class="count">{{ msg.views_count || 0 }}</span>
             </button>
+
+            <!-- Share/Bookmark -->
+            <div class="share-group">
+              <button
+                class="action-btn bookmark"
+                :class="{ active: msg.is_bookmarked }"
+                @click.stop="handleAction('bookmark')"
+                title="ブックマーク"
+              >
+                <div class="icon-wrap">
+                  <Bookmark
+                    :size="18"
+                    :fill="msg.is_bookmarked ? 'currentColor' : 'none'"
+                  />
+                </div>
+              </button>
+              <button
+                class="action-btn share"
+                @click.stop="copyToClipboard"
+                title="共有"
+              >
+                <div class="icon-wrap"><Share :size="18" /></div>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- User Profile Hover Card -->
-    <UserProfileCard 
-      :user="msg" 
-      :show="showProfileCard" 
-      :position="cardPosition"
-      @mouseenter="clearTimeout(hoverTimer)"
-      @mouseleave="handleMouseLeave"
-    />
+      <!-- User Profile Hover Card -->
+      <UserProfileCard
+        :user="msg"
+        :show="showProfileCard"
+        :position="cardPosition"
+        @mouseenter="clearTimeout(hoverTimer)"
+        @mouseleave="handleMouseLeave"
+      />
 
-    <!-- Context Menu (Simplified for brevity, but functional) -->
-    <Teleport to="body">
-      <div
-        v-if="showContextMenu"
-        class="context-menu"
-        :style="{ top: menuPos.y + 'px', left: menuPos.x + 'px' }"
-        @click.stop="showContextMenu = false"
-      >
-        <div class="menu-item" @click="copyToClipboard">
-          <component :is="isCopying ? Check : Copy" :size="16" />
-          リンクをコピー
-        </div>
-        <div v-if="isAuthor" class="menu-item" @click="handleAction('edit')">
-          <Pencil :size="16" /> 編集
-        </div>
+      <!-- Context Menu (Simplified for brevity, but functional) -->
+      <Teleport to="body">
         <div
-          v-if="isAuthor"
-          class="menu-item delete"
-          @click="handleAction('delete')"
+          v-if="showContextMenu"
+          class="context-menu"
+          :style="{ top: menuPos.y + 'px', left: menuPos.x + 'px' }"
+          @click.stop="showContextMenu = false"
         >
-          <Trash2 :size="16" /> 削除
+          <div class="menu-item" @click="copyToClipboard">
+            <component :is="isCopying ? Check : Copy" :size="16" />
+            リンクをコピー
+          </div>
+          <div v-if="isAuthor" class="menu-item" @click="handleAction('edit')">
+            <Pencil :size="16" /> 編集
+          </div>
+          <div
+            v-if="isAuthor"
+            class="menu-item delete"
+            @click="handleAction('delete')"
+          >
+            <Trash2 :size="16" /> 削除
+          </div>
         </div>
-      </div>
-    </Teleport>
+      </Teleport>
     </div>
   </div>
 </template>
@@ -610,6 +629,28 @@ const formattedTime = computed(() => {
   line-height: 1.5;
   color: var(--text-primary);
   word-break: break-word;
+}
+
+@media (max-width: 510px) {
+  .author-avatar {
+    width: 40px;
+    height: 40px;
+    margin-top: 8px;
+  }
+  .author-name {
+    font-size: 0.95rem;
+  }
+  .author-handle {
+    font-size: 0.9rem;
+  }
+  .dot,
+  .timestamp {
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  .inline-post {
+    display: none !important;
+  }
 }
 
 :deep(.mention) {
