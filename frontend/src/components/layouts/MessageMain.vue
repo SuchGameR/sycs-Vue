@@ -16,6 +16,7 @@ import {
   EyeOff,
   Plus,
   Menu,
+  ChevronLeft,
 } from "lucide-vue-next";
 import Vertical from "../configurations/Vertical.vue";
 import MessageItem from "../commons/MessageItem.vue";
@@ -37,6 +38,17 @@ const isSending = ref(false);
 const isUploading = ref(false);
 const activeView = ref("chat"); // 'chat' or 'requests'
 const replyingTo = ref(null);
+
+const isFriendDrawerOpen = ref(false);
+
+const toggleFriendDrawer = () => {
+  isFriendDrawerOpen.value = !isFriendDrawerOpen.value;
+};
+
+const goBackToList = () => {
+  selectedFriend.value = null;
+  router.push("/message");
+};
 
 const selectedFiles = ref([]);
 const previews = ref([]);
@@ -320,6 +332,7 @@ const selectFriend = (friend, shouldPush = true) => {
   activeView.value = "chat";
   messages.value = [];
   fetchDMs(friend.uid);
+  isFriendDrawerOpen.value = false;
   if (shouldPush) {
     router.push(`/message/@${friend.handle}`);
   }
@@ -408,11 +421,34 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="message-layout">
+  <div
+    class="message-layout"
+    :class="{
+      'mobile-mode': uiStore.isMobile,
+      'chat-active': uiStore.isMobile && route.params.handle,
+    }"
+  >
+    <!-- Overlay for Narrow Friend Drawer -->
+    <Transition name="fade">
+      <div
+        v-if="uiStore.isSmallWindow && isFriendDrawerOpen"
+        class="drawer-overlay"
+        @click="isFriendDrawerOpen = false"
+      ></div>
+    </Transition>
+
     <!-- フレンドリスト (左側) -->
-    <div class="friend-sidebar">
+    <div
+      class="friend-sidebar"
+      :class="{
+        drawer: uiStore.isSmallWindow,
+        'drawer-open': isFriendDrawerOpen,
+      }"
+    >
       <div class="sidebar-header">
-        <h2>メッセージ</h2>
+        <div class="header-title-group">
+          <h2>メッセージ</h2>
+        </div>
         <div class="header-actions">
           <button
             class="request-badge-btn"
@@ -424,7 +460,7 @@ onUnmounted(() => {
               {{ pendingRequests.length }}
             </span>
           </button>
-          <!-- Toggle button for List.vue (Small Window) -->
+          <!-- Toggle button for Member List (Right Side) -->
           <button
             v-if="uiStore.isSmallWindow"
             class="list-toggle-btn"
@@ -500,6 +536,20 @@ onUnmounted(() => {
       <div v-else-if="selectedFriend" class="chat-view">
         <div class="chat-header">
           <div class="user-info">
+            <button
+              v-if="uiStore.isMobile"
+              class="back-btn"
+              @click="goBackToList"
+            >
+              <ChevronLeft :size="24" />
+            </button>
+            <button
+              v-else-if="uiStore.isSmallWindow"
+              class="hamburger-btn"
+              @click="toggleFriendDrawer"
+            >
+              <Menu :size="24" />
+            </button>
             <img
               :src="selectedFriend.avatar_url || '/default-avatar.png'"
               class="avatar"
@@ -652,7 +702,7 @@ onUnmounted(() => {
 <style scoped>
 @media screen and (max-width: 510px) {
   .message-layout {
-    height: calc(100vh - 90px) !important;
+    height: 100vh !important;
   }
 }
 
@@ -661,6 +711,64 @@ onUnmounted(() => {
   width: 100%;
   height: 100vh;
   background: var(--background);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Mobile Sliding Transitions */
+.message-layout.mobile-mode {
+  display: block; /* Absolute children */
+}
+
+.message-layout.mobile-mode .friend-sidebar {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  border-right: none;
+  transform: translateX(0);
+  transition:
+    transform 0.4s cubic-bezier(0.2, 1, 0.3, 1),
+    visibility 0.4s;
+  visibility: visible;
+}
+
+.message-layout.mobile-mode .message-main {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  transform: translateX(100%);
+  transition:
+    transform 0.4s cubic-bezier(0.2, 1, 0.3, 1),
+    visibility 0.4s;
+  background: var(--background);
+  visibility: hidden;
+}
+
+.message-layout.mobile-mode.chat-active .friend-sidebar {
+  transform: translateX(-100%);
+  visibility: hidden;
+}
+
+.message-layout.mobile-mode.chat-active .message-main {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
 }
 
 .friend-sidebar {
@@ -669,9 +777,43 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   background: var(--surface);
-  transition: all 0.3s;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  z-index: 5;
 }
+
+.friend-sidebar.drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transform: translateX(-100%);
+  z-index: 1100;
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+}
+
+.friend-sidebar.drawer-open {
+  transform: translateX(0);
+}
+
+.friend-sidebar.hidden-mobile {
+  display: none;
+}
+
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.close-drawer-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+}
+
 .sidebar-header {
   padding: 1.5rem;
   border-bottom: 1px solid var(--border);
@@ -883,6 +1025,27 @@ onUnmounted(() => {
 .chat-header .user-info {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.back-btn,
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.back-btn:hover,
+.hamburger-btn:hover {
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
 }
 
 .chat-header .name {
@@ -1145,23 +1308,13 @@ onUnmounted(() => {
   font-style: italic;
 }
 
-@media (max-width: 768px) {
-  .friend-sidebar {
-    width: 80px;
-  }
-  .sidebar-header h2,
-  .friend-info {
-    display: none;
-  }
-  .sidebar-header {
-    justify-content: center;
-  }
-  .friend-item {
-    justify-content: center;
-    padding: 1rem 0;
-  }
-  .avatar {
-    margin-right: 0;
-  }
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

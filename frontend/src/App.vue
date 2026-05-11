@@ -12,15 +12,25 @@ import CreateServerModal from "./components/popups/CreateServerModal.vue";
 import { ChevronLeft, X } from "lucide-vue-next";
 
 import { useUIStore } from "./stores/ui";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useSidebarSwipe } from "./utils/useSidebarSwipe";
+import { computed } from "vue";
 
 const authStore = useAuthStore();
 const uiStore = useUIStore();
 const router = useRouter();
+const route = useRoute();
 
 // Enable Swipe Gestures
 useSidebarSwipe();
+
+const isChatActiveOnMobile = computed(() => {
+  return (
+    uiStore.isMobile &&
+    route.path.startsWith("/message/@") &&
+    route.params.handle
+  );
+});
 const toasts = ref([]);
 const socket = io("/", { path: "/socket.io" });
 
@@ -218,7 +228,7 @@ onUnmounted(() => {
 
     <!-- Bottom Navigation Bar (Mobile) -->
     <nav
-      v-if="authStore.isAuthenticated && uiStore.isMobile"
+      v-if="authStore.isAuthenticated && uiStore.isMobile && !isChatActiveOnMobile"
       class="bottom-nav"
     >
       <MobileNavBar />

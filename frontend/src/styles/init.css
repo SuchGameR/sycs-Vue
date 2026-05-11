@@ -72,6 +72,7 @@ html {
   position: fixed; /* iOS zoom prevention fallback */
   left: 0;
   top: 0;
+  overscroll-behavior-x: none;
 }
 
 * {
@@ -81,6 +82,8 @@ html {
   /* font-family: BIZUD, sans-serif; */
   font-family: LINESeedJP, sans-serif;
   touch-action: manipulation; /* Prevent double-tap zoom */
+  user-select: none; /* Disable text selection */
+  cursor: default; /* Set default cursor */
 }
 
 h1,
