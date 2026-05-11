@@ -4,7 +4,7 @@ import { useAuthStore } from "../stores/auth";
 import { useUIStore } from "../stores/ui";
 import Horizontal from "../components/configurations/Horizontal.vue";
 import Sidebar from "../components/layouts/Sidebar.vue";
-import Main from "../components/layouts/Main.vue";
+import FavoriteMain from "../components/layouts/FavoriteMain.vue";
 import List from "../components/layouts/List.vue";
 import Landing from "../components/layouts/Landing.vue";
 
@@ -19,7 +19,7 @@ const uiStore = useUIStore();
       <Sidebar v-if="!uiStore.isMobile" class="main-sidebar" />
       
       <div class="center-content">
-        <Main />
+        <FavoriteMain />
       </div>
 
       <!-- Desktop User List -->

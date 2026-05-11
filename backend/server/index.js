@@ -1157,6 +1157,106 @@ app.get("/api/messages/local", authenticateToken, async (req, res) => {
   }
 });
 
+// Get liked messages
+app.get("/api/messages/likes", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $3) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $3) as is_bookmarked,
+              orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       LEFT JOIN messages orig ON m.retweet_id = orig.id
+       LEFT JOIN users ou ON orig.user_id = ou.id
+       WHERE COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int)
+       ORDER BY m.created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch liked messages" });
+  }
+});
+
+// Get bookmarked messages
+app.get("/api/messages/bookmarks", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $3) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $3) as is_bookmarked,
+              orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       LEFT JOIN messages orig ON m.retweet_id = orig.id
+       LEFT JOIN users ou ON orig.user_id = ou.id
+       JOIN bookmarks b ON m.id = b.message_id
+       WHERE b.user_id = $3
+       ORDER BY b.created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch bookmarked messages" });
+  }
+});
+
+// Get user's retweeted messages
+app.get("/api/messages/retweets", authenticateToken, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT m.*, u.avatar_url, u.userid as author_handle,
+              (SELECT json_build_object('author_name', p.author_name, 'content', p.content) 
+               FROM messages p WHERE p.id = m.parent_id) as parent_msg,
+              (SELECT COUNT(*) FROM messages r WHERE r.retweet_id = m.id) as retweet_count,
+              (SELECT COUNT(*) FROM bookmarks b WHERE b.message_id = m.id) as bookmark_count,
+              COALESCE(m.reactions->'❤️', '[]'::jsonb) @> jsonb_build_array($3::int) as is_liked,
+              EXISTS(SELECT 1 FROM messages r WHERE r.retweet_id = m.id AND r.user_id = $3) as is_retweeted,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.message_id = m.id AND b.user_id = $3) as is_bookmarked,
+              orig.content as orig_content, orig.author_name as orig_author_name, ou.avatar_url as orig_avatar_url, ou.userid as orig_author_handle
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       LEFT JOIN messages orig ON m.retweet_id = orig.id
+       LEFT JOIN users ou ON orig.user_id = ou.id
+       WHERE m.user_id = $3 AND m.retweet_id IS NOT NULL
+       ORDER BY m.created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch retweets" });
+  }
+});
+
 // Get single message detail with replies
 app.get("/api/messages/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
