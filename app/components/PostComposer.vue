@@ -73,8 +73,10 @@ async function handleSubmit() {
         method: 'POST', body: formData,
       })
       attachments = res.files.map((f, i) => ({
-        ...f, blur: pendingFiles.value[i]?.blur || false,
+        ...f,
+        blur: pendingFiles.value[i]?.blur || false,
         watermark: pendingFiles.value[i]?.watermark || false,
+        mime: pendingFiles.value[i]?.mime || f.type || 'image/png',
       }))
     }
     emit('submit', content.value, attachments, visibility.value, visibleTo.value.length ? visibleTo.value : undefined)

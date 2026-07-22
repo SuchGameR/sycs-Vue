@@ -1,11 +1,13 @@
 import { randomUUID } from 'crypto'
 import { readFile } from 'fs/promises'
-import { join, extname } from 'path'
+import { extname } from 'path'
 import { db } from '../../db'
 import * as schema from '../../db/schema'
 import { requireAuth } from '../../utils/auth'
-import { saveFileWithWatermark } from '../../utils/upload'
+import { saveFileWithWatermark, urlToFilePath } from '../../utils/upload'
 import { emit } from '../../utils/eventBus'
+
+const IMAGE_EXTENSIONS = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -29,25 +31,31 @@ export default defineEventHandler(async (event) => {
 
   if (body.attachments?.length) {
     for (const [i, a] of body.attachments.entries()) {
-      const ext = extname(a.url)
+      const ext = extname(a.url).toLowerCase()
       let url = a.url
       let blurUrl = (a.blur && a.blurUrl) || null
-      let watermarkUrl: string | null = null
 
       if (a.watermark && IMAGE_EXTENSIONS.includes(ext)) {
         try {
-          const filePath = join(process.cwd(), 'public', a.url)
+          const filePath = urlToFilePath(a.url)
           const buffer = await readFile(filePath)
-          const { url: newUrl, blurUrl: newBlur, watermarkUrl: newWm } = await saveFileWithWatermark(buffer, `wm_${a.url.replace('/uploads/', '')}`, user.username)
+          const { url: newUrl, blurUrl: newBlur } = await saveFileWithWatermark(
+            buffer,
+            `wm_${a.url.replace('/uploads/', '')}`,
+            user.username
+          )
           url = newUrl
-          blurUrl = newBlur
-          watermarkUrl = newWm
-        } catch {}
+          if (a.blur) {
+            blurUrl = newBlur
+          }
+        } catch (e) {
+          console.error('[Watermark] Application failed for', a.url, ':', e)
+        }
       }
 
       values.push({
-        id: randomUUID(), postId, url, blurUrl, watermarkUrl,
-        type: a.type || 'image', mime: a.mime || 'image/png',
+        id: randomUUID(), postId, url, blurUrl,
+        type: a.type || 'image', mime: a.mime || a.type || 'image/png',
         position: i,
       })
     }
@@ -59,5 +67,3 @@ export default defineEventHandler(async (event) => {
 
   return { post: postWithUser }
 })
-
-const IMAGE_EXTENSIONS = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
