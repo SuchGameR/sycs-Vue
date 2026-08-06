@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { PERMISSIONS, hasPermission } from '~/utils/serverPermissions'
+
 definePageMeta({ middleware: 'auth' })
 
 const route = useRoute()
@@ -8,31 +10,56 @@ const server = ref<any>(null)
 const channels = ref<any[]>([])
 const members = ref<any[]>([])
 const roles = ref<any[]>([])
-const invites = ref<any[]>([])
 const messages = ref<any[]>([])
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const activeChannelId = ref<string | null>(null)
 const messageInput = ref('')
 const showMemberList = ref(true)
 const showSettings = ref(false)
-const settingsTab = ref<'general' | 'roles' | 'invites'>('general')
+const settingsTab = ref('overview')
+const settingsChannelId = ref<string | null>(null)
+
+const myPermissions = ref(0)
+const isOwner = ref(false)
 
 const activeChannel = computed(() => channels.value.find(c => c.id === activeChannelId.value))
+const canSend = computed(() => isOwner.value || hasPermission(myPermissions.value, PERMISSIONS.SEND_MESSAGES))
+const canManage = computed(() =>
+  isOwner.value
+  || hasPermission(myPermissions.value, PERMISSIONS.MANAGE_CHANNELS)
+  || hasPermission(myPermissions.value, PERMISSIONS.MANAGE_ROLES)
+  || hasPermission(myPermissions.value, PERMISSIONS.MANAGE_MEMBERS)
+  || hasPermission(myPermissions.value, PERMISSIONS.MANAGE_INVITES)
+  || hasPermission(myPermissions.value, PERMISSIONS.MANAGE_SERVER)
+)
+
+const messageListEl = ref<HTMLElement | null>(null)
+let scrolledToBottom = true
+
+async function fetchServerData() {
+  const data = await $fetch(`/api/servers/${serverId.value}`)
+  server.value = data.server
+  channels.value = data.channels
+  members.value = data.members
+  roles.value = data.roles
+  myPermissions.value = data.myPermissions || 0
+  isOwner.value = !!data.isOwner
+  if (channels.value.length && !channels.value.some(c => c.id === activeChannelId.value)) {
+    activeChannelId.value = channels.value[0].id
+  }
+  if (activeChannelId.value) {
+    await loadMessages()
+  }
+}
 
 async function loadServer() {
   loading.value = true
+  loadError.value = null
   try {
-    const data = await $fetch(`/api/servers/${serverId.value}`)
-    server.value = data.server
-    channels.value = data.channels
-    members.value = data.members
-    roles.value = data.roles
-    if (channels.value.length && !activeChannelId.value) {
-      activeChannelId.value = channels.value[0].id
-    }
-    if (activeChannelId.value) {
-      await loadMessages()
-    }
+    await fetchServerData()
+  } catch (e: any) {
+    loadError.value = e?.data?.message || 'サーバーを読み込めませんでした'
   } finally {
     loading.value = false
   }
@@ -40,101 +67,106 @@ async function loadServer() {
 
 async function loadMessages() {
   if (!activeChannelId.value) return
-  const data = await $fetch(`/api/servers/${serverId.value}/channels/${activeChannelId.value}/messages`)
-  messages.value = data.messages
+  try {
+    const data = await $fetch(`/api/servers/${serverId.value}/channels/${activeChannelId.value}/messages`)
+    messages.value = data.messages
+  } catch (e: any) {
+    messages.value = []
+    loadError.value = e?.data?.message || null
+  }
+}
+
+function handleMessageNew(payload: any) {
+  if (payload.serverId !== serverId.value || payload.channelId !== activeChannelId.value) return
+  if (!payload.message?.id) return
+  if (messages.value.some(m => m.id === payload.message.id)) return
+  messages.value.push(payload.message)
+}
+
+function handleServerUpdated(payload: any) {
+  if (payload.serverId !== serverId.value) return
+  fetchServerData()
+}
+
+async function handleServerDeleted(payload: any) {
+  if (payload.serverId !== serverId.value) return
+  await navigateTo('/home')
+}
+
+function onMessagesScroll() {
+  const el = messageListEl.value
+  if (!el) return
+  scrolledToBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+}
+
+function scrollMessagesToBottom(force = false) {
+  const el = messageListEl.value
+  if (!el) return
+  if (force || scrolledToBottom) el.scrollTop = el.scrollHeight
+}
+
+watch(() => messages.value.length, () => {
+  nextTick(() => scrollMessagesToBottom())
+})
+
+function selectChannel(ch: any) {
+  if (activeChannelId.value === ch.id) return
+  activeChannelId.value = ch.id
+  scrolledToBottom = true
+  loadMessages().then(() => nextTick(() => scrollMessagesToBottom(true)))
 }
 
 async function sendMessage() {
   if (!messageInput.value.trim() || !activeChannelId.value) return
-  await $fetch(`/api/servers/${serverId.value}/channels/${activeChannelId.value}/messages`, {
-    method: 'POST',
-    body: { content: messageInput.value },
-  })
-  messageInput.value = ''
-  await loadMessages()
-}
-
-async function createChannel() {
-  const name = prompt('チャンネル名を入力')
-  if (!name) return
-  await $fetch(`/api/servers/${serverId.value}/channels`, {
-    method: 'POST',
-    body: { name },
-  })
-  await loadServer()
-}
-
-async function deleteServer() {
-  if (!confirm('本当にこのサーバーを削除しますか？')) return
-  await $fetch(`/api/servers/${serverId.value}`, { method: 'DELETE' })
-  await navigateTo('/servers')
-}
-
-const settingsForm = ref({ name: '', description: '', iconUrl: '' })
-const newRole = ref({ name: '', color: '#6366f1', permissions: 0 })
-const editingRole = ref<any>(null)
-
-function openSettings(tab: 'general' | 'roles' | 'invites') {
-  settingsTab.value = tab
-  if (server.value) {
-    settingsForm.value = {
-      name: server.value.name || '',
-      description: server.value.description || '',
-      iconUrl: server.value.iconUrl || '',
-    }
+  const content = messageInput.value
+  try {
+    await $fetch(`/api/servers/${serverId.value}/channels/${activeChannelId.value}/messages`, {
+      method: 'POST',
+      body: { content },
+    })
+    messageInput.value = ''
+    await loadMessages()
+  } catch (e: any) {
+    alert(e?.data?.message || '送信に失敗しました')
   }
-  if (tab === 'invites') loadInvites()
+}
+
+function openSettings(tab: string) {
+  settingsTab.value = tab
   showSettings.value = true
 }
 
-async function loadInvites() {
-  try {
-    const data = await $fetch(`/api/servers/${serverId.value}/invites`)
-    invites.value = data.invites
-  } catch {
-    invites.value = []
-  }
+function openChannelSettings(channelId: string) {
+  settingsChannelId.value = channelId
+  settingsTab.value = 'channels'
+  showSettings.value = true
 }
 
-async function saveServerSettings() {
-  await $fetch(`/api/servers/${serverId.value}`, {
-    method: 'PUT',
-    body: settingsForm.value,
-  })
-  showSettings.value = false
+async function deleteServer() {
+  await navigateTo('/servers')
+}
+
+function memberName(member: any) {
+  return member.nickname || member.user?.displayName || member.user?.username || '不明'
+}
+
+const { on } = useRealtime()
+
+onMounted(async () => {
+  offRealtime = [
+    on('message.new', handleMessageNew),
+    on('server.updated', handleServerUpdated),
+    on('server.deleted', handleServerDeleted),
+  ]
   await loadServer()
-}
+})
 
-async function addRole() {
-  await $fetch(`/api/servers/${serverId.value}/roles`, {
-    method: 'POST',
-    body: newRole.value,
-  })
-  newRole.value = { name: '', color: '#6366f1', permissions: 0 }
-  await loadServer()
-}
+let offRealtime: (() => void)[] = []
 
-async function updateRole(roleId: string) {
-  await $fetch(`/api/servers/${serverId.value}/roles/${roleId}`, {
-    method: 'PUT',
-    body: editingRole.value,
-  })
-  editingRole.value = null
-  await loadServer()
-}
-
-async function deleteRole(roleId: string) {
-  if (!confirm('このロールを削除しますか？')) return
-  await $fetch(`/api/servers/${serverId.value}/roles/${roleId}`, { method: 'DELETE' })
-  await loadServer()
-}
-
-async function createInvite() {
-  await $fetch(`/api/servers/${serverId.value}/invites`, { method: 'POST' })
-  await loadInvites()
-}
-
-onMounted(loadServer)
+onUnmounted(() => {
+  offRealtime.forEach(off => off())
+  offRealtime = []
+})
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime()
@@ -153,22 +185,30 @@ function timeAgo(date: string) {
     <!-- Channel Sidebar -->
     <aside class="w-60 bg-slate-900 flex flex-col shrink-0 border-r border-slate-800">
       <div class="h-12 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
-        <h2 class="font-bold text-white truncate text-sm">{{ server?.name || 'サーバー' }}</h2>
-        <button @click="openSettings('general')" class="text-slate-500 hover:text-white transition">
+        <h2 class="font-bold text-white truncate text-sm flex items-center gap-2 min-w-0">
+          <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+            <img v-if="server?.iconUrl" :src="server.iconUrl" class="w-full h-full object-cover" />
+            <template v-else>{{ server?.name?.charAt(0) || '?' }}</template>
+          </div>
+          <span class="truncate">{{ server?.name || 'サーバー' }}</span>
+        </h2>
+        <button v-if="canManage" @click="openSettings('overview')" class="text-slate-500 hover:text-white transition">
           <Icon name="lucide:settings" class="w-4 h-4" />
         </button>
       </div>
       <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
         <div class="flex items-center justify-between px-2 py-1">
           <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">テキストチャンネル</span>
-          <button @click="createChannel" class="text-slate-500 hover:text-white transition">
+          <button v-if="canManage" @click="openSettings('channels')" class="text-slate-500 hover:text-white transition">
             <Icon name="lucide:plus" class="w-3.5 h-3.5" />
           </button>
         </div>
         <button
           v-for="ch in channels"
           :key="ch.id"
-          @click="activeChannelId = ch.id; loadMessages()"
+          @click="selectChannel(ch)"
+          @contextmenu.prevent="canManage && openChannelSettings(ch.id)"
+          :title="canManage ? '右クリックでチャンネル設定' : undefined"
           :class="[
             'w-full text-left px-2 py-1.5 rounded-md transition flex items-center gap-1.5 text-sm',
             activeChannelId === ch.id
@@ -177,7 +217,8 @@ function timeAgo(date: string) {
           ]"
         >
           <span class="text-slate-500">#</span>
-          <span class="truncate">{{ ch.name }}</span>
+          <span class="truncate flex-1">{{ ch.name }}</span>
+          <Icon v-if="ch.nsfw" name="lucide:alert-triangle" class="w-3 h-3 text-red-500" />
         </button>
       </div>
       <div class="p-3 border-t border-slate-800 shrink-0">
@@ -197,10 +238,18 @@ function timeAgo(date: string) {
         </button>
         <span class="text-slate-500 font-semibold text-lg">#</span>
         <span class="font-bold text-white text-sm">{{ activeChannel?.name || 'チャンネルを選択' }}</span>
+        <button
+          v-if="activeChannel && canManage"
+          @click="openSettings('channels')"
+          class="ml-1 text-slate-500 hover:text-white transition"
+          title="チャンネル設定"
+        >
+          <Icon name="lucide:settings-2" class="w-4 h-4" />
+        </button>
       </div>
 
       <!-- Messages -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref="messageListEl" @scroll="onMessagesScroll" class="flex-1 overflow-y-auto p-4 space-y-3">
         <div v-if="!activeChannelId" class="flex items-center justify-center h-full text-slate-500">
           チャンネルを選択してください
         </div>
@@ -231,7 +280,7 @@ function timeAgo(date: string) {
 
       <!-- Message Input -->
       <div v-if="activeChannelId" class="px-4 pb-4 shrink-0">
-        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
+        <div v-if="canSend" class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
           <input
             v-model="messageInput"
             @keydown.enter.prevent="sendMessage"
@@ -247,6 +296,9 @@ function timeAgo(date: string) {
             <Icon name="lucide:send" class="w-4 h-4" />
           </button>
         </div>
+        <div v-else class="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 text-sm text-slate-500 text-center">
+          このサーバーでメッセージを送信する権限がありません
+        </div>
       </div>
     </div>
 
@@ -257,153 +309,65 @@ function timeAgo(date: string) {
     >
       <div class="h-12 px-4 flex items-center border-b border-slate-800 shrink-0">
         <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">メンバー — {{ members.length }}</span>
+        <button v-if="canManage" @click="openSettings('members')" class="ml-auto text-slate-500 hover:text-white transition">
+          <Icon name="lucide:settings-2" class="w-4 h-4" />
+        </button>
       </div>
       <div class="flex-1 overflow-y-auto p-3 space-y-1">
         <div v-for="member in members" :key="member.id" class="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-slate-800/50 transition">
           <div class="relative">
             <img
-              v-if="member.avatarUrl"
-              :src="member.avatarUrl"
+              v-if="member.user?.avatarUrl"
+              :src="member.user.avatarUrl"
               class="w-8 h-8 rounded-full object-cover"
             />
             <div v-else class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xs">
-              {{ member.displayName?.charAt(0) || '?' }}
+              {{ memberName(member).charAt(0) }}
             </div>
             <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-slate-900" />
           </div>
-          <span class="text-sm text-slate-300 truncate">{{ member.displayName || member.username }}</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm text-slate-300 truncate">{{ memberName(member) }}</p>
+            <p v-if="member.role" class="text-[10px] truncate" :style="{ color: member.role.color || '#99aab5' }">
+              {{ server?.ownerId === member.userId ? '所有者' : member.role.name }}
+            </p>
+            <p v-else-if="server?.ownerId === member.userId" class="text-[10px] text-amber-400">所有者</p>
+          </div>
         </div>
       </div>
     </aside>
 
-    <!-- Settings Modal -->
-    <Teleport to="body">
-      <div v-if="showSettings" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showSettings = false">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
-          <!-- Tabs -->
-          <div class="flex border-b border-slate-800 shrink-0">
-            <button
-              v-for="tab in ([
-                { key: 'general' as const, label: '一般' },
-                { key: 'roles' as const, label: 'ロール' },
-                { key: 'invites' as const, label: '招待' },
-              ])"
-              :key="tab.key"
-              @click="settingsTab = tab.key"
-              :class="[
-                'flex-1 px-4 py-3 text-sm font-medium transition',
-                settingsTab === tab.key
-                  ? 'text-indigo-400 border-b-2 border-indigo-500'
-                  : 'text-slate-500 hover:text-slate-300'
-              ]"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-
-          <div class="flex-1 overflow-y-auto p-5 space-y-4">
-            <!-- General Settings -->
-            <template v-if="settingsTab === 'general'">
-              <h3 class="text-lg font-bold text-white">サーバー設定</h3>
-              <div class="space-y-3">
-                <div>
-                  <label class="text-xs text-slate-500 font-medium block mb-1">サーバー名</label>
-                  <input v-model="settingsForm.name" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-indigo-500" />
-                </div>
-                <div>
-                  <label class="text-xs text-slate-500 font-medium block mb-1">説明</label>
-                  <textarea v-model="settingsForm.description" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-indigo-500 resize-none" />
-                </div>
-                <div>
-                  <label class="text-xs text-slate-500 font-medium block mb-1">アイコンURL</label>
-                  <input v-model="settingsForm.iconUrl" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-indigo-500" />
-                </div>
-              </div>
-              <div class="flex justify-end gap-2 pt-2">
-                <button @click="showSettings = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white transition">キャンセル</button>
-                <button @click="saveServerSettings" class="px-5 py-2 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition">保存</button>
-              </div>
-              <div class="border-t border-slate-800 pt-4 mt-4">
-                <button @click="deleteServer" class="px-4 py-2 rounded-lg bg-red-600/20 text-red-400 text-sm hover:bg-red-600/30 transition border border-red-600/30">
-                  サーバーを削除
-                </button>
-              </div>
-            </template>
-
-            <!-- Roles -->
-            <template v-if="settingsTab === 'roles'">
-              <h3 class="text-lg font-bold text-white">ロール管理</h3>
-              <div class="space-y-2">
-                <div v-for="role in roles" :key="role.id" class="flex items-center justify-between bg-slate-800/50 rounded-lg px-3 py-2">
-                  <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: role.color || '#6366f1' }" />
-                    <span class="text-sm text-white">{{ role.name }}</span>
-                  </div>
-                  <div class="flex gap-2">
-                    <button
-                      @click="editingRole = { ...role }"
-                      class="text-slate-500 hover:text-white transition text-xs"
-                    >
-                      <Icon name="lucide:pencil" class="w-3.5 h-3.5" />
-                    </button>
-                    <button @click="deleteRole(role.id)" class="text-slate-500 hover:text-red-400 transition text-xs">
-                      <Icon name="lucide:trash-2" class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <!-- Add Role -->
-              <div v-if="!editingRole" class="border-t border-slate-800 pt-3 space-y-2">
-                <h4 class="text-sm font-bold text-slate-400">新しいロール</h4>
-                <div class="flex gap-2">
-                  <input v-model="newRole.name" placeholder="ロール名" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:ring-1 focus:ring-indigo-500" />
-                  <input v-model="newRole.color" type="color" class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer" />
-                </div>
-                <button @click="addRole" :disabled="!newRole.name.trim()" class="px-4 py-1.5 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition disabled:opacity-50">
-                  追加
-                </button>
-              </div>
-              <!-- Edit Role -->
-              <div v-if="editingRole" class="border-t border-slate-800 pt-3 space-y-2">
-                <h4 class="text-sm font-bold text-slate-400">ロールを編集</h4>
-                <div class="flex gap-2">
-                  <input v-model="editingRole.name" placeholder="ロール名" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:ring-1 focus:ring-indigo-500" />
-                  <input v-model="editingRole.color" type="color" class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer" />
-                </div>
-                <div class="flex gap-2">
-                  <button @click="editingRole = null" class="px-4 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:text-white transition">キャンセル</button>
-                  <button @click="updateRole(editingRole.id)" class="px-4 py-1.5 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition">保存</button>
-                </div>
-              </div>
-            </template>
-
-            <!-- Invites -->
-            <template v-if="settingsTab === 'invites'">
-              <div class="flex items-center justify-between">
-                <h3 class="text-lg font-bold text-white">招待</h3>
-                <button @click="createInvite" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition flex items-center gap-1">
-                  <Icon name="lucide:plus" class="w-3.5 h-3.5" />
-                  作成
-                </button>
-              </div>
-              <div class="space-y-2">
-                <div v-for="invite in invites" :key="invite.id" class="bg-slate-800/50 rounded-lg px-3 py-2 flex items-center justify-between">
-                  <div class="text-sm text-slate-300">
-                    <code class="bg-slate-900 px-2 py-0.5 rounded text-indigo-400 text-xs">{{ invite.code }}</code>
-                    <span class="text-xs text-slate-600 ml-2">使用: {{ invite.usedCount || 0 }}/{{ invite.maxUses || '∞' }}</span>
-                  </div>
-                </div>
-                <p v-if="!invites.length" class="text-sm text-slate-500 text-center py-4">招待はまだありません</p>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <!-- Server Settings Modal -->
+    <ServerSettingsModal
+      v-if="showSettings"
+      :server-id="serverId"
+      :server="server"
+      :channels="channels"
+      :roles="roles"
+      :members="members"
+      :my-permissions="myPermissions"
+      :is-owner="isOwner"
+      :initial-tab="settingsTab"
+      :initial-channel-id="settingsChannelId"
+      @close="showSettings = false; settingsChannelId = null"
+      @refresh="loadServer"
+      @deleted="deleteServer"
+    />
 
     <!-- Loading overlay -->
     <div v-if="loading" class="fixed inset-0 z-40 flex items-center justify-center bg-[#0b0f19]/80">
       <div class="text-slate-500">読み込み中...</div>
+    </div>
+
+    <!-- Error state -->
+    <div v-if="loadError && !loading" class="fixed inset-0 z-40 flex items-center justify-center bg-[#0b0f19]/90">
+      <div class="text-center space-y-3">
+        <Icon name="lucide:alert-circle" class="w-10 h-10 text-red-500 mx-auto" />
+        <p class="text-slate-400 text-sm">{{ loadError }}</p>
+        <NuxtLink to="/servers" class="inline-block px-5 py-2 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition">
+          サーバー一覧へ戻る
+        </NuxtLink>
+      </div>
     </div>
   </div>
 </template>

@@ -41,8 +41,9 @@ async function handleSignout() {
       <div class="space-y-0.5">
         <NuxtLink v-for="s in servers" :key="s.id" :to="`/servers/${s.id}`" class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition text-sm"
           :class="route.path === `/servers/${s.id}` ? 'bg-slate-800/50 text-white' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'">
-          <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {{ s.name.charAt(0) }}
+          <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+            <img v-if="s.iconUrl" :src="s.iconUrl" class="w-full h-full object-cover" />
+            <template v-else>{{ s.name.charAt(0) }}</template>
           </div>
           <span class="truncate">{{ s.name }}</span>
         </NuxtLink>
@@ -68,8 +69,9 @@ async function handleSignout() {
       <!-- User bar -->
       <div class="flex items-center gap-1 px-2 h-11 rounded-lg group-hover:bg-slate-800/30 transition">
         <NuxtLink :to="`/profile/@${userData.user.username}`" class="flex items-center gap-2 flex-1 min-w-0">
-          <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {{ userData.user.displayName?.charAt(0) || '?' }}
+          <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+            <img v-if="userData.user.avatarUrl" :src="userData.user.avatarUrl" class="w-full h-full object-cover" />
+            <template v-else>{{ userData.user.displayName?.charAt(0) || '?' }}</template>
           </div>
           <span class="text-sm text-slate-400 group-hover:text-white truncate">@{{ userData.user.username }}</span>
         </NuxtLink>

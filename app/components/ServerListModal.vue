@@ -38,7 +38,7 @@ async function joinServer() {
   showJoinForm.value = false
   joinCode.value = ''
   await loadServers()
-  navigateTo(`/servers/${data.id}`)
+  navigateTo(`/servers/${data.serverId}`)
   emit('close')
 }
 </script>

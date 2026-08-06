@@ -1,34 +1,37 @@
-export function useRealtime() {
-  const events = ref<any[]>([])
-  const es = shallowRef<EventSource | null>(null)
+type RealtimeHandler = (payload: any) => void
 
-  function connect() {
-    if (es.value) return
+const handlers: Record<string, Set<RealtimeHandler>> = {}
+let es: EventSource | null = null
+
+function connectRealtime() {
+  if (es || !import.meta.client) return
+  es = new EventSource('/api/events')
+  es.addEventListener('message', (ev) => {
+    let payload: any
     try {
-      const source = new EventSource('/api/events')
-      source.onmessage = (e) => {
-        try {
-          const data = JSON.parse(e.data)
-          if (data.type !== 'ping') events.value.push(data)
-        } catch {}
-      }
-      source.onerror = () => {
-        source.close()
-        es.value = null
-        setTimeout(connect, 5000)
-      }
-      es.value = source
+      payload = JSON.parse((ev as MessageEvent).data)
     } catch {
-      setTimeout(connect, 5000)
+      return
     }
+    const set = handlers[payload?.type]
+    if (set) {
+      for (const fn of [...set]) {
+        try { fn(payload) } catch { /* ignore */ }
+      }
+    }
+  })
+  es.onerror = () => {
+    // EventSource reconnects automatically
+  }
+}
+
+export function useRealtime() {
+  function on(type: string, handler: RealtimeHandler) {
+    connectRealtime()
+    const set = handlers[type] || (handlers[type] = new Set())
+    set.add(handler)
+    return () => { handlers[type]?.delete(handler) }
   }
 
-  function disconnect() {
-    es.value?.close()
-    es.value = null
-  }
-
-  onUnmounted(disconnect)
-
-  return { connect, disconnect, events }
+  return { on }
 }

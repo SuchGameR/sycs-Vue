@@ -32,9 +32,14 @@ function selectTab(key: string) {
 
 <template>
   <div>
-    <div class="h-14 flex overflow-hidden">
+    <div class="h-14 flex overflow-hidden relative">
+      <!-- Server banner as header background -->
+      <template v-if="isServerPage && server?.bannerUrl">
+        <img :src="server.bannerUrl" class="absolute inset-0 w-full h-full object-cover" />
+        <div class="absolute inset-0 bg-[#0b0f19]/70"></div>
+      </template>
       <!-- Left section: matches left sidebar width -->
-      <div class="hidden min-[681px]:flex items-center px-4 w-48 min-[1024px]:w-60 shrink-0 z-40 shadow-[0px_0px_43px_50px_#0b0f19]">
+      <div class="hidden min-[681px]:flex items-center px-4 w-48 min-[1024px]:w-60 shrink-0 z-40" :class="isServerPage ? '' : 'shadow-[0px_0px_43px_50px_#0b0f19]'">
         <NuxtLink v-if="!isServerPage" to="/" class="text-lg font-extrabold tracking-tighter shrink-0">
           SYCS<span class="text-indigo-500">.</span>
         </NuxtLink>
@@ -51,7 +56,7 @@ function selectTab(key: string) {
         <div class="relative flex items-center gap-4 flex-1 min-w-0 justify-center">
           <!-- SYCS logo on mobile / Profile info on mobile -->
           <Transition name="pop" mode="out-in">
-            <NuxtLink v-if="!isServerPage && !(isProfilePage && profileHeader)" key="logo" to="/" class="text-lg font-extrabold tracking-tighter shrink-0 min-[681px]:hidden">
+            <NuxtLink v-if="!isServerPage && !isHomePage && !(isProfilePage && profileHeader)" key="logo" to="/" class="text-lg font-extrabold tracking-tighter shrink-0 min-[681px]:hidden">
               SYCS<span class="text-indigo-500">.</span>
             </NuxtLink>
             <div v-else-if="isProfilePage && profileHeader" key="profile" class="flex items-center gap-3 shrink-0 mx-auto pr-4">
@@ -67,8 +72,9 @@ function selectTab(key: string) {
           <!-- Server info on server pages -->
           <template v-if="isServerPage && server">
             <div class="flex items-center gap-3 shrink-0">
-              <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                {{ server.name?.charAt(0) || '?' }}
+              <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
+                <img v-if="server.iconUrl" :src="server.iconUrl" class="w-full h-full object-cover" />
+                <template v-else>{{ server.name?.charAt(0) || '?' }}</template>
               </div>
               <div class="min-w-0">
                 <p class="text-sm font-bold text-white truncate leading-tight">{{ server.name }}</p>
@@ -78,12 +84,12 @@ function selectTab(key: string) {
           </template>
 
           <!-- Timeline tabs (only on home page) -->
-          <nav v-if="isHomePage" class="hidden sm:flex items-center gap-1 bg-[#05070d] p-0.5 rounded-full border border-slate-800 ml-auto">
+          <nav v-if="isHomePage" class="flex items-center gap-0.5 bg-[#05070d] p-1 rounded-full border border-slate-800 ml-auto">
             <button
               v-for="tab in timelineTabs"
               :key="tab.key"
               @click="selectTab(tab.key)"
-              class="px-4 py-1 rounded-full text-sm font-medium transition whitespace-nowrap"
+              class="px-2.5 py-1 rounded-full text-xs font-medium transition whitespace-nowrap"
               :class="(timeline || 'recommended') === tab.key ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-300'"
             >
               {{ tab.label }}
@@ -91,9 +97,9 @@ function selectTab(key: string) {
             <div class="relative">
               <button
                 @click="showMoreMenu = !showMoreMenu"
-                class="px-2 py-1 rounded-full text-sm font-medium transition text-slate-500 hover:text-slate-300"
+                class="px-1.5 py-0.5 rounded-full text-xs font-medium transition text-slate-500 hover:text-slate-300"
               >
-                <Icon name="lucide:plus" class="w-4 h-4" />
+                <Icon name="lucide:plus" class="w-3.5 h-3.5" />
               </button>
               <div
                 v-if="showMoreMenu"
@@ -118,12 +124,7 @@ function selectTab(key: string) {
       </div>
 
       <!-- Right section: matches right sidebar width -->
-      <div class="hidden min-[1024px]:block w-[280px] shrink-0 z-40 shadow-[0px_0px_43px_50px_#0b0f19]"></div>
-    </div>
-
-    <!-- Server banner (only on server pages) -->
-    <div v-if="isServerPage && server?.bannerUrl" class="h-24 overflow-hidden">
-      <img :src="server.bannerUrl" class="w-full h-full object-cover" />
+      <div class="hidden min-[1024px]:block w-[280px] shrink-0 z-40" :class="isServerPage ? '' : 'shadow-[0px_0px_43px_50px_#0b0f19]'"></div>
     </div>
   </div>
 </template>

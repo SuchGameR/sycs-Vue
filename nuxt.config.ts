@@ -5,6 +5,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   
   vite: {
+    resolve: {
+      alias: {
+        'opentype.js': 'opentype.js/dist/opentype.mjs'
+      }
+    },
     server: {
       watch: {
         usePolling: true

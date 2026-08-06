@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean, uniqueIndex, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, timestamp, boolean, uniqueIndex, bigint } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -93,6 +93,7 @@ export const serverRoles = pgTable('server_roles', {
   color: text('color').default('#99aab5'),
   position: integer('position').default(0),
   permissions: text('permissions').default(''),
+  permissionsMask: bigint('permissions_mask', { mode: 'number' }).default(0),
   isAdmin: boolean('is_admin').default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
@@ -115,7 +116,10 @@ export const serverChannels = pgTable('server_channels', {
   type: text('type').default('text'),
   position: integer('position').default(0),
   description: text('description').default(''),
+  slowModeSeconds: integer('slow_mode_seconds').default(0),
+  nsfw: boolean('nsfw').default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
 
 export const channelMessages = pgTable('channel_messages', {

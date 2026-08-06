@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import { db, initDb } from '../../db'
 import * as schema from '../../db/schema'
 import { requireAuth } from '../../utils/auth'
+import { ALL_PERMISSIONS_MASK } from '../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -31,6 +32,7 @@ export default defineEventHandler(async (event) => {
     color: '#ff0000',
     position: 999,
     permissions: 'all',
+    permissionsMask: ALL_PERMISSIONS_MASK,
     isAdmin: true,
   })
 

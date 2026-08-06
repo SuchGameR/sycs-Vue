@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto'
-import { db, initDb } from '../../../db'
+import { db } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
+import { broadcast } from '../../../utils/realtime'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -10,6 +11,9 @@ export default defineEventHandler(async (event) => {
 
   const invite = await db.query.serverInvites.findFirst({ where: eq(schema.serverInvites.code, code) })
   if (!invite) throw createError({ statusCode: 404, message: '招待コードが見つかりません' })
+
+  const server = await db.query.servers.findFirst({ where: eq(schema.servers.id, invite.serverId) })
+  if (!server) throw createError({ statusCode: 410, message: 'サーバーが存在しません' })
 
   if (invite.expiresAt && new Date() > invite.expiresAt) {
     throw createError({ statusCode: 410, message: '招待コードの有効期限が切れています' })
@@ -38,5 +42,12 @@ export default defineEventHandler(async (event) => {
     .set({ useCount: invite.useCount + 1 })
     .where(eq(schema.serverInvites.id, invite.id))
 
-  return { success: true }
+  broadcast({ type: 'server.updated', serverId: invite.serverId })
+  broadcast({ type: 'server.joined', serverId: invite.serverId })
+
+  return {
+    success: true,
+    serverId: invite.serverId,
+    server: { id: server.id, name: server.name },
+  }
 })

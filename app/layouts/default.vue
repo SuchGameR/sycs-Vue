@@ -16,6 +16,30 @@ async function loadServerHeader() {
 
 watch(isServerPage, loadServerHeader, { immediate: true })
 watch(() => route.params.id, loadServerHeader)
+
+const { on } = useRealtime()
+let offRealtime: (() => void)[] = []
+
+watch(isServerPage, (v) => {
+  offRealtime.forEach(off => off())
+  offRealtime = []
+  if (v) {
+    offRealtime = [
+      on('server.updated', (p) => {
+        if (route.params.id && p.serverId === route.params.id) loadServerHeader()
+      }),
+      on('server.deleted', (p) => {
+        if (route.params.id && p.serverId === route.params.id) {
+          serverCache.value = null
+        }
+      }),
+    ]
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  offRealtime.forEach(off => off())
+})
 </script>
 
 <template>

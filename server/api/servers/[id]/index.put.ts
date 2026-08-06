@@ -1,23 +1,25 @@
-import { db, initDb } from '../../../db'
+import { db } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { requireAuth } from '../../../utils/auth'
+import { requireServerPermission } from '../../../utils/serverAuth'
+import { PERMISSIONS } from '../../../utils/permissions'
+import { broadcast } from '../../../utils/realtime'
 
 export default defineEventHandler(async (event) => {
-  const user = await requireAuth(event)
   const id = getRouterParam(event, 'id')
   const body = await readBody(event)
+  await requireServerPermission(event, id, PERMISSIONS.MANAGE_SERVER, 'サーバー設定を変更する権限がありません')
 
-  const server = await db.query.servers.findFirst({ where: eq(schema.servers.id, id) })
-  if (!server) throw createError({ statusCode: 404, message: 'サーバーが見つかりません' })
-  if (server.ownerId !== user.id) throw createError({ statusCode: 403 })
+  if (body.name !== undefined && !body.name?.trim()) {
+    throw createError({ statusCode: 400, message: 'サーバー名を入力してください' })
+  }
 
   const updates: Record<string, any> = {}
-  if (body.name !== undefined) updates.name = body.name
+  if (body.name !== undefined) updates.name = body.name.trim()
   if (body.description !== undefined) updates.description = body.description
-  if (body.iconUrl !== undefined) updates.iconUrl = body.iconUrl
-  if (body.bannerUrl !== undefined) updates.bannerUrl = body.bannerUrl
-  if (body.isPublic !== undefined) updates.isPublic = body.isPublic
+  if (body.iconUrl !== undefined) updates.iconUrl = body.iconUrl || null
+  if (body.bannerUrl !== undefined) updates.bannerUrl = body.bannerUrl || null
+  if (body.isPublic !== undefined) updates.isPublic = !!body.isPublic
   updates.updatedAt = new Date()
 
   const [updated] = await db.update(schema.servers)
@@ -25,5 +27,6 @@ export default defineEventHandler(async (event) => {
     .where(eq(schema.servers.id, id))
     .returning()
 
+  broadcast({ type: 'server.updated', serverId: id })
   return { server: updated }
 })

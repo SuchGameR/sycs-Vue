@@ -2,6 +2,7 @@ import { db, initDb } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
+import { broadcast } from '../../../utils/realtime'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -13,5 +14,6 @@ export default defineEventHandler(async (event) => {
 
   await db.delete(schema.servers).where(eq(schema.servers.id, id))
 
+  broadcast({ type: 'server.deleted', serverId: id })
   return { success: true }
 })

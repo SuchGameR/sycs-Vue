@@ -230,3 +230,14 @@ export async function saveAvatar(buffer: Buffer, filename: string): Promise<stri
   await sharp(buffer).resize(256, 256, { fit: 'cover' }).toFile(filePath)
   return `/uploads/${name}`
 }
+
+export async function saveCover(buffer: Buffer, filename: string, width: number, height: number): Promise<string> {
+  await ensureDir()
+  const name = `${randomUUID()}.jpg`
+  const filePath = join(UPLOAD_DIR, name)
+  await sharp(buffer)
+    .resize(width, height, { fit: 'cover' })
+    .jpeg({ quality: 85 })
+    .toFile(filePath)
+  return `/uploads/${name}`
+}

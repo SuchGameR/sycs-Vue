@@ -1,36 +1,27 @@
+import { createEventStream } from 'h3'
 import { requireAuth } from '../utils/auth'
-import { on } from '../utils/eventBus'
+import { subscribeRealtime, unsubscribeRealtime } from '../utils/realtime'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
 
-  setResponseHeader(event, 'Content-Type', 'text/event-stream')
-  setResponseHeader(event, 'Cache-Control', 'no-cache')
-  setResponseHeader(event, 'Connection', 'keep-alive')
-  setResponseHeader(event, 'X-Accel-Buffering', 'no')
+  const stream = createEventStream(event)
+  await stream.push({ event: 'message', data: JSON.stringify({ type: 'connected' }) })
 
-  const res = event.node.res
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  })
-
-  const send = (data: any) => {
-    try { res.write(`data: ${JSON.stringify(data)}\n\n`) } catch {}
+  const sub = {
+    push: (data: string) => stream.push({ event: 'message', data }),
   }
+  subscribeRealtime(sub)
 
-  const unsubs = [
-    on('post:created', data => send(data)),
-    on('post:liked', data => send(data)),
-    on('post:reposted', data => send(data)),
-  ]
-
-  const keepAlive = setInterval(() => send({ type: 'ping' }), 15000)
+  const hb = setInterval(() => {
+    stream.push({ event: 'heartbeat', data: 'ping' }).catch(() => {})
+  }, 25000)
 
   event.node.req.on('close', () => {
-    unsubs.forEach(fn => fn())
-    clearInterval(keepAlive)
+    clearInterval(hb)
+    unsubscribeRealtime(sub)
+    stream.close()
   })
+
+  return stream.send()
 })

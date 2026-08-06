@@ -257,6 +257,11 @@ async function initDbInternal() {
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `)
+    // Server system migrations
+    await client.query(`ALTER TABLE server_roles ADD COLUMN IF NOT EXISTS permissions_mask BIGINT DEFAULT 0`)
+    await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS slow_mode_seconds INTEGER DEFAULT 0`)
+    await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS nsfw BOOLEAN DEFAULT FALSE`)
+    await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`)
   } finally {
     client.release()
   }
