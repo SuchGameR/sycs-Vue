@@ -152,6 +152,17 @@ function memberName(member: any) {
 
 const { on } = useRealtime()
 
+watch(serverId, () => {
+  server.value = null
+  channels.value = []
+  members.value = []
+  roles.value = []
+  messages.value = []
+  activeChannelId.value = null
+  loadError.value = null
+  loadServer()
+})
+
 onMounted(async () => {
   offRealtime = [
     on('message.new', handleMessageNew),

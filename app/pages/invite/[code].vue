@@ -24,13 +24,15 @@ async function load() {
 async function join() {
   joining.value = true
   error.value = null
+  let res: any
   try {
-    const res = await $fetch(`/api/servers/join/${code.value}`, { method: 'POST' })
+    res = await $fetch(`/api/servers/join/${code.value}`, { method: 'POST' })
     await navigateTo(`/servers/${res.serverId}`)
   } catch (e: any) {
     error.value = e?.data?.message || '参加に失敗しました'
     if (e?.statusCode === 409) {
-      await navigateTo(`/servers/${data.value?.server?.id}`)
+      const id = data.value?.server?.id || res?.serverId
+      if (id) await navigateTo(`/servers/${id}`)
     }
   } finally {
     joining.value = false

@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
 
   const stream = createEventStream(event)
-  await stream.push({ event: 'message', data: JSON.stringify({ type: 'connected' }) })
+  stream.push({ event: 'message', data: JSON.stringify({ type: 'connected' }) }).catch(() => {})
 
   const sub = {
     push: (data: string) => stream.push({ event: 'message', data }),
