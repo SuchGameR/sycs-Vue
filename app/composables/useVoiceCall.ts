@@ -36,7 +36,28 @@ export function useVoiceCall(opts: { ring?: boolean } = {}) {
   const watchRoomKey = ref<string | null>(null)
 
   const peers = new Map<string, RTCPeerConnection>()
+  const pendingIce = new Map<string, any[]>()
   let offs: (() => void)[] = []
+
+  function queueOrAddIce(userId: string, candidate: any) {
+    const pc = peers.get(userId)
+    if (!pc) return
+    if (pc.remoteDescription) {
+      pc.addIceCandidate(candidate).catch(() => {})
+    } else {
+      const q = pendingIce.get(userId) || []
+      q.push(candidate)
+      pendingIce.set(userId, q)
+    }
+  }
+
+  function flushIce(userId: string) {
+    const pc = peers.get(userId)
+    if (!pc || !pc.remoteDescription) return
+    const q = pendingIce.get(userId) || []
+    pendingIce.delete(userId)
+    for (const c of q) pc.addIceCandidate(c).catch(() => {})
+  }
 
   async function ensureMe() {
     if (me.value) return
@@ -72,7 +93,7 @@ export function useVoiceCall(opts: { ring?: boolean } = {}) {
       remoteStreams.value = { ...remoteStreams.value, [member.userId]: ms }
     }
     pc.onconnectionstatechange = () => {
-      if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+      if (['failed', 'closed'].includes(pc.connectionState)) {
         closePeer(member.userId)
       }
     }
@@ -80,6 +101,7 @@ export function useVoiceCall(opts: { ring?: boolean } = {}) {
   }
 
   function closePeer(userId: string) {
+    pendingIce.delete(userId)
     const pc = peers.get(userId)
     if (pc) {
       pc.onicecandidate = null
@@ -122,17 +144,18 @@ export function useVoiceCall(opts: { ring?: boolean } = {}) {
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         signalTo(from.userId, { type: 'answer', data: pc.localDescription })
+        flushIce(from.userId)
       } catch { /* ignore */ }
     } else if (signal.type === 'answer') {
       const pc = peers.get(from.userId)
       if (pc && pc.signalingState !== 'stable') {
-        try { await pc.setRemoteDescription(signal.data) } catch { /* ignore */ }
+        try {
+          await pc.setRemoteDescription(signal.data)
+          flushIce(from.userId)
+        } catch { /* ignore */ }
       }
     } else if (signal.type === 'ice') {
-      const pc = peers.get(from.userId)
-      if (pc) {
-        try { await pc.addIceCandidate(signal.data) } catch { /* ignore */ }
-      }
+      queueOrAddIce(from.userId, signal.data)
     } else if (signal.type === 'decline') {
       errorMsg.value = '相手が通話を拒否しました'
       await leave()

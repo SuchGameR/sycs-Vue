@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { PERMISSIONS, hasPermission } from '~/utils/serverPermissions'
+import ChatEditor from '~/components/ChatEditor.vue'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -14,7 +15,8 @@ const messages = ref<any[]>([])
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const activeChannelId = ref<string | null>(null)
-const messageInput = ref('')
+const messageDraft = ref('')
+const chatEditor = ref<InstanceType<typeof ChatEditor> | null>(null)
 const showMemberList = ref(true)
 const showSettings = ref(false)
 const settingsTab = ref('overview')
@@ -25,6 +27,7 @@ const voiceStatus = voice.status
 const voiceMembers = voice.members
 const voiceError = voice.errorMsg
 const voiceMuted = voice.muted
+const voiceRemoteStreams = voice.remoteStreams
 const voiceChannelId = ref<string | null>(null)
 
 const textChannels = computed(() => channels.value.filter(c => c.type !== 'voice'))
@@ -127,16 +130,17 @@ function selectChannel(ch: any) {
   loadMessages().then(() => nextTick(() => scrollMessagesToBottom(true)))
 }
 
-async function sendMessage() {
-  if (!messageInput.value.trim() || !activeChannelId.value) return
-  const content = messageInput.value
+async function sendMessage(text?: string) {
+  const content = (text ?? messageDraft.value).trim()
+  if (!content || !activeChannelId.value) return
   try {
     await $fetch(`/api/servers/${serverId.value}/channels/${activeChannelId.value}/messages`, {
       method: 'POST',
       body: { content },
     })
-    messageInput.value = ''
+    chatEditor.value?.clear()
     await loadMessages()
+    chatEditor.value?.focus()
   } catch (e: any) {
     alert(e?.data?.message || '送信に失敗しました')
   }
@@ -349,17 +353,16 @@ function timeAgo(date: string) {
       <!-- Message Input -->
       <div v-if="activeChannelId" class="px-4 pb-4 shrink-0">
         <div v-if="canSend" class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
-          <input
-            v-model="messageInput"
-            @keydown.enter.prevent="sendMessage"
-            type="text"
-            :placeholder="`#${activeChannel?.name || ''} にメッセージを送信`"
-            class="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-200 placeholder-slate-500"
+          <ChatEditor
+            ref="chatEditor"
+            :placeholder="`#${activeChannel?.name || ''} にメッセージを送信（Enterで送信 / Shift+Enterで改行）`"
+            @submit="sendMessage"
+            @update="messageDraft = $event"
           />
           <button
-            @click="sendMessage"
-            :disabled="!messageInput.trim()"
-            class="text-indigo-400 hover:text-indigo-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="sendMessage()"
+            :disabled="!messageDraft.trim()"
+            class="text-indigo-400 hover:text-indigo-300 transition disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
             <Icon name="lucide:send" class="w-4 h-4" />
           </button>
@@ -410,6 +413,13 @@ function timeAgo(date: string) {
             <span class="truncate max-w-[120px]">{{ m.displayName }}</span>
           </div>
         </div>
+        <audio
+          v-for="(stream, uid) in voiceRemoteStreams"
+          :key="uid"
+          :srcObject="stream"
+          autoplay
+          class="hidden"
+        />
       </div>
     </div>
 

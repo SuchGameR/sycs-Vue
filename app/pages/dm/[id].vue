@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import ChatEditor from '~/components/ChatEditor.vue'
+
 definePageMeta({ middleware: 'auth' })
 
 const route = useRoute()
 const channelId = computed(() => route.params.id as string)
 const messages = ref<any[]>([])
-const messageInput = ref('')
+const messageDraft = ref('')
+const chatEditor = ref<InstanceType<typeof ChatEditor> | null>(null)
 const loading = ref(true)
 
 const voice = useVoiceCall({ ring: true })
@@ -13,6 +16,7 @@ const voiceMembers = voice.members
 const voiceError = voice.errorMsg
 const voiceMuted = voice.muted
 const voiceIncoming = voice.incomingCaller
+const voiceRemoteStreams = voice.remoteStreams
 
 const otherMember = ref<any>(null)
 
@@ -58,14 +62,16 @@ onUnmounted(() => {
   voice.leave()
 })
 
-async function sendMessage() {
-  if (!messageInput.value.trim()) return
+async function sendMessage(text?: string) {
+  const content = (text ?? messageDraft.value).trim()
+  if (!content) return
   const data = await $fetch(`/api/dm/channels/${channelId.value}/messages`, {
     method: 'POST',
-    body: { content: messageInput.value },
+    body: { content },
   })
   messages.value.push(data.message)
-  messageInput.value = ''
+  chatEditor.value?.clear()
+  chatEditor.value?.focus()
 }
 
 async function startCall() {
@@ -164,17 +170,23 @@ function timeAgo(date: string) {
           <Icon name="lucide:phone-off" class="w-4 h-4 text-red-400" />
         </button>
       </div>
+      <audio
+        v-for="(stream, uid) in voiceRemoteStreams"
+        :key="uid"
+        :srcObject="stream"
+        autoplay
+        class="hidden"
+      />
     </div>
 
     <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 shrink-0">
-      <input
-        v-model="messageInput"
-        @keydown.enter.prevent="sendMessage"
-        type="text"
-        placeholder="メッセージを入力"
-        class="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-200 placeholder-slate-500"
+      <ChatEditor
+        ref="chatEditor"
+        placeholder="メッセージを入力（Enterで送信 / Shift+Enterで改行）"
+        @submit="sendMessage"
+        @update="messageDraft = $event"
       />
-      <button @click="sendMessage" :disabled="!messageInput.trim()" class="text-indigo-400 hover:text-indigo-300 transition disabled:opacity-50">
+      <button @click="sendMessage()" :disabled="!messageDraft.trim()" class="text-indigo-400 hover:text-indigo-300 transition disabled:opacity-50 shrink-0">
         <Icon name="lucide:send" class="w-4 h-4" />
       </button>
     </div>
