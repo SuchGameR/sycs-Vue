@@ -3,12 +3,21 @@ import { db } from '../../../../../db'
 import * as schema from '../../../../../db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { requireAuth } from '../../../../../utils/auth'
+import { checkMessageFlood, validateMessageContent } from '../../../../../utils/rateLimit'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
   const channelId = getRouterParam(event, 'id')
   const { content } = await readBody(event)
-  if (!content?.trim()) throw createError({ statusCode: 400, message: 'メッセージを入力してください' })
+  const contentTrimmed = validateMessageContent(content)
+
+  const wait = checkMessageFlood(user.id)
+  if (wait) {
+    throw createError({
+      statusCode: 429,
+      message: `メッセージを送信する速度が速すぎます。${wait}秒後にもう一度お試しください`,
+    })
+  }
 
   const membership = await db.query.dmChannelMembers.findFirst({
     where: and(eq(schema.dmChannelMembers.channelId, channelId!), eq(schema.dmChannelMembers.userId, user.id)),
@@ -17,7 +26,7 @@ export default defineEventHandler(async (event) => {
 
   const msgId = randomUUID()
   await db.insert(schema.dmMessages).values({
-    id: msgId, channelId: channelId!, senderId: user.id, content,
+    id: msgId, channelId: channelId!, senderId: user.id, content: contentTrimmed,
   })
   await db.update(schema.dmChannels).set({ updatedAt: new Date() }).where(eq(schema.dmChannels.id, channelId!))
 

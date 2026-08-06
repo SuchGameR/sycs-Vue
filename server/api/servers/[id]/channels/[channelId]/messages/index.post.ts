@@ -5,14 +5,25 @@ import { eq, and } from 'drizzle-orm'
 import { requireServerPermission } from '../../../../../../utils/serverAuth'
 import { PERMISSIONS } from '../../../../../../utils/permissions'
 import { broadcast } from '../../../../../../utils/realtime'
+import { checkMessageFlood, validateMessageContent } from '../../../../../../utils/rateLimit'
 
 export default defineEventHandler(async (event) => {
   const serverId = getRouterParam(event, 'id')
   const channelId = getRouterParam(event, 'channelId')
   const body = await readBody(event)
-  if (!body.content?.trim()) throw createError({ statusCode: 400, message: 'メッセージを入力してください' })
+  const content = validateMessageContent(body.content)
 
   const ctx = await requireServerPermission(event, serverId, PERMISSIONS.SEND_MESSAGES, 'メッセージを送信する権限がありません')
+
+  if (!ctx.isOwner) {
+    const wait = checkMessageFlood(ctx.user?.id || ctx.member?.userId)
+    if (wait) {
+      throw createError({
+        statusCode: 429,
+        message: `メッセージを送信する速度が速すぎます。${wait}秒後にもう一度お試しください`,
+      })
+    }
+  }
 
   const channel = await db.query.serverChannels.findFirst({
     where: and(
@@ -46,7 +57,7 @@ export default defineEventHandler(async (event) => {
     id: randomUUID(),
     channelId,
     userId: ctx.isOwner ? ctx.server.ownerId : ctx.member.userId,
-    content: body.content.trim(),
+    content,
   }).returning()
 
   broadcast({

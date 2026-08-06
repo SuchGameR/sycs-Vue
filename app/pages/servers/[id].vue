@@ -20,6 +20,17 @@ const showSettings = ref(false)
 const settingsTab = ref('overview')
 const settingsChannelId = ref<string | null>(null)
 
+const voice = useVoiceCall()
+const voiceStatus = voice.status
+const voiceMembers = voice.members
+const voiceError = voice.errorMsg
+const voiceMuted = voice.muted
+const voiceChannelId = ref<string | null>(null)
+
+const textChannels = computed(() => channels.value.filter(c => c.type !== 'voice'))
+const voiceChannels = computed(() => channels.value.filter(c => c.type === 'voice'))
+const voiceChannel = computed(() => voiceChannels.value.find(c => c.id === voiceChannelId.value) || null)
+
 const myPermissions = ref(0)
 const isOwner = ref(false)
 
@@ -45,8 +56,8 @@ async function fetchServerData() {
   roles.value = data.roles
   myPermissions.value = data.myPermissions || 0
   isOwner.value = !!data.isOwner
-  if (channels.value.length && !channels.value.some(c => c.id === activeChannelId.value)) {
-    activeChannelId.value = channels.value[0].id
+  if (textChannels.value.length && !textChannels.value.some(c => c.id === activeChannelId.value)) {
+    activeChannelId.value = textChannels.value[0].id
   }
   if (activeChannelId.value) {
     await loadMessages()
@@ -142,6 +153,26 @@ function openChannelSettings(channelId: string) {
   showSettings.value = true
 }
 
+async function joinVoiceChannel(ch: any) {
+  if (voiceChannelId.value === ch.id) {
+    await leaveVoiceChannel()
+    return
+  }
+  voice.setChannel({
+    roomKey: `server:${serverId.value}:${ch.id}`,
+    joinPath: `/api/servers/${serverId.value}/channels/${ch.id}/voice/join`,
+    leavePath: `/api/servers/${serverId.value}/channels/${ch.id}/voice/leave`,
+    signalPath: `/api/servers/${serverId.value}/channels/${ch.id}/voice/signal`,
+  })
+  await voice.join()
+  if (voiceStatus.value === 'active') voiceChannelId.value = ch.id
+}
+
+async function leaveVoiceChannel() {
+  voiceChannelId.value = null
+  await voice.leave()
+}
+
 async function deleteServer() {
   await navigateTo('/servers')
 }
@@ -160,6 +191,7 @@ watch(serverId, () => {
   messages.value = []
   activeChannelId.value = null
   loadError.value = null
+  leaveVoiceChannel()
   loadServer()
 })
 
@@ -177,6 +209,8 @@ let offRealtime: (() => void)[] = []
 onUnmounted(() => {
   offRealtime.forEach(off => off())
   offRealtime = []
+  voice.cleanup()
+  voice.leave()
 })
 
 function timeAgo(date: string) {
@@ -208,14 +242,14 @@ function timeAgo(date: string) {
         </button>
       </div>
       <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
-        <div class="flex items-center justify-between px-2 py-1">
+        <div v-if="textChannels.length" class="flex items-center justify-between px-2 py-1">
           <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">テキストチャンネル</span>
           <button v-if="canManage" @click="openSettings('channels')" class="text-slate-500 hover:text-white transition">
             <Icon name="lucide:plus" class="w-3.5 h-3.5" />
           </button>
         </div>
         <button
-          v-for="ch in channels"
+          v-for="ch in textChannels"
           :key="ch.id"
           @click="selectChannel(ch)"
           @contextmenu.prevent="canManage && openChannelSettings(ch.id)"
@@ -230,6 +264,29 @@ function timeAgo(date: string) {
           <span class="text-slate-500">#</span>
           <span class="truncate flex-1">{{ ch.name }}</span>
           <Icon v-if="ch.nsfw" name="lucide:alert-triangle" class="w-3 h-3 text-red-500" />
+        </button>
+
+        <div v-if="voiceChannels.length" class="flex items-center justify-between px-2 py-1 mt-2">
+          <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">音声チャンネル</span>
+          <button v-if="canManage" @click="openSettings('channels')" class="text-slate-500 hover:text-white transition">
+            <Icon name="lucide:plus" class="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <button
+          v-for="ch in voiceChannels"
+          :key="ch.id"
+          @click="joinVoiceChannel(ch)"
+          @contextmenu.prevent="canManage && openChannelSettings(ch.id)"
+          :title="canManage ? '右クリックでチャンネル設定' : undefined"
+          :class="[
+            'w-full text-left px-2 py-1.5 rounded-md transition flex items-center gap-1.5 text-sm',
+            voiceChannelId === ch.id
+              ? 'bg-emerald-700/40 text-white'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          ]"
+        >
+          <Icon name="lucide:volume-2" class="w-3.5 h-3.5 text-slate-500" />
+          <span class="truncate flex-1">{{ ch.name }}</span>
         </button>
       </div>
       <div class="p-3 border-t border-slate-800 shrink-0">
@@ -309,6 +366,49 @@ function timeAgo(date: string) {
         </div>
         <div v-else class="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 text-sm text-slate-500 text-center">
           このサーバーでメッセージを送信する権限がありません
+        </div>
+      </div>
+
+      <!-- Voice Call Panel -->
+      <div
+        v-if="voiceError && voiceStatus === 'idle'"
+        class="mx-4 mb-4 shrink-0 bg-red-950/60 border border-red-800/50 rounded-lg px-4 py-2 text-sm text-red-300 flex items-center justify-between gap-3"
+      >
+        <span>{{ voiceError }}</span>
+        <button @click="voiceError = null" class="text-red-400 hover:text-white transition shrink-0">
+          <Icon name="lucide:x" class="w-4 h-4" />
+        </button>
+      </div>
+      <div
+        v-if="voiceChannelId && (voiceStatus === 'active' || voiceStatus === 'connecting')"
+        class="mx-4 mb-4 shrink-0 bg-slate-900 border border-emerald-800/50 rounded-lg px-3 py-2"
+      >
+        <div class="flex items-center gap-2">
+          <Icon name="lucide:volume-2" class="w-4 h-4 text-emerald-400 shrink-0" />
+          <span class="text-sm font-bold text-white truncate">{{ voiceChannel?.name || '音声チャンネル' }}</span>
+          <span v-if="voiceStatus === 'connecting'" class="text-xs text-slate-500">接続中...</span>
+          <span v-else class="text-xs text-emerald-400">{{ voiceMembers.length }}人参加中</span>
+          <div class="ml-auto flex items-center gap-1 shrink-0">
+            <button
+              @click="voice.toggleMute()"
+              class="p-1.5 rounded-md hover:bg-slate-800 transition"
+              :title="voiceMuted ? 'ミュート解除' : 'ミュート'"
+            >
+              <Icon :name="voiceMuted ? 'lucide:mic-off' : 'lucide:mic'" class="w-4 h-4" :class="voiceMuted ? 'text-red-400' : 'text-slate-400'" />
+            </button>
+            <button @click="leaveVoiceChannel()" class="p-1.5 rounded-md hover:bg-red-600/20 transition" title="通話から退出">
+              <Icon name="lucide:phone-off" class="w-4 h-4 text-red-400" />
+            </button>
+          </div>
+        </div>
+        <div v-if="voiceMembers.length" class="mt-2 flex flex-wrap gap-2">
+          <div v-for="m in voiceMembers" :key="m.userId" class="flex items-center gap-1.5 text-xs text-slate-300">
+            <img v-if="m.avatarUrl" :src="m.avatarUrl" class="w-5 h-5 rounded-full object-cover" />
+            <div v-else class="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-[9px]">
+              {{ (m.displayName || '?').charAt(0) }}
+            </div>
+            <span class="truncate max-w-[120px]">{{ m.displayName }}</span>
+          </div>
         </div>
       </div>
     </div>
