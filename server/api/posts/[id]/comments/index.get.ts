@@ -5,11 +5,16 @@ import { getCurrentUser } from '../../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   const postId = getRouterParam(event, 'id')
+  const query = getQuery(event)
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50)
+  const offset = Number(query.offset) || 0
   await getCurrentUser(event)
 
   const comments = await db.query.postComments.findMany({
     where: eq(schema.postComments.postId, postId!),
     orderBy: (t, { asc }) => [asc(t.createdAt)],
+    limit,
+    offset,
   })
 
   const userIds = [...new Set(comments.map(c => c.userId))]
@@ -18,5 +23,9 @@ export default defineEventHandler(async (event) => {
     : []
   const userMap = Object.fromEntries(users.map(u => [u.id, u]))
 
-  return { comments: comments.map(c => ({ ...c, user: userMap[c.userId] || null })) }
+  return {
+    comments: comments.map(c => ({ ...c, user: userMap[c.userId] || null })),
+    nextOffset: offset + comments.length,
+    hasMore: comments.length === limit,
+  }
 })

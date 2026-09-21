@@ -1,4 +1,4 @@
-import { replaceShortcodes, type CustomEmojiMap } from './emoji'
+import { replaceShortcodes, isEmojiOnlyMessage, type CustomEmojiMap } from './emoji'
 
 const ESCAPE_MAP: Record<string, string> = {
   '&': '&amp;',
@@ -20,6 +20,10 @@ export function renderRichText(input: string, options: { emoji?: boolean; custom
   out = out.replace(URL_RE, (url) =>
     `<a href="${url}" target="_blank" rel="noopener noreferrer nofollow" class="text-indigo-400 hover:underline">${url}</a>`
   )
-  if (emoji) out = replaceShortcodes(out, options.custom)
+  if (emoji) {
+    out = replaceShortcodes(out, options.custom)
+    const jumbo = isEmojiOnlyMessage(input, options.custom)
+    if (jumbo) out = `<span class="sycs-emoji-jumbo">${out}</span>`
+  }
   return out
 }

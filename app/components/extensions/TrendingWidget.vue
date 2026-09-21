@@ -42,7 +42,7 @@ onMounted(load)
         <div class="min-w-0 flex-1">
           <p class="text-xs text-slate-200 line-clamp-2 break-words">{{ p.content || '（メディア投稿）' }}</p>
           <p class="text-[10px] text-slate-500 truncate mt-0.5">
-            {{ p.user?.displayName }} · ♥ {{ p.likeCount || 0 }}
+            {{ p.user?.displayName }} · 😀 {{ (p.reactions || []).reduce((n, r) => n + (r.count || 0), 0) }}
           </p>
         </div>
       </div>

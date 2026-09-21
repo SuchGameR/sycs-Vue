@@ -100,8 +100,8 @@ onUnmounted(stopTrendingPolling)
             <p class="text-[11px] text-slate-400 truncate">{{ p.user?.displayName || '不明' }}</p>
             <p class="text-xs text-slate-200 leading-snug line-clamp-2 break-words whitespace-pre-wrap">{{ p.content }}</p>
             <p class="text-[10px] text-slate-600 mt-0.5 flex items-center gap-1">
-              <Icon name="lucide:heart" class="w-3 h-3" />
-              {{ p.likeCount || 0 }}
+              <Icon name="lucide:smile-plus" class="w-3 h-3" />
+              {{ (p.reactions || []).reduce((n, r) => n + (r.count || 0), 0) }}
             </p>
           </div>
         </NuxtLink>

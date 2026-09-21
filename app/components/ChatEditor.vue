@@ -4,13 +4,15 @@ import { Document } from '@tiptap/extension-document'
 import { Paragraph } from '@tiptap/extension-paragraph'
 import { Text } from '@tiptap/extension-text'
 import { HardBreak } from '@tiptap/extension-hard-break'
-import { searchEmoji } from '~/utils/emoji'
+import { searchEmoji, isEmojiOnlyMessage } from '~/utils/emoji'
+import { EmojiImage, serializeDoc } from '~/utils/richEditor'
 
 const props = defineProps<{ placeholder?: string }>()
 const emit = defineEmits<{ submit: [text: string]; update: [text: string] }>()
 
 const custom = useCustomEmojis()
 const hasContent = ref(false)
+const jumbo = ref(false)
 const suggestions = ref<EmojiSuggestion[]>([])
 const activeIdx = ref(0)
 const emojiOpen = ref(false)
@@ -23,6 +25,14 @@ interface EmojiSuggestion {
   insert: string
   char?: string
   url?: string
+}
+
+function refreshState(ed: any) {
+  hasContent.value = !ed.isEmpty
+  const text = serializeDoc(ed.state.doc)
+  jumbo.value = isEmojiOnlyMessage(text, custom.map.value)
+  if (ed.view?.dom) ed.view.dom.style.fontSize = jumbo.value ? '1.75rem' : ''
+  emit('update', text)
 }
 
 function detectQuery(editor: any) {
@@ -46,8 +56,27 @@ function detectQuery(editor: any) {
   emojiOpen.value = true
 }
 
+// Turn a manually typed `:name:` (custom emoji) into the inline image as soon
+// as the closing colon is typed, Discord-style.
+function convertTypedEmoji(ed: any) {
+  if (ed.view.composing) return
+  const { state } = ed
+  if (!state.selection.empty) return
+  const from = state.selection.from
+  if (from < 3) return
+  const start = Math.max(0, from - 40)
+  const textBefore = state.doc.textBetween(start, from, '\n', '\0')
+  const match = textBefore.match(/:([a-z0-9_+-]+):$/)
+  if (!match) return
+  const name = match[1].toLowerCase()
+  const url = custom.byName.value[name]?.url
+  if (!url) return
+  const rangeFrom = from - match[0].length
+  ed.chain().insertContentAt({ from: rangeFrom, to: from }, { type: 'emojiImage', attrs: { name, src: url } }).run()
+}
+
 const editor = useEditor({
-  extensions: [Document, Paragraph, Text, HardBreak],
+  extensions: [Document, Paragraph, Text, HardBreak, EmojiImage],
   editorProps: {
     attributes: {
       class: 'outline-none w-full text-sm text-slate-200 placeholder-slate-500',
@@ -76,7 +105,7 @@ const editor = useEditor({
       }
       if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
         event.preventDefault()
-        const text = view.state.doc.textBetween(0, view.state.doc.content.size, '\n')
+        const text = serializeDoc(view.state.doc)
         if (text.trim()) emit('submit', text)
         return true
       }
@@ -84,8 +113,8 @@ const editor = useEditor({
     },
   },
   onUpdate: ({ editor }) => {
-    hasContent.value = !editor.isEmpty
-    emit('update', editor.getText())
+    refreshState(editor)
+    convertTypedEmoji(editor)
     detectQuery(editor)
   },
   onSelectionUpdate: ({ editor }) => {
@@ -96,13 +125,17 @@ const editor = useEditor({
 
 function applyEmoji(entry?: EmojiSuggestion) {
   if (!entry || matchFrom < 0) return
-  editor.value?.chain().focus().deleteRange({ from: matchFrom, to: matchTo }).insertContent(entry.insert).run()
+  const chain = editor.value?.chain().focus().deleteRange({ from: matchFrom, to: matchTo })
+  if (entry.url) chain?.insertContent({ type: 'emojiImage', attrs: { name: entry.name, src: entry.url } }).run()
+  else chain?.insertContent(entry.char || entry.insert).run()
   emojiOpen.value = false
 }
 
 function clear() {
   editor.value?.commands.setContent('')
   hasContent.value = false
+  jumbo.value = false
+  if (editor.value?.view?.dom) editor.value.view.dom.style.fontSize = ''
   emit('update', '')
 }
 
@@ -111,7 +144,7 @@ function focus() {
 }
 
 function getText() {
-  return editor.value?.getText() || ''
+  return editor.value ? serializeDoc(editor.value.state.doc) : ''
 }
 
 defineExpose({ clear, focus, getText })

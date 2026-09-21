@@ -242,3 +242,22 @@ export const customEmojis = pgTable('custom_emojis', {
   creatorId: text('creator_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
+
+export const playlists = pgTable('playlists', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const playlistItems = pgTable('playlist_items', {
+  id: text('id').primaryKey(),
+  playlistId: text('playlist_id').notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+  postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  playlistPostIdx: uniqueIndex('playlist_items_playlist_post_idx').on(t.playlistId, t.postId),
+}))

@@ -27,13 +27,10 @@ async function handleSignout() {
       <Icon name="lucide:message-square" class="w-5 h-5 shrink-0" />
       <span class="text-sm truncate">DM</span>
     </NuxtLink>
-    <NuxtLink to="/notifications" class="px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100">
+    <NuxtLink to="/actions" class="px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100"
+      :class="route.path.startsWith('/actions') || route.path.startsWith('/notifications') ? 'bg-slate-800/50 text-white font-medium' : ''">
       <Icon name="lucide:bell" class="w-5 h-5 shrink-0" />
-      <span class="text-sm truncate">通知</span>
-    </NuxtLink>
-    <NuxtLink to="/actions" class="px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100">
-      <Icon name="lucide:zap" class="w-5 h-5 shrink-0" />
-      <span class="text-sm truncate">アクション</span>
+      <span class="text-sm truncate">アクティビティ</span>
     </NuxtLink>
 
     <div v-if="servers.length" class="mt-6">

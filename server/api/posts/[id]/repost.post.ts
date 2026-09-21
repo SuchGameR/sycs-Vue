@@ -3,6 +3,7 @@ import { db, initDb } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
+import { broadcast } from '../../../utils/realtime'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -16,5 +17,6 @@ export default defineEventHandler(async (event) => {
   await db.insert(schema.reposts).values({ id: randomUUID(), userId: user.id, postId })
   await db.execute(sql`UPDATE posts SET repost_count = repost_count + 1 WHERE id = ${postId}`)
 
+  broadcast({ type: 'activity.new', kind: 'repost', actorId: user.id, postId })
   return { success: true }
 })

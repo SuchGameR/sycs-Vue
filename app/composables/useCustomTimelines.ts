@@ -109,7 +109,7 @@ export function useCustomTimelines() {
     const params: Record<string, any> = {
       scope: c.scope,
       sort: c.sort || 'latest',
-      limit: 50,
+      limit: 10,
     }
     if (c.mediaType) params.mediaType = c.mediaType
     if (c.includeRelated) params.related = 'true'

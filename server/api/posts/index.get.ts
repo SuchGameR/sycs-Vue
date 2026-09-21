@@ -7,7 +7,7 @@ import { serializePosts } from '../../utils/postQuery'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const limit = Math.min(Number(query.limit) || 50, 100)
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50)
   const offset = Number(query.offset) || 0
 
   let scope = String(query.scope || '')
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
   }
 
   let orderBy: any = sort === 'popular'
-    ? [desc(schema.posts.likeCount), desc(schema.posts.repostCount), desc(schema.posts.createdAt)]
+    ? [desc(schema.posts.viewCount), desc(schema.posts.repostCount), desc(schema.posts.createdAt)]
     : [desc(schema.posts.createdAt)]
 
   // Scoped audience
@@ -64,25 +64,25 @@ export default defineEventHandler(async (event) => {
       const followedIds = follows.map(f => f.followingId)
       let recommendedIds: string[] = [currentUser.id, ...followedIds]
       if (scope === 'recommended' || related) {
-        const likedPosts = await db.query.likes.findMany({
-          where: eq(schema.likes.userId, currentUser.id),
+        const reactedPosts = await db.query.postReactions.findMany({
+          where: eq(schema.postReactions.userId, currentUser.id),
           columns: { postId: true },
           limit: 50,
-          orderBy: [desc(schema.likes.createdAt)],
+          orderBy: [desc(schema.postReactions.createdAt)],
         })
-        if (likedPosts.length) {
-          const likedPosters = await db.query.posts.findMany({
-            where: inArray(schema.posts.id, likedPosts.map(l => l.postId)),
+        if (reactedPosts.length) {
+          const reactedPosters = await db.query.posts.findMany({
+            where: inArray(schema.posts.id, reactedPosts.map(l => l.postId)),
             columns: { userId: true },
           })
-          recommendedIds = [...new Set([...recommendedIds, ...likedPosters.map(p => p.userId)])]
+          recommendedIds = [...new Set([...recommendedIds, ...reactedPosters.map(p => p.userId)])]
         }
       }
       if (recommendedIds.length) {
         conditions.push(inArray(schema.posts.userId, recommendedIds))
       }
       if (scope === 'recommended' || scope === 'trending') {
-        orderBy = [desc(schema.posts.likeCount), desc(schema.posts.repostCount), desc(schema.posts.createdAt)]
+        orderBy = [desc(schema.posts.viewCount), desc(schema.posts.repostCount), desc(schema.posts.createdAt)]
       }
     }
   }
@@ -106,8 +106,6 @@ export default defineEventHandler(async (event) => {
 
   const where = conditions.length ? and(...conditions) : undefined
 
-  const rawPosts = await db.query.posts.findMany({ limit, offset, where, orderBy })
-
   // Visibility filtering
   const followers = new Set<string>()
   const closeFriends = new Set<string>()
@@ -118,7 +116,7 @@ export default defineEventHandler(async (event) => {
     cfs.forEach(f => closeFriends.add(f.friendId))
   }
 
-  const posts = rawPosts.filter(p => {
+  const isVisible = (p: typeof schema.posts.$inferSelect) => {
     if (p.visibility === 'public') return true
     if (!currentUser) return false
     if (p.userId === currentUser.id) return true
@@ -129,8 +127,27 @@ export default defineEventHandler(async (event) => {
       if (visibleTo.includes(currentUser.id)) return true
     }
     return false
-  })
+  }
 
-  const result = await serializePosts(posts, currentUser)
-  return { posts: result }
+  // Fetch in batches until we have `limit` visible posts or the source is exhausted,
+  // so `offset`/`nextOffset` stay correct despite post-fetch visibility filtering.
+  const collected: any[] = []
+  let cursor = offset
+  let reachedEnd = false
+  let pageFull = false
+  while (collected.length < limit && !reachedEnd && !pageFull) {
+    const batch = await db.query.posts.findMany({ limit, offset: cursor, where, orderBy })
+    if (!batch.length) { reachedEnd = true; break }
+    for (const row of batch) {
+      if (isVisible(row)) {
+        if (collected.length >= limit) { pageFull = true; break }
+        collected.push(row)
+      }
+      cursor++
+    }
+    if (batch.length < limit) reachedEnd = true
+  }
+
+  const result = await serializePosts(collected, currentUser)
+  return { posts: result, nextOffset: cursor, hasMore: !reachedEnd }
 })

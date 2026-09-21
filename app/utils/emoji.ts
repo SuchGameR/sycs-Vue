@@ -137,6 +137,27 @@ export function customEmojiImg(name: string, url: string): string {
   return `<img class="sycs-emoji" src="${safeUrl}" alt=":${safeName}:" title=":${safeName}:" loading="lazy" draggable="false" />`
 }
 
+const EMOJI_TOKEN_RE = /(?::[a-z0-9_+-]+:|\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)/giu
+
+/**
+ * True when the whole string is made of 1〜3 emojis (unicode or custom
+ * `:shortcode:`) separated only by whitespace. Used for "jumbo" rendering.
+ */
+export function isEmojiOnlyMessage(text: string, custom?: CustomEmojiMap): boolean {
+  const stripped = String(text ?? '').replace(/\s+/g, '')
+  if (!stripped) return false
+  const tokens = stripped.match(EMOJI_TOKEN_RE)
+  if (!tokens || tokens.length === 0 || tokens.length > 3) return false
+  if (tokens.join('') !== stripped) return false
+  for (const token of tokens) {
+    const m = /^:([a-z0-9_+-]+):$/i.exec(token)
+    if (!m) continue
+    const key = m[1].toLowerCase()
+    if (!(custom && custom[key]) && !EMOJI_MAP[key]) return false
+  }
+  return true
+}
+
 export function replaceShortcodes(text: string, custom?: CustomEmojiMap): string {
   return text.replace(/:([a-z0-9_+-]+):/gi, (match, name: string) => {
     const key = name.toLowerCase()

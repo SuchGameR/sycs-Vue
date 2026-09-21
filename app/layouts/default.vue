@@ -81,5 +81,6 @@ onUnmounted(() => {
     <MediaMiniPlayer v-if="!isDesktop" />
     <VoiceCallDock />
     <WorkbenchFooter />
+    <AddToPlaylistModal />
   </div>
 </template>

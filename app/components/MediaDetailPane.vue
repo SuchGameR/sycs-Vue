@@ -229,8 +229,8 @@ function timeAgo(date: string) {
           <!-- Actions -->
           <div class="px-4 pb-3 flex items-center gap-4 text-slate-500 border-b border-slate-800/60">
             <span class="flex items-center gap-1.5 text-sm">
-              <Icon name="lucide:heart" class="w-4 h-4" :class="selected.liked ? 'text-indigo-400 fill-indigo-400' : ''" />
-              {{ selected.likeCount || 0 }}
+              <Icon name="lucide:smile-plus" class="w-4 h-4" />
+              {{ (selected.reactions || []).reduce((n: number, r: any) => n + (r.count || 0), 0) }}
             </span>
             <span class="flex items-center gap-1.5 text-sm">
               <Icon name="lucide:repeat-2" class="w-4 h-4" />

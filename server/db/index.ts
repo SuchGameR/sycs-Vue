@@ -301,6 +301,35 @@ async function initDbInternal() {
       )
     `)
     await client.query(`CREATE INDEX IF NOT EXISTS custom_emojis_name_idx ON custom_emojis(name)`)
+    // Playlists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS playlists (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS playlist_items (
+        id TEXT PRIMARY KEY,
+        playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+        post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS playlist_items_playlist_post_idx ON playlist_items(playlist_id, post_id)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS playlists_user_idx ON playlists(user_id)`)
+    // Merge legacy likes into ❤️ reactions (likes are deprecated in favour of reactions)
+    await client.query(`
+      INSERT INTO post_reactions (id, post_id, user_id, emoji)
+      SELECT md5(random()::text || clock_timestamp()::text || l.post_id || l.user_id), l.post_id, l.user_id, '❤️'
+      FROM likes l
+      ON CONFLICT (user_id, post_id, emoji) DO NOTHING
+    `)
   } finally {
     client.release()
   }

@@ -6,7 +6,7 @@ import { getCurrentUser } from '../../../utils/auth'
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   const query = getQuery(event)
-  const limit = Math.min(Number(query.limit) || 50, 100)
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50)
   const offset = Number(query.offset) || 0
 
   const currentUser = await getCurrentUser(event)
@@ -65,5 +65,5 @@ export default defineEventHandler(async (event) => {
     bookmarked: userBookmarks.has(p.id),
   }))
 
-  return { posts: result }
+  return { posts: result, nextOffset: offset + posts.length, hasMore: posts.length === limit }
 })

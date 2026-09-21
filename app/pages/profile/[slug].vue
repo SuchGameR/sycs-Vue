@@ -16,6 +16,40 @@ const userPosts = ref<any[]>([])
 const loading = ref(true)
 const showSettings = ref(false)
 
+const postOffset = ref(0)
+const postHasMore = ref(true)
+const { sentinel: postSentinel, loading: loadingMorePosts, reset: resetPostScroll } = useInfiniteScroll(async () => {
+  return await loadPosts(false)
+})
+
+async function loadPosts(reset = true) {
+  if (!resolvedId.value) return { hasMore: false }
+  if (reset) {
+    postOffset.value = 0
+    postHasMore.value = true
+    resetPostScroll()
+  }
+  if (!postHasMore.value) return { hasMore: false }
+  try {
+    const data = await $fetch(`/api/users/${resolvedId.value}/posts`, {
+      params: { limit: FEED_PAGE_SIZE, offset: postOffset.value },
+    })
+    const incoming = data.posts || []
+    postOffset.value = data.nextOffset ?? (postOffset.value + incoming.length)
+    postHasMore.value = data.hasMore ?? incoming.length === FEED_PAGE_SIZE
+    if (reset) {
+      userPosts.value = incoming
+    } else {
+      const seen = new Set(userPosts.value.map(p => p.id))
+      userPosts.value = [...userPosts.value, ...incoming.filter(p => !seen.has(p.id))]
+    }
+    return { hasMore: postHasMore.value }
+  } catch {
+    if (reset) userPosts.value = []
+    return { hasMore: false }
+  }
+}
+
 const resolvedId = ref('')
 const resolvedUsername = ref('')
 
@@ -62,9 +96,8 @@ async function loadProfile() {
       resolvedUsername.value = data.user.username
     }
     profile.value = data
-    const postsData = await $fetch(`/api/users/${resolvedId.value}/posts`, { signal: ac.signal })
     clearTimeout(timeout)
-    userPosts.value = postsData.posts
+    await loadPosts(true)
   } catch {
     profile.value = null
   } finally {
@@ -117,15 +150,6 @@ function timeAgo(date: string) {
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}時間前`
   return `${Math.floor(h / 24)}日前`
-}
-
-async function toggleLike(postId: string) {
-  const p = userPosts.value.find(x => x.id === postId)
-  if (!p) return
-  try {
-    if (p.liked) { await $fetch(`/api/posts/${postId}/unlike`, { method: 'POST' }); p.liked = false; p.likeCount = Math.max(0, (p.likeCount || 0) - 1) }
-    else { await $fetch(`/api/posts/${postId}/like`, { method: 'POST' }); p.liked = true; p.likeCount = (p.likeCount || 0) + 1 }
-  } catch (e) { console.error('toggleLike error:', e) }
 }
 
 async function toggleRepost(postId: string) {
@@ -234,10 +258,6 @@ async function toggleBookmark(postId: string) {
                 <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
                 <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" />
                 <div class="flex items-center gap-4 mt-3 text-slate-500">
-                  <button @click="toggleLike(post.id)" class="flex items-center gap-1.5 transition text-sm" :class="post.liked ? 'text-indigo-400' : 'hover:text-indigo-400'">
-                    <svg viewBox="0 0 24 24" class="w-4 h-4" :class="post.liked ? 'fill-indigo-400 stroke-indigo-400' : 'stroke-current fill-none'"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                    <span>{{ post.likeCount || 0 }}</span>
-                  </button>
                   <button @click="toggleRepost(post.id)" class="flex items-center gap-1.5 transition text-sm" :class="post.reposted ? 'text-green-400' : 'hover:text-green-400'">
                     <Icon name="lucide:repeat-2" class="w-4 h-4" /> <span>{{ post.repostCount || 0 }}</span>
                   </button>
@@ -250,6 +270,10 @@ async function toggleBookmark(postId: string) {
           </div>
         </template>
         <p v-else class="text-center text-slate-500 py-8">まだ投稿がありません</p>
+
+        <div ref="postSentinel" class="h-1" aria-hidden="true"></div>
+        <div v-if="loadingMorePosts" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
+        <p v-else-if="userPosts.length && !postHasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
       </div>
     </template>
   </div>

@@ -17,6 +17,27 @@ const ACCENTS: Record<string, string> = {
 const installedCount = computed(() => wb.installed.value.length)
 const openCount = computed(() => windows.value.filter(w => !w.minimized).length)
 
+const dockItems = computed(() =>
+  wb.installed.value
+    .map(id => EXTENSION_CATALOG.find(e => e.id === id))
+    .filter(Boolean) as typeof EXTENSION_CATALOG
+)
+
+function windowOf(extId: string) {
+  return windows.value.find(w => w.extId === extId)
+}
+
+function isActive(extId: string) {
+  return !!windowOf(extId) && !windowOf(extId)!.minimized
+}
+
+function toggleExt(extId: string) {
+  const win = windowOf(extId)
+  if (!win) { wb.openWindow(extId); return }
+  if (win.minimized) wb.openWindow(extId)
+  else wb.minimizeWindow(win.id)
+}
+
 function toggleMenu() { open.value = !open.value }
 
 function setPaneWidth(e: Event) {
@@ -37,18 +58,37 @@ function openExt(id: string) {
         <span>ワークベンチ</span>
       </div>
 
-      <div class="flex-1 flex items-center justify-center">
+      <div class="flex-1 flex items-center justify-center gap-1.5 min-w-0">
+        <!-- Deck: installed extensions -->
+        <TransitionGroup name="deck" tag="div" class="flex items-center gap-1.5 min-w-0 overflow-x-auto">
+          <button
+            v-for="ext in dockItems"
+            :key="ext.id"
+            @click.stop="toggleExt(ext.id)"
+            class="group relative h-[24px] w-[30px] rounded-md flex items-center justify-center transition shrink-0"
+            :class="isActive(ext.id) ? 'bg-indigo-600/40 ring-1 ring-indigo-400/60' : 'bg-slate-800/70 hover:bg-slate-700'"
+            :title="`${ext.name}${isActive(ext.id) ? '（表示中）' : ''}`"
+          >
+            <Icon :name="ext.icon" class="w-3.5 h-3.5" :class="isActive(ext.id) ? 'text-white' : 'text-slate-400 group-hover:text-white'" />
+            <span
+              class="absolute -bottom-px left-1/2 -translate-x-1/2 h-[2px] rounded-full transition-all"
+              :class="windowOf(ext.id) ? (isActive(ext.id) ? 'w-4 bg-indigo-400' : 'w-2 bg-slate-500') : 'w-0'"
+            />
+          </button>
+        </TransitionGroup>
+
         <button
           @click.stop="toggleMenu"
-          class="group relative h-[30px] w-[54px] flex items-center justify-center text-slate-500 hover:text-white transition"
+          class="group relative h-[30px] w-[54px] flex items-center justify-center wb-hex shrink-0"
           :title="open ? 'メニューを閉じる' : '拡張機能・ウィンドウ'"
         >
-          <span class="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
-          <Icon
-            name="lucide:plus"
-            class="w-4 h-4 transition-transform duration-300"
-            :class="open ? 'rotate-45 text-indigo-400' : 'group-hover:scale-110'"
-          />
+          <span class="wb-hex-inner absolute inset-0 flex items-center justify-center">
+            <Icon
+              name="lucide:plus"
+              class="w-4 h-4 text-slate-400 group-hover:text-white transition-transform duration-300"
+              :class="open ? 'rotate-45 text-indigo-400' : 'group-hover:scale-110'"
+            />
+          </span>
         </button>
       </div>
 
@@ -180,10 +220,34 @@ function openExt(id: string) {
 </template>
 
 <style scoped>
+.wb-hex {
+  clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+  background: linear-gradient(180deg, #46557a 0%, #2a3550 45%, #1a2133 100%);
+  transition: background 0.25s ease;
+  border-radius: 12px;
+}
+.wb-hex:hover {
+  background: linear-gradient(180deg, #586a95 0%, #35426a 45%, #222c45 100%);
+}
+.wb-hex-inner {
+  clip-path: polygon(22% 2%, 78% 2%, 98% 98%, 2% 98%);
+  background: linear-gradient(180deg, #131a28 0%, #0c111b 100%);
+  transition: background 0.25s ease;
+}
+.wb-hex:hover .wb-hex-inner {
+  background: linear-gradient(180deg, #1a2333 0%, #0f1622 100%);
+}
+
 .wb-fade-enter-active, .wb-fade-leave-active { transition: opacity 0.2s ease; }
 .wb-fade-enter-from, .wb-fade-leave-to { opacity: 0; }
+
+.deck-enter-active, .deck-leave-active { transition: all 0.2s ease; }
+.deck-enter-from, .deck-leave-to { opacity: 0; transform: scale(0.6); }
+.deck-move { transition: transform 0.2s ease; }
 
 .wb-pop-enter-active { transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
 .wb-pop-leave-active { transition: all 0.15s ease-in; }
 .wb-pop-enter-from, .wb-pop-leave-to { opacity: 0; transform: translate(-50%, 12px) scale(0.97); }
+.wb-pop-enter-from + .wb-hex-inner { background: linear-gradient(180deg, #586a95 0%, #35426a 45%, #222c45 100%);}
+
 </style>

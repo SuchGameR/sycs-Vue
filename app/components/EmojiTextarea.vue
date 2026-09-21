@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { searchEmoji } from '~/utils/emoji'
+import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { Document } from '@tiptap/extension-document'
+import { Paragraph } from '@tiptap/extension-paragraph'
+import { Text } from '@tiptap/extension-text'
+import { HardBreak } from '@tiptap/extension-hard-break'
+import { searchEmoji, isEmojiOnlyMessage } from '~/utils/emoji'
+import { EmojiImage, serializeDoc, textToDoc } from '~/utils/richEditor'
 
 const props = defineProps<{
   modelValue: string
@@ -18,14 +24,13 @@ const emit = defineEmits<{
   blur: []
 }>()
 
-const ta = ref<HTMLTextAreaElement | null>(null)
+const custom = useCustomEmojis()
+const hasContent = ref(false)
 const suggestions = ref<EmojiSuggestion[]>([])
 const activeIdx = ref(0)
 const open = ref(false)
-const custom = useCustomEmojis()
-let queryStart = -1
-let queryEnd = -1
-let blurTimer: ReturnType<typeof setTimeout> | null = null
+let matchFrom = -1
+let matchTo = -1
 
 interface EmojiSuggestion {
   key: string
@@ -35,18 +40,37 @@ interface EmojiSuggestion {
   url?: string
 }
 
+const editableClass = computed(() =>
+  [props.textareaClass || 'outline-none w-full text-sm text-white placeholder-slate-500', 'outline-none overflow-y-auto'].join(' ')
+)
+
+function minHeight() {
+  const rows = props.rows || 1
+  return `${(rows * 1.5).toFixed(2)}rem`
+}
+
+function refreshState(ed: any) {
+  hasContent.value = !ed.isEmpty
+  const text = serializeDoc(ed.state.doc)
+  const jumbo = isEmojiOnlyMessage(text, custom.map.value)
+  if (ed.view?.dom) {
+    ed.view.dom.style.fontSize = jumbo ? '1.75rem' : ''
+    ed.view.dom.style.minHeight = jumbo ? '' : minHeight()
+    ed.view.dom.style.maxHeight = props.autoResize ? '200px' : ''
+  }
+  emit('update:modelValue', text)
+}
+
 function close() {
   open.value = false
   suggestions.value = []
-  queryStart = -1
-  queryEnd = -1
+  matchFrom = -1
+  matchTo = -1
 }
 
-function refreshSuggestions() {
-  const el = ta.value
-  if (!el) return
-  const pos = el.selectionStart ?? 0
-  const before = props.modelValue.slice(0, pos)
+function refreshSuggestions(ed: any) {
+  const from = ed.state.selection.from
+  const before = ed.state.doc.textBetween(0, from, '\n')
   const match = before.match(/:([a-z0-9_+-]+)$/i)
   if (!match) { close(); return }
   const q = match[1].toLowerCase()
@@ -58,105 +82,144 @@ function refreshSuggestions() {
     .map(e => ({ key: 'u-' + e.name, name: e.name, char: e.char, insert: e.char }))
   const list = [...customHits, ...unicodeHits]
   if (!list.length) { close(); return }
-  queryStart = pos - match[0].length
-  queryEnd = pos
+  matchFrom = from - match[0].length
+  matchTo = from
   suggestions.value = list
   activeIdx.value = 0
   open.value = true
 }
 
-function choose(entry: EmojiSuggestion) {
-  const el = ta.value
-  if (!el || queryStart < 0) return
-  const value = props.modelValue
-  const next = value.slice(0, queryStart) + entry.insert + value.slice(queryEnd)
-  const caret = queryStart + entry.insert.length
-  emit('update:modelValue', next)
+function choose(entry?: EmojiSuggestion) {
+  if (!entry || matchFrom < 0) return
+  const chain = editor.value?.chain().focus().deleteRange({ from: matchFrom, to: matchTo })
+  if (entry.url) chain?.insertContent({ type: 'emojiImage', attrs: { name: entry.name, src: entry.url } }).run()
+  else chain?.insertContent(entry.char || entry.insert).run()
   close()
-  nextTick(() => {
-    el.focus()
-    el.setSelectionRange(caret, caret)
-    autoResize()
-  })
 }
 
-function autoResize() {
-  if (!props.autoResize) return
-  const el = ta.value
-  if (!el) return
-  el.style.height = 'auto'
-  el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+function convertTypedEmoji(ed: any) {
+  if (ed.view.composing || open.value) return
+  const { state } = ed
+  if (!state.selection.empty) return
+  const from = state.selection.from
+  if (from < 3) return
+  const textBefore = state.doc.textBetween(Math.max(0, from - 40), from, '\n', '\0')
+  const match = textBefore.match(/:([a-z0-9_+-]+):$/)
+  if (!match) return
+  const name = match[1].toLowerCase()
+  const url = custom.byName.value[name]?.url
+  if (!url) return
+  const rangeFrom = from - match[0].length
+  ed.chain().insertContentAt({ from: rangeFrom, to: from }, { type: 'emojiImage', attrs: { name, src: url } }).run()
 }
 
-function onInput(e: Event) {
-  emit('update:modelValue', (e.target as HTMLTextAreaElement).value)
-  refreshSuggestions()
-  autoResize()
+const editor = useEditor({
+  extensions: [Document, Paragraph, Text, HardBreak, EmojiImage],
+  editorProps: {
+    attributes: {
+      class: '',
+    },
+    handleKeyDown: (view, event) => {
+      if (open.value) {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          activeIdx.value = (activeIdx.value + 1) % suggestions.value.length
+          return true
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          activeIdx.value = (activeIdx.value - 1 + suggestions.value.length) % suggestions.value.length
+          return true
+        }
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          event.preventDefault()
+          choose(suggestions.value[activeIdx.value])
+          return true
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          close()
+          return true
+        }
+      }
+      if (props.submitOnEnter && event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault()
+        emit('submit')
+        return true
+      }
+      return false
+    },
+  },
+  onUpdate: ({ editor }) => {
+    refreshState(editor)
+    convertTypedEmoji(editor)
+    refreshSuggestions(editor)
+  },
+  onSelectionUpdate: ({ editor }) => {
+    if (open.value) refreshSuggestions(editor)
+  },
+  onBlur: () => { close(); emit('blur') },
+  onFocus: () => { emit('focus') },
+})
+
+function setFromModel(value: string) {
+  const ed = editor.value
+  if (!ed) return
+  const current = serializeDoc(ed.state.doc)
+  if (current === value) return
+  ed.commands.setContent(textToDoc(value, custom.map.value), { emitUpdate: false })
+  const text = serializeDoc(ed.state.doc)
+  hasContent.value = !ed.isEmpty
+  if (ed.view?.dom) ed.view.dom.style.fontSize = isEmojiOnlyMessage(text, custom.map.value) ? '1.75rem' : ''
 }
 
-function onKeydown(e: KeyboardEvent) {
-  if (open.value) {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      activeIdx.value = (activeIdx.value + 1) % suggestions.value.length
-      return
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      activeIdx.value = (activeIdx.value - 1 + suggestions.value.length) % suggestions.value.length
-      return
-    }
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault()
-      choose(suggestions.value[activeIdx.value])
-      return
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      close()
-      return
-    }
-  }
-  if (props.submitOnEnter && e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-    e.preventDefault()
-    emit('submit')
-  }
-}
+watch(() => props.modelValue, (v) => setFromModel(String(v ?? '')))
 
-function onBlur() {
-  emit('blur')
-  if (blurTimer) clearTimeout(blurTimer)
-  blurTimer = setTimeout(close, 120)
-}
+watch(() => custom.map.value, () => {
+  if (!editor.value) return
+  setFromModel(props.modelValue)
+})
 
 function focus() {
-  ta.value?.focus()
+  editor.value?.commands.focus()
+}
+
+function applyDomConfig() {
+  const dom = editor.value?.view?.dom
+  if (!dom) return
+  dom.classList.add(...editableClass.value.split(' ').filter(Boolean))
+  dom.style.minHeight = minHeight()
+  dom.style.maxHeight = props.autoResize ? '200px' : ''
 }
 
 defineExpose({ focus })
 
+watch(editor, () => {
+  if (!editor.value) return
+  nextTick(() => {
+    applyDomConfig()
+    setFromModel(props.modelValue)
+  })
+}, { immediate: true })
+
 onMounted(() => {
   custom.ensure()
-  if (props.autoResize) nextTick(autoResize)
+  nextTick(() => {
+    applyDomConfig()
+    setFromModel(props.modelValue)
+  })
 })
-onUnmounted(() => { if (blurTimer) clearTimeout(blurTimer) })
 </script>
 
 <template>
   <div class="relative w-full min-w-0">
-    <textarea
-      ref="ta"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :rows="rows || 1"
-      :maxlength="maxlength"
-      :class="textareaClass"
-      @input="onInput"
-      @keydown="onKeydown"
-      @click="refreshSuggestions"
-      @blur="onBlur"
-      @focus="emit('focus')"
-    />
+    <EditorContent :editor="editor" />
+    <div
+      v-if="!hasContent"
+      class="absolute top-0 left-0 right-0 pointer-events-none text-sm text-slate-500 select-none overflow-hidden"
+    >
+      {{ props.placeholder || '' }}
+    </div>
 
     <Transition name="emoji-pop">
       <div

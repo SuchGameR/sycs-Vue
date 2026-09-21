@@ -4,8 +4,7 @@ const route = useRoute()
 const items = [
   { to: '/home', label: 'ホーム', icon: 'lucide:home' },
   { to: '/dm', label: 'DM', icon: 'lucide:message-square' },
-  { to: '/notifications', label: '通知', icon: 'lucide:bell' },
-  { to: '/actions', label: 'アクション', icon: 'lucide:zap' },
+  { to: '/actions', label: 'アクティビティ', icon: 'lucide:bell' },
 ]
 
 function isActive(to: string) {

@@ -20,6 +20,11 @@ const showSettings = ref(false)
 const settingsTab = ref('overview')
 const settingsChannelId = ref<string | null>(null)
 const posting = ref(false)
+const postOffset = ref(0)
+const postHasMore = ref(true)
+const { sentinel: postSentinel, loading: loadingMorePosts, reset: resetPostScroll } = useInfiniteScroll(async () => {
+  return await loadPosts(false)
+})
 
 const mediaPane = useMediaPane()
 const voice = useVoiceCall()
@@ -104,15 +109,36 @@ async function loadServer() {
   }
 }
 
-async function loadPosts() {
-  if (!activeChannelId.value) return
+async function loadPosts(reset = true) {
+  if (!activeChannelId.value) return { hasMore: false }
+  if (reset) {
+    postOffset.value = 0
+    postHasMore.value = true
+    resetPostScroll()
+  }
+  if (!postHasMore.value) return { hasMore: false }
   try {
     const data = await $fetch('/api/posts', {
-      params: { serverId: serverId.value, channelId: activeChannelId.value, limit: 50 },
+      params: {
+        serverId: serverId.value,
+        channelId: activeChannelId.value,
+        limit: FEED_PAGE_SIZE,
+        offset: postOffset.value,
+      },
     })
-    posts.value = data.posts || []
+    const incoming = data.posts || []
+    postOffset.value = data.nextOffset ?? (postOffset.value + incoming.length)
+    postHasMore.value = data.hasMore ?? incoming.length === FEED_PAGE_SIZE
+    if (reset) {
+      posts.value = incoming
+    } else {
+      const seen = new Set(posts.value.map(p => p.id))
+      posts.value = [...posts.value, ...incoming.filter(p => !seen.has(p.id))]
+    }
+    return { hasMore: postHasMore.value }
   } catch (e: any) {
-    posts.value = []
+    if (reset) posts.value = []
+    return { hasMore: false }
   }
 }
 
@@ -120,7 +146,7 @@ function selectChannel(ch: any) {
   if (activeChannelId.value === ch.id) return
   activeChannelId.value = ch.id
   posts.value = []
-  loadPosts()
+  loadPosts(true)
 }
 
 async function submitPost(content: string, attachments?: any[], visibility?: string, visibleTo?: string[]) {
@@ -155,14 +181,6 @@ function openMedia(post: any) {
   }
 }
 
-async function toggleLike(postId: string) {
-  const p = posts.value.find(x => x.id === postId)
-  if (!p) return
-  try {
-    if (p.liked) { await $fetch(`/api/posts/${postId}/unlike`, { method: 'POST' }); p.liked = false; p.likeCount = Math.max(0, (p.likeCount || 0) - 1) }
-    else { await $fetch(`/api/posts/${postId}/like`, { method: 'POST' }); p.liked = true; p.likeCount = (p.likeCount || 0) + 1 }
-  } catch {}
-}
 async function toggleRepost(postId: string) {
   const p = posts.value.find(x => x.id === postId)
   if (!p) return
@@ -346,11 +364,17 @@ onUnmounted(() => {
           チャンネルを選択してください
         </div>
         <template v-else>
-          <PostItem v-for="post in posts" :key="post.id" :post="post"
-            :show-view-count="false" :current-user-id="undefined"
-            @toggle-like="toggleLike" @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
-            @open-media="openMedia" />
-          <p v-if="!posts.length" class="text-center text-slate-500 py-8 text-sm">まだ投稿がありません。最初のメディアを投稿しましょう</p>
+          <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/20">
+            <PostItem v-for="post in posts" :key="post.id" :post="post"
+              :show-view-count="false" :current-user-id="undefined"
+              @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
+              @open-media="openMedia" />
+            <p v-if="!posts.length" class="text-center text-slate-500 py-8 text-sm">まだ投稿がありません。最初のメディアを投稿しましょう</p>
+          </div>
+
+          <div ref="postSentinel" class="h-1" aria-hidden="true"></div>
+          <div v-if="loadingMorePosts" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
+          <p v-else-if="posts.length && !postHasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
         </template>
       </div>
 

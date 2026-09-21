@@ -12,6 +12,7 @@ const props = defineProps<{
     mime: string
   }>
   interactive?: boolean
+  imageLightbox?: boolean
   postId?: string
 }>()
 
@@ -189,7 +190,7 @@ onUnmounted(() => {
       <template v-if="isImage(att.mime)">
         <img :src="displayUrl(att)"
           :class="['w-full object-cover cursor-pointer transition duration-300', imageClass(attachments.length)]"
-          @click.stop="isBlurred(att) ? reveal(att.id) : (props.interactive ? emit('open', i) : openModal(i))"
+          @click.stop="isBlurred(att) ? reveal(att.id) : ((props.interactive && !props.imageLightbox) ? emit('open', i) : openModal(i))"
           @dblclick="!props.interactive && openModal(i)" />
 
         <div v-if="isBlurred(att)"

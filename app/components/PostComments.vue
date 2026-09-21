@@ -15,15 +15,47 @@ const draft = ref('')
 const submitting = ref(false)
 const error = ref('')
 
-async function loadComments() {
-  loading.value = true
+const commentOffset = ref(0)
+const commentHasMore = ref(true)
+const { sentinel: commentSentinel, loading: loadingMoreComments, reset: resetCommentScroll } = useInfiniteScroll(async () => {
+  return await loadComments(false)
+})
+
+function sortComments() {
+  comments.value = [...comments.value].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )
+}
+
+async function loadComments(reset = true) {
+  if (reset) {
+    commentOffset.value = 0
+    commentHasMore.value = true
+    resetCommentScroll()
+    loading.value = true
+  } else if (!commentHasMore.value) {
+    return { hasMore: false }
+  }
   try {
-    const data = await $fetch(`/api/posts/${props.post.id}/comments`)
-    comments.value = data.comments || []
+    const data = await $fetch(`/api/posts/${props.post.id}/comments`, {
+      params: { limit: FEED_PAGE_SIZE, offset: commentOffset.value },
+    })
+    const incoming = data.comments || []
+    commentOffset.value = data.nextOffset ?? (commentOffset.value + incoming.length)
+    commentHasMore.value = data.hasMore ?? incoming.length === FEED_PAGE_SIZE
+    if (reset) {
+      comments.value = incoming
+    } else {
+      const seen = new Set(comments.value.map(c => c.id))
+      comments.value = [...comments.value, ...incoming.filter(c => !seen.has(c.id))]
+      sortComments()
+    }
+    return { hasMore: commentHasMore.value }
   } catch {
-    comments.value = []
+    if (reset) comments.value = []
+    return { hasMore: false }
   } finally {
-    loading.value = false
+    if (reset) loading.value = false
   }
 }
 
@@ -56,6 +88,11 @@ onMounted(() => {
 onUnmounted(() => {
   offComment?.()
   offReaction?.()
+})
+
+watch(() => props.post.id, () => {
+  comments.value = []
+  loadComments(true)
 })
 
 function applyReactionDelta(emoji: string, userId: string, active: boolean, isMe: boolean) {
@@ -139,7 +176,7 @@ function timeAgo(date: string) {
         :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-500'"
         :title="(r.users || []).map((u: any) => u.displayName || '').join(', ')"
       >
-        <EmojiIcon :emoji="r.emoji" />
+        <EmojiIcon :emoji="r.emoji" size="sm" />
         <span class="text-xs">{{ r.count }}</span>
       </button>
 
@@ -166,6 +203,9 @@ function timeAgo(date: string) {
           </div>
         </div>
         <p v-if="!comments.length" class="text-center text-slate-500 text-sm py-8">まだコメントはありません</p>
+        <div ref="commentSentinel" class="h-1" aria-hidden="true"></div>
+        <div v-if="loadingMoreComments" class="text-center text-slate-500 text-xs py-2">読み込み中...</div>
+        <p v-else-if="comments.length && !commentHasMore" class="text-center text-slate-600 text-[11px] py-2">すべて表示しました</p>
       </template>
     </div>
 

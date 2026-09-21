@@ -6,15 +6,15 @@ const props = defineProps<{
     id: string
     content: string
     imageUrl?: string
-    likeCount?: number
     repostCount?: number
+    commentCount?: number
     viewCount?: number
     createdAt: string
     visibility?: string
-    liked?: boolean
     reposted?: boolean
     bookmarked?: boolean
     attachments?: Array<any>
+    reactions?: Array<{ emoji: string; count: number; mine: boolean; users?: any[] }>
     user: {
       id: string
       username: string
@@ -27,7 +27,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  toggleLike: [postId: string]
   toggleRepost: [postId: string]
   toggleBookmark: [postId: string]
   delete: [postId: string]
@@ -36,8 +35,26 @@ const emit = defineEmits<{
 }>()
 
 const showMenu = ref(false)
+const rootEl = ref<HTMLElement | null>(null)
+const { observe, unobserve } = useViewTracker()
+const { openAdd: openAddToPlaylist } = usePlaylists()
+
+onMounted(() => observe(rootEl.value, props.post.id, (count) => { props.post.viewCount = count }))
+onUnmounted(() => unobserve(rootEl.value))
+
+const me = useState<any>('current-user', () => null)
+const myId = computed(() => props.currentUserId || me.value?.id)
+
+async function ensureMe() {
+  if (me.value) return
+  try { me.value = (await $fetch('/api/auth/me')).user } catch { /* ignore */ }
+}
 
 function openMedia() {
+  emit('openMedia', props.post)
+}
+
+function openThread() {
   emit('openMedia', props.post)
 }
 
@@ -53,19 +70,62 @@ function timeAgo(date: string) {
   return `${days}日前`
 }
 
-const isMine = computed(() => props.currentUserId === props.post.user.id)
+const isMine = computed(() => myId.value === props.post.user.id)
+
+function applyReactionDelta(emoji: string, userId: string, active: boolean, isMe: boolean) {
+  const reactions = [...(props.post.reactions || [])]
+  let group = reactions.find((r: any) => r.emoji === emoji)
+  if (active) {
+    if (!group) {
+      group = { emoji, count: 0, mine: false, users: [] }
+      reactions.push(group)
+    }
+    if (!group.users?.some((u: any) => u.id === userId)) {
+      group.count += 1
+      group.users = [...(group.users || []), { id: userId }]
+    }
+    if (isMe) group.mine = true
+  } else if (group) {
+    group.count = Math.max(0, group.count - 1)
+    group.users = (group.users || []).filter((u: any) => u.id !== userId)
+    if (isMe) group.mine = false
+    if (group.count === 0) {
+      const idx = reactions.indexOf(group)
+      if (idx >= 0) reactions.splice(idx, 1)
+    }
+  }
+  props.post.reactions = [...reactions]
+}
+
+async function toggleReaction(emoji: string) {
+  try {
+    const res = await $fetch<{ active: boolean }>(`/api/posts/${props.post.id}/reactions`, {
+      method: 'POST',
+      body: { emoji },
+    })
+    const uid = myId.value
+    if (uid) applyReactionDelta(emoji, uid, res.active, true)
+    else applyReactionDelta(emoji, 'me', res.active, true)
+  } catch { /* ignore */ }
+}
+
+onMounted(ensureMe)
 </script>
 
 <template>
-  <div class="py-4 px-3 bg-slate-800/30 border border-slate-800 hover:bg-slate-800/50 transition">
-    <div class="flex gap-3">
+  <div
+    ref="rootEl"
+    class="py-4 px-3 border-b border-slate-800 last:border-b-0 hover:bg-slate-800/30 transition"
+    @click.self="openThread"
+  >
+    <div class="flex gap-3" @click.self="openThread">
       <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
         <img v-if="post.user.avatarUrl" :src="post.user.avatarUrl" class="w-10 h-10 rounded-full object-cover" />
         <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
           {{ post.user.displayName.charAt(0) }}
         </div>
       </NuxtLink>
-      <div class="flex-1 min-w-0">
+      <div class="flex-1 min-w-0" @click.self="openThread">
         <div class="flex items-center gap-2 mb-1">
           <NuxtLink :to="`/profile/@${post.user.username}`" class="font-bold text-white hover:underline truncate">
             {{ post.user.displayName }}
@@ -74,7 +134,7 @@ const isMine = computed(() => props.currentUserId === props.post.user.id)
 
           <!-- "..." menu -->
           <div class="relative ml-auto">
-            <button @click="showMenu = !showMenu" class="p-1 rounded-full text-slate-500 hover:text-white hover:bg-slate-800 transition">
+            <button @click.stop="showMenu = !showMenu" class="p-1 rounded-full text-slate-500 hover:text-white hover:bg-slate-800 transition">
               <Icon name="lucide:ellipsis" class="w-4 h-4" />
             </button>
             <div v-if="showMenu" class="fixed inset-0 z-40" @click="showMenu = false" />
@@ -88,11 +148,16 @@ const isMine = computed(() => props.currentUserId === props.post.user.id)
                   公開範囲: {{ { public: '公開', followers: 'フォロワー', close_friends: '親しい友達', specific: '特定の人' }[post.visibility || 'public'] }}
                 </div>
                 <hr class="border-slate-800 my-1" />
-                <button @click="emit('report', post.id); showMenu = false"
+                <button @click.stop="openAddToPlaylist(post); showMenu = false"
+                  class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/30 transition flex items-center gap-2">
+                  <Icon name="lucide:list-video" class="w-4 h-4" />
+                  プレイリストに追加
+                </button>
+                <button @click.stop="emit('report', post.id); showMenu = false"
                   class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/30 transition">
                   報告
                 </button>
-                <button v-if="isMine" @click="emit('delete', post.id); showMenu = false"
+                <button v-if="isMine" @click.stop="emit('delete', post.id); showMenu = false"
                   class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800/30 transition">
                   削除
                 </button>
@@ -101,36 +166,25 @@ const isMine = computed(() => props.currentUserId === props.post.user.id)
           </div>
         </div>
 
-        <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
+        <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words cursor-pointer" @click.self="openThread" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
 
-        <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" :post-id="post.id" interactive @open="openMedia" />
-        <button v-else-if="post.content" @click="openMedia" class="mt-1 text-xs text-slate-600 hover:text-indigo-400 transition">
-          スレッドを開く
-        </button>
+        <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" :post-id="post.id"
+          interactive image-lightbox @open="openMedia" />
 
         <div class="flex items-center gap-4 mt-3 text-slate-500">
-          <button @click="emit('toggleLike', post.id)"
-            class="flex items-center gap-1.5 transition text-sm"
-            :class="post.liked ? 'text-indigo-400' : 'hover:text-indigo-400'">
-            <svg viewBox="0 0 24 24" class="w-4 h-4" :class="post.liked ? 'fill-indigo-400 stroke-indigo-400' : 'stroke-current fill-none'">
-              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-            </svg>
-            <span>{{ post.likeCount || 0 }}</span>
-          </button>
-
-          <button @click="emit('toggleRepost', post.id)"
+          <button @click.stop="emit('toggleRepost', post.id)"
             class="flex items-center gap-1.5 transition text-sm"
             :class="post.reposted ? 'text-green-400' : 'hover:text-green-400'">
             <Icon name="lucide:repeat-2" class="w-4 h-4" />
             <span>{{ post.repostCount || 0 }}</span>
           </button>
 
-          <button @click="openMedia" class="flex items-center gap-1.5 transition text-sm hover:text-indigo-400">
+          <button @click.stop="openThread" class="flex items-center gap-1.5 transition text-sm hover:text-indigo-400">
             <Icon name="lucide:message-circle" class="w-4 h-4" />
             <span>{{ post.commentCount || 0 }}</span>
           </button>
 
-          <button @click="emit('toggleBookmark', post.id)"
+          <button @click.stop="emit('toggleBookmark', post.id)"
             class="flex items-center gap-1.5 transition text-sm"
             :class="post.bookmarked ? 'text-amber-400' : 'hover:text-amber-400'">
             <svg viewBox="0 0 24 24" class="w-4 h-4" :class="post.bookmarked ? 'fill-amber-400 stroke-amber-400' : 'stroke-current fill-none'">
@@ -142,6 +196,23 @@ const isMine = computed(() => props.currentUserId === props.post.user.id)
             <Icon name="lucide:eye" class="w-3.5 h-3.5" />
             {{ post.viewCount || 0 }}
           </span>
+        </div>
+
+        <!-- Reactions -->
+        <div class="flex flex-wrap items-center gap-1.5 mt-2">
+          <button
+            v-for="r in (post.reactions || [])"
+            :key="r.emoji"
+            @click.stop="toggleReaction(r.emoji)"
+            class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition"
+            :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-500'"
+            :title="(r.users || []).map((u: any) => u.displayName || '').filter(Boolean).join(', ')"
+          >
+            <EmojiIcon :emoji="r.emoji" size="sm" />
+            <span>{{ r.count }}</span>
+          </button>
+
+          <ReactionPicker @select="toggleReaction" />
         </div>
       </div>
     </div>
