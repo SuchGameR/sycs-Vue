@@ -47,8 +47,24 @@ export async function getServerContext(event: any, serverId: string): Promise<Se
   return { server, member, role, permissions, isOwner, user }
 }
 
-export async function requireServerMember(event: any, serverId: string): Promise<ServerContext> {
-  const ctx = await getServerContext(event, serverId)
+export async function isServerMember(userId: string, serverId: string): Promise<boolean> {
+  const server = await db.query.servers.findFirst({
+    where: eq(schema.servers.id, serverId),
+    columns: { id: true, ownerId: true },
+  })
+  if (!server) return false
+  if (server.ownerId === userId) return true
+  const member = await db.query.serverMembers.findFirst({
+    where: and(
+      eq(schema.serverMembers.serverId, serverId),
+      eq(schema.serverMembers.userId, userId)
+    ),
+    columns: { id: true },
+  })
+  return !!member
+}
+
+export async function requireServerMember(event: any, serverId: string): Promise<ServerContext> {  const ctx = await getServerContext(event, serverId)
   if (!ctx?.server) throw createError({ statusCode: 404, message: 'サーバーが見つかりません' })
   if (!ctx.isOwner && !ctx.member) {
     throw createError({ statusCode: 403, message: 'このサーバーのメンバーではありません' })

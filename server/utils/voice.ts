@@ -32,6 +32,7 @@ export function leaveRoom(roomKey: string, userId: string) {
   room.delete(userId)
   if (room.size === 0) {
     rooms.delete(roomKey)
+    broadcast({ type: 'voice.update', roomKey, members: [] })
   } else {
     broadcast({ type: 'voice.update', roomKey, members: getRoomMembers(roomKey) })
   }

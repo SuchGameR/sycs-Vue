@@ -1,4 +1,9 @@
 <script setup lang="ts">
+const props = defineProps<{
+  mediaKind?: 'any' | 'video' | 'image' | 'audio'
+  placeholder?: string
+}>()
+
 const emit = defineEmits<{
   submit: [content: string, attachments?: Array<any>, visibility?: string, visibleTo?: string[]]
 }>()
@@ -30,6 +35,15 @@ const selectedVis = computed(() => visibilityOptions.find(o => o.key === visibil
 const MAX_FILES = 8
 const ALLOWED = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/webm', 'video/mp4', 'audio/mpeg', 'audio/ogg']
 
+const allowedForKind = computed(() => {
+  if (props.mediaKind === 'video') return ALLOWED.filter(t => t.startsWith('video/'))
+  if (props.mediaKind === 'image') return ALLOWED.filter(t => t.startsWith('image/'))
+  if (props.mediaKind === 'audio') return ALLOWED.filter(t => t.startsWith('audio/'))
+  return ALLOWED
+})
+
+const acceptAttr = computed(() => allowedForKind.value.map(t => `.${t.split('/')[1]}`).join(','))
+
 function autoResize() {
   const el = textareaRef.value; if (!el) return
   el.style.height = 'auto'
@@ -41,7 +55,7 @@ function onFileSelect(e: Event) {
   if (!input.files?.length) return
   const remaining = MAX_FILES - pendingFiles.value.length
   for (const f of Array.from(input.files).slice(0, remaining)) {
-    if (!ALLOWED.includes(f.type)) continue
+    if (!allowedForKind.value.includes(f.type)) continue
     pendingFiles.value.push({
       file: f,
       preview: URL.createObjectURL(f),
@@ -109,7 +123,7 @@ function fileIcon(mime: string) {
     <div class="flex-1 space-y-2">
       <textarea ref="textareaRef" v-model="content" @input="autoResize"
         class="w-full bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 resize-none text-sm leading-5"
-        placeholder="なにかあった？" rows="2" />
+        :placeholder="placeholder || 'なにかあった？'" rows="2" />
 
       <!-- File previews (clickable) -->
       <div v-if="pendingFiles.length" class="flex flex-wrap gap-2">
@@ -205,7 +219,7 @@ function fileIcon(mime: string) {
         </button>
       </div>
 
-      <input ref="fileInput" type="file" multiple accept=".png,.jpeg,.jpg,.gif,.webp,.webm,.mp4,.mp3,.ogg" class="hidden" @change="onFileSelect" />
+      <input ref="fileInput" type="file" multiple :accept="acceptAttr" class="hidden" @change="onFileSelect" />
     </div>
   </div>
 </template>

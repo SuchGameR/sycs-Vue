@@ -6,7 +6,8 @@ const loading = ref(true)
 const manualRefreshing = ref(false)
 const postError = ref('')
 
-const timeline = useTimeline()
+const timelines = useCustomTimelines()
+const mediaPane = useMediaPane()
 const { data: me } = useFetch('/api/auth/me', { key: 'home-me' })
 const userSettings = ref(JSON.parse(me.value?.user?.settings || '{}'))
 const refreshMode = computed(() => userSettings.value.refreshMode || 'auto')
@@ -15,14 +16,14 @@ let pollTimer: ReturnType<typeof setTimeout> | null = null
 let lastFetchStr = ref('')
 
 function buildCacheKey(p: any[]) {
-  return p.slice(0, 20).map(x => `${x.id}:${x.likeCount}:${x.repostCount}`).join(',')
+  return p.slice(0, 20).map(x => `${x.id}:${x.likeCount}:${x.repostCount}:${x.commentCount}`).join(',')
 }
 
 async function loadPosts(isPoll = false) {
   if (!isPoll) loading.value = true
   else manualRefreshing.value = true
   try {
-    const data = await $fetch('/api/posts', { params: { limit: 50, timeline: timeline.value } })
+    const data = await $fetch('/api/posts', { params: timelines.buildQuery() })
     const key = buildCacheKey(data.posts || [])
     if (isPoll && key === lastFetchStr.value) return
     lastFetchStr.value = key
@@ -55,7 +56,7 @@ onMounted(() => {
 
 onUnmounted(stopPolling)
 
-watch(timeline, () => {
+watch(() => timelines.activeId.value, () => {
   stopPolling()
   loadPosts().then(startPolling)
 })
@@ -68,6 +69,16 @@ async function createPost(content: string, attachments?: Array<any>, visibility?
     startPolling()
   } catch (e: any) {
     postError.value = e.data?.message || '投稿に失敗しました'
+  }
+}
+
+function openMedia(post: any) {
+  const isMobile = import.meta.client && window.innerWidth < 1024
+  const kind = mediaKindOf(post)
+  if (isMobile && kind !== 'text') {
+    mediaPane.openMobileFull(post, timelines.activeTab.value.label)
+  } else {
+    mediaPane.openPost(post, timelines.activeTab.value.label)
   }
 }
 
@@ -110,34 +121,39 @@ async function toggleBookmark(postId: string) {
 
 async function deletePost(postId: string) {
   await $fetch(`/api/posts/${postId}`, { method: 'DELETE' })
-  posts.value = posts.value.filter(p => p.id === postId)
+  posts.value = posts.value.filter(p => p.id !== postId)
 }
 
 function reportPost(postId: string) { alert('報告しました') }
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 space-y-4">
-    <div v-if="postError" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">{{ postError }}</div>
+  <div class="max-w-2xl mx-auto pb-24 min-[681px]:pb-6">
+    <div class="sticky top-0 z-30 bg-[#0b0f19]/95 backdrop-blur border-b border-slate-800 px-4 py-2">
+      <TimelineTabs />
+    </div>
 
-    <button v-if="refreshMode === 'manual'" @click="loadPosts()" :disabled="manualRefreshing"
-      class="mx-auto flex items-center gap-2 px-6 py-2 rounded-full bg-slate-800 text-sm text-slate-300 hover:bg-slate-700 transition disabled:opacity-50">
-      <Icon name="lucide:refresh-ccw" class="w-4 h-4" :class="{ 'animate-spin': manualRefreshing }" />
-      更新
-    </button>
+    <div class="p-4 space-y-4">
+      <div v-if="postError" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">{{ postError }}</div>
 
-    <div v-if="loading" class="text-center text-slate-500 py-8">読み込み中...</div>
-    <template v-else>
+      <button v-if="refreshMode === 'manual'" @click="loadPosts()" :disabled="manualRefreshing"
+        class="mx-auto flex items-center gap-2 px-6 py-2 rounded-full bg-slate-800 text-sm text-slate-300 hover:bg-slate-700 transition disabled:opacity-50">
+        <Icon name="lucide:refresh-ccw" class="w-4 h-4" :class="{ 'animate-spin': manualRefreshing }" />
+        更新
+      </button>
+
       <div class="bg-slate-800/50 rounded-xl p-4">
         <PostComposer @submit="createPost" />
       </div>
-      <div class="space-y-3">
+
+      <div v-if="loading" class="text-center text-slate-500 py-8">読み込み中...</div>
+      <div v-else class="space-y-3">
         <PostItem v-for="post in posts" :key="post.id" :post="post"
           :show-view-count="userSettings.showViewCount ?? true" :current-user-id="me?.user?.id"
           @toggle-like="toggleLike" @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
-          @delete="deletePost" @report="reportPost" />
+          @delete="deletePost" @report="reportPost" @open-media="openMedia" />
         <p v-if="!posts.length" class="text-center text-slate-500 py-8">まだ投稿がありません</p>
       </div>
-    </template>
+    </div>
   </div>
 </template>

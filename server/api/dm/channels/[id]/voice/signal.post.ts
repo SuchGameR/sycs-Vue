@@ -17,12 +17,13 @@ export default defineEventHandler(async (event) => {
   })
   if (!membership) throw createError({ statusCode: 403, message: 'このチャンネルにアクセスできません' })
 
-  if (!isInRoom(roomKey, user.id)) {
-    throw createError({ statusCode: 403, message: '通話に参加していません' })
-  }
-
   const body = await readBody(event)
   if (!body.to || !body.signal) throw createError({ statusCode: 400, message: 'シグナリングデータが不正です' })
+
+  const isDecline = body.signal?.type === 'decline'
+  if (!isInRoom(roomKey, user.id) && !isDecline) {
+    throw createError({ statusCode: 403, message: '通話に参加していません' })
+  }
 
   relaySignal(roomKey, {
     userId: user.id,

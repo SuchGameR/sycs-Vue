@@ -1,8 +1,17 @@
-interface VoiceMember {
+export interface VoiceMember {
   userId: string
   username: string
   displayName: string
   avatarUrl: string | null
+}
+
+export interface VoiceRoomConfig {
+  roomKey: string
+  joinPath: string
+  leavePath: string
+  signalPath: string
+  label?: string
+  kind?: 'dm' | 'server'
 }
 
 interface SignalPayload {
@@ -10,268 +19,301 @@ interface SignalPayload {
   data?: any
 }
 
-interface RoomConfig {
-  roomKey: string
-  joinPath: string
-  leavePath: string
-  signalPath: string
+const PC_CONFIG: RTCConfiguration = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 }
 
-const PC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+let initialized = false
 
-export function useVoiceCall(opts: { ring?: boolean } = {}) {
-  const { on } = useRealtime()
+const me = ref<VoiceMember | null>(null)
+const activeRoom = ref<VoiceRoomConfig | null>(null)
+const status = ref<'idle' | 'connecting' | 'active'>('idle')
+const errorMsg = ref<string | null>(null)
+const muted = ref(false)
+const members = ref<VoiceMember[]>([])
+const remoteStreams = ref<Record<string, MediaStream>>({})
+const localStream = ref<MediaStream | null>(null)
+const incoming = ref<{ room: VoiceRoomConfig; from: VoiceMember } | null>(null)
+const presence = ref<Record<string, number>>({})
+const connectionState = ref<'new' | 'connecting' | 'connected' | 'disconnected' | 'failed'>('new')
 
-  const me = ref<VoiceMember | null>(null)
-  const members = ref<VoiceMember[]>([])
-  const status = ref<'idle' | 'connecting' | 'active'>('idle')
-  const errorMsg = ref<string | null>(null)
-  const muted = ref(false)
-  const remoteStreams = ref<Record<string, MediaStream>>({})
-  const localStream = ref<MediaStream | null>(null)
-  const incomingCaller = ref<VoiceMember | null>(null)
-  const presence = ref<Record<string, number>>({})
+const watchedRooms = new Map<string, VoiceRoomConfig>()
+const peers = new Map<string, RTCPeerConnection>()
+const pendingIce = new Map<string, any[]>()
 
-  const activeConfig = ref<RoomConfig | null>(null)
-  const watchRoomKey = ref<string | null>(null)
+let offs: (() => void)[] = []
 
-  const peers = new Map<string, RTCPeerConnection>()
-  const pendingIce = new Map<string, any[]>()
-  let offs: (() => void)[] = []
-
-  function queueOrAddIce(userId: string, candidate: any) {
-    const pc = peers.get(userId)
-    if (!pc) return
-    if (pc.remoteDescription) {
-      pc.addIceCandidate(candidate).catch(() => {})
-    } else {
-      const q = pendingIce.get(userId) || []
-      q.push(candidate)
-      pendingIce.set(userId, q)
-    }
-  }
-
-  function flushIce(userId: string) {
-    const pc = peers.get(userId)
-    if (!pc || !pc.remoteDescription) return
+function queueOrAddIce(userId: string, candidate: any) {
+  const pc = peers.get(userId)
+  if (!pc) return
+  if (pc.remoteDescription) {
+    pc.addIceCandidate(candidate).catch(() => {})
+  } else {
     const q = pendingIce.get(userId) || []
-    pendingIce.delete(userId)
-    for (const c of q) pc.addIceCandidate(c).catch(() => {})
+    q.push(candidate)
+    pendingIce.set(userId, q)
   }
+}
 
-  async function ensureMe() {
-    if (me.value) return
-    const res = await $fetch('/api/auth/me')
-    const u = res.user
-    me.value = {
-      userId: u.id,
-      username: u.username,
-      displayName: u.displayName,
-      avatarUrl: u.avatarUrl,
-    }
+function flushIce(userId: string) {
+  const pc = peers.get(userId)
+  if (!pc || !pc.remoteDescription) return
+  const q = pendingIce.get(userId) || []
+  pendingIce.delete(userId)
+  for (const c of q) pc.addIceCandidate(c).catch(() => {})
+}
+
+async function ensureMe() {
+  if (me.value) return
+  const res = await $fetch<{ user: any }>('/api/auth/me')
+  const u = res.user
+  me.value = {
+    userId: u.id,
+    username: u.username,
+    displayName: u.displayName,
+    avatarUrl: u.avatarUrl,
   }
+}
 
-  function signalTo(to: string, signal: SignalPayload) {
-    if (!activeConfig.value) return
-    $fetch(activeConfig.value.signalPath, {
-      method: 'POST',
-      body: { to, signal },
-    }).catch(() => {})
+function signalTo(room: VoiceRoomConfig, to: string, signal: SignalPayload) {
+  $fetch(room.signalPath, { method: 'POST', body: { to, signal } }).catch(() => {})
+}
+
+function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection {
+  const existing = peers.get(member.userId)
+  if (existing) return existing
+  const pc = new RTCPeerConnection(PC_CONFIG)
+  peers.set(member.userId, pc)
+  localStream.value?.getTracks().forEach(t => pc.addTrack(t, localStream.value!))
+  pc.onicecandidate = (e) => {
+    if (e.candidate) signalTo(room, member.userId, { type: 'ice', data: e.candidate })
   }
-
-  function getPeer(member: VoiceMember): RTCPeerConnection {
-    const existing = peers.get(member.userId)
-    if (existing) return existing
-    const pc = new RTCPeerConnection(PC_CONFIG)
-    peers.set(member.userId, pc)
-    localStream.value?.getTracks().forEach(t => pc.addTrack(t, localStream.value!))
-    pc.onicecandidate = (e) => {
-      if (e.candidate) signalTo(member.userId, { type: 'ice', data: e.candidate })
-    }
-    pc.ontrack = (e) => {
-      const ms = e.streams[0] || new MediaStream([e.track])
-      remoteStreams.value = { ...remoteStreams.value, [member.userId]: ms }
-    }
-    pc.onconnectionstatechange = () => {
-      if (['failed', 'closed'].includes(pc.connectionState)) {
-        closePeer(member.userId)
-      }
-    }
-    return pc
+  pc.ontrack = (e) => {
+    const ms = e.streams[0] || new MediaStream([e.track])
+    remoteStreams.value = { ...remoteStreams.value, [member.userId]: ms }
   }
-
-  function closePeer(userId: string) {
-    pendingIce.delete(userId)
-    const pc = peers.get(userId)
-    if (pc) {
-      pc.onicecandidate = null
-      pc.ontrack = null
-      pc.onconnectionstatechange = null
-      pc.close()
-      peers.delete(userId)
-    }
-    if (remoteStreams.value[userId]) {
-      const next = { ...remoteStreams.value }
-      delete next[userId]
-      remoteStreams.value = next
+  pc.onconnectionstatechange = () => {
+    if (['failed', 'closed'].includes(pc.connectionState)) {
+      closePeer(member.userId)
+    } else if (pc.connectionState === 'connected') {
+      connectionState.value = 'connected'
     }
   }
+  return pc
+}
 
-  function ensurePeer(member: VoiceMember) {
-    const pc = getPeer(member)
-    if (me.value && me.value.userId < member.userId) {
-      if (pc.signalingState === 'stable' && !pc.localDescription) {
-        pc.createOffer()
-          .then(offer => pc.setLocalDescription(offer))
-          .then(() => signalTo(member.userId, { type: 'offer', data: pc.localDescription }))
-          .catch(() => {})
-      }
-    }
-    return pc
+function closePeer(userId: string) {
+  pendingIce.delete(userId)
+  const pc = peers.get(userId)
+  if (pc) {
+    pc.onicecandidate = null
+    pc.ontrack = null
+    pc.onconnectionstatechange = null
+    pc.close()
+    peers.delete(userId)
   }
+  if (remoteStreams.value[userId]) {
+    const next = { ...remoteStreams.value }
+    delete next[userId]
+    remoteStreams.value = next
+  }
+}
 
-  async function handleSignal(msg: any) {
-    if (msg.roomKey !== watchRoomKey.value) return
-    if (msg.to && me.value && msg.to !== me.value.userId) return
-    const from = msg.from as VoiceMember
-    if (!from?.userId) return
-    const signal = msg.signal as SignalPayload
+function ensurePeer(room: VoiceRoomConfig, member: VoiceMember) {
+  const pc = getPeer(room, member)
+  if (me.value && me.value.userId < member.userId) {
+    if (pc.signalingState === 'stable' && !pc.localDescription) {
+      pc.createOffer()
+        .then(offer => pc.setLocalDescription(offer))
+        .then(() => signalTo(room, member.userId, { type: 'offer', data: pc.localDescription }))
+        .catch(() => {})
+    }
+  }
+  return pc
+}
 
-    if (signal.type === 'offer') {
-      const pc = getPeer(from)
+async function handleSignal(msg: any) {
+  const room = activeRoom.value
+  if (!room || msg.roomKey !== room.roomKey) return
+  if (msg.to && me.value && msg.to !== me.value.userId) return
+  const from = msg.from as VoiceMember
+  if (!from?.userId) return
+  const signal = msg.signal as SignalPayload
+
+  if (signal.type === 'offer') {
+    const pc = getPeer(room, from)
+    try {
+      await pc.setRemoteDescription(signal.data)
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+      signalTo(room, from.userId, { type: 'answer', data: pc.localDescription })
+      flushIce(from.userId)
+    } catch { /* ignore */ }
+  } else if (signal.type === 'answer') {
+    const pc = peers.get(from.userId)
+    if (pc && pc.signalingState !== 'stable') {
       try {
         await pc.setRemoteDescription(signal.data)
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-        signalTo(from.userId, { type: 'answer', data: pc.localDescription })
         flushIce(from.userId)
       } catch { /* ignore */ }
-    } else if (signal.type === 'answer') {
-      const pc = peers.get(from.userId)
-      if (pc && pc.signalingState !== 'stable') {
-        try {
-          await pc.setRemoteDescription(signal.data)
-          flushIce(from.userId)
-        } catch { /* ignore */ }
-      }
-    } else if (signal.type === 'ice') {
-      queueOrAddIce(from.userId, signal.data)
-    } else if (signal.type === 'decline') {
-      errorMsg.value = '相手が通話を拒否しました'
-      await leave()
     }
+  } else if (signal.type === 'ice') {
+    queueOrAddIce(from.userId, signal.data)
+  } else if (signal.type === 'decline') {
+    errorMsg.value = '相手が通話を拒否しました'
+    await leave()
+  }
+}
+
+function handleUpdate(msg: any) {
+  if (!msg.roomKey) return
+  const count = (msg.members || []).length
+  presence.value = { ...presence.value, [msg.roomKey]: count }
+
+  const room = activeRoom.value
+  if (room && msg.roomKey === room.roomKey && (status.value === 'connecting' || status.value === 'active')) {
+    const list = (msg.members || []) as VoiceMember[]
+    members.value = list
+    for (const m of list) {
+      if (m.userId !== me.value?.userId) ensurePeer(room, m)
+    }
+    const currentIds = new Set(list.map(m => m.userId))
+    for (const id of [...peers.keys()]) {
+      if (!currentIds.has(id)) closePeer(id)
+    }
+    return
   }
 
-  function handleUpdate(msg: any) {
-    if (!msg.roomKey) return
-    presence.value = { ...presence.value, [msg.roomKey]: (msg.members || []).length }
-
-    const isOurRoom = activeConfig.value && msg.roomKey === activeConfig.value.roomKey
-
-    if (isOurRoom && (status.value === 'connecting' || status.value === 'active')) {
-      const list = (msg.members || []) as VoiceMember[]
-      members.value = list
-      for (const m of list) {
-        if (m.userId !== me.value?.userId) ensurePeer(m)
-      }
-      const currentIds = new Set(list.map(m => m.userId))
-      for (const id of [...peers.keys()]) {
-        if (!currentIds.has(id)) closePeer(id)
-      }
-    } else if (isOurRoom && status.value === 'idle' && opts.ring) {
+  // Incoming ring for watched rooms
+  if (status.value === 'idle' && !incoming.value) {
+    const watched = watchedRooms.get(msg.roomKey)
+    if (watched && watched.kind === 'dm') {
       const caller = (msg.members || []).find((m: any) => m.userId !== me.value?.userId)
-      incomingCaller.value = caller || null
+      if (caller) incoming.value = { room: watched, from: caller }
     }
   }
+}
 
-  function setChannel(cfg: RoomConfig) {
-    activeConfig.value = cfg
-    watchRoomKey.value = cfg.roomKey
-    ensureMe()
-  }
-
-  async function ensureLocalStream() {
-    if (localStream.value) return localStream.value
-    localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true })
-    return localStream.value
-  }
-
-  async function join() {
-    if (!activeConfig.value) return
-    const cfg = activeConfig.value
-    status.value = 'connecting'
-    errorMsg.value = null
-    try {
-      await ensureMe()
-      await ensureLocalStream()
-      const res = await $fetch(cfg.joinPath, { method: 'POST' })
-      members.value = res.members || []
-      status.value = 'active'
-      for (const m of res.members) ensurePeer(m)
-    } catch (e: any) {
-      errorMsg.value = e?.data?.message || '通話に参加できませんでした'
-      status.value = 'idle'
-      await leave()
-    }
-  }
-
-  async function leave() {
-    const cfg = activeConfig.value
-    activeConfig.value = null
-    watchRoomKey.value = null
-    status.value = 'idle'
-    members.value = []
-    incomingCaller.value = null
-    for (const id of [...peers.keys()]) closePeer(id)
-    localStream.value?.getTracks().forEach(t => t.stop())
-    localStream.value = null
-    remoteStreams.value = {}
-    if (cfg) {
-      $fetch(cfg.leavePath, { method: 'POST' }).catch(() => {})
-    }
-  }
-
-  async function acceptCall() {
-    incomingCaller.value = null
-    await join()
-  }
-
-  async function declineCall() {
-    if (!incomingCaller.value || !activeConfig.value) return
-    signalTo(incomingCaller.value.userId, { type: 'decline' })
-    incomingCaller.value = null
-  }
-
-  function toggleMute() {
-    muted.value = !muted.value
-    localStream.value?.getAudioTracks().forEach(t => { t.enabled = !muted.value })
-  }
-
+function init() {
+  if (initialized) return
+  initialized = true
+  const { on } = useRealtime()
   offs = [
     on('voice.update', handleUpdate),
     on('voice.signal', handleSignal),
   ]
+  ensureMe().catch(() => {})
+}
 
-  function cleanup() {
-    offs.forEach(off => off())
-    offs = []
+function watchRoom(cfg: VoiceRoomConfig) {
+  init()
+  watchedRooms.set(cfg.roomKey, cfg)
+}
+
+function unwatchRoom(roomKey: string) {
+  watchedRooms.delete(roomKey)
+  if (activeRoom.value?.roomKey === roomKey) {
+    leave()
   }
+}
 
+async function ensureLocalStream() {
+  if (localStream.value) return localStream.value
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('この環境ではマイクを利用できません')
+  }
+  localStream.value = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: false,
+  })
+  localStream.value.getAudioTracks().forEach(t => { t.enabled = !muted.value })
+  return localStream.value
+}
+
+async function join(cfg?: VoiceRoomConfig) {
+  init()
+  if (cfg) activeRoom.value = cfg
+  const room = activeRoom.value
+  if (!room) return
+  status.value = 'connecting'
+  connectionState.value = 'connecting'
+  errorMsg.value = null
+  try {
+    await ensureMe()
+    await ensureLocalStream()
+    const res = await $fetch<{ members: VoiceMember[] }>(room.joinPath, { method: 'POST' })
+    members.value = res.members || []
+    status.value = 'active'
+    for (const m of res.members || []) {
+      if (m.userId !== me.value?.userId) ensurePeer(room, m)
+    }
+  } catch (e: any) {
+    errorMsg.value = e?.data?.message || e?.message || '通話に参加できませんでした'
+    status.value = 'idle'
+    connectionState.value = 'new'
+    await leave()
+  }
+}
+
+async function leave() {
+  const room = activeRoom.value
+  activeRoom.value = null
+  status.value = 'idle'
+  connectionState.value = 'new'
+  members.value = []
+  incoming.value = null
+  for (const id of [...peers.keys()]) closePeer(id)
+  localStream.value?.getTracks().forEach(t => t.stop())
+  localStream.value = null
+  remoteStreams.value = {}
+  if (room) {
+    $fetch(room.leavePath, { method: 'POST' }).catch(() => {})
+  }
+}
+
+async function acceptCall() {
+  const inc = incoming.value
+  incoming.value = null
+  if (!inc) return
+  await join(inc.room)
+}
+
+async function declineCall() {
+  const inc = incoming.value
+  incoming.value = null
+  if (!inc) return
+  // Decline may be sent even though we never joined the room.
+  $fetch(inc.room.signalPath, {
+    method: 'POST',
+    body: { to: inc.from.userId, signal: { type: 'decline' } },
+  }).catch(() => {})
+}
+
+function toggleMute() {
+  muted.value = !muted.value
+  localStream.value?.getAudioTracks().forEach(t => { t.enabled = !muted.value })
+}
+
+export function useVoiceCall() {
+  init()
   return {
     me,
-    members,
+    activeRoom,
     status,
+    connectionState,
     errorMsg,
     muted,
+    members,
     remoteStreams,
-    incomingCaller,
+    localStream,
+    incoming,
     presence,
-    setChannel,
+    watchRoom,
+    unwatchRoom,
     join,
     leave,
     acceptCall,
     declineCall,
     toggleMute,
-    cleanup,
   }
 }

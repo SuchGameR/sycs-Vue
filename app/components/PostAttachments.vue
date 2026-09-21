@@ -7,7 +7,10 @@ const props = defineProps<{
     type: string
     mime: string
   }>
+  interactive?: boolean
 }>()
+
+const emit = defineEmits<{ open: [index: number] }>()
 
 const blurredMap = ref<Record<string, boolean>>({})
 
@@ -168,7 +171,8 @@ onUnmounted(() => {
       <template v-if="isImage(att.mime)">
         <img :src="displayUrl(att)"
           :class="['w-full object-cover cursor-pointer transition duration-300', imageClass(attachments.length)]"
-          @click="isBlurred(att) ? reveal(att.id) : openModal(i)" />
+          @click="isBlurred(att) ? reveal(att.id) : (props.interactive ? emit('open', i) : openModal(i))"
+          @dblclick="openModal(i)" />
 
         <div v-if="isBlurred(att)"
           class="absolute inset-0 flex items-center justify-center cursor-pointer"
@@ -180,11 +184,26 @@ onUnmounted(() => {
         </div>
       </template>
 
-      <video v-else-if="isVideo(att.mime)" :src="att.url" controls preload="metadata"
-        class="w-full h-48 object-cover bg-black" />
+      <template v-else-if="isVideo(att.mime)">
+        <video :src="att.url" controls preload="metadata"
+          class="w-full h-48 object-cover bg-black" />
+        <button v-if="props.interactive" type="button"
+          @click.stop="emit('open', i)"
+          class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
+          <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
+        </button>
+      </template>
 
-      <audio v-else-if="isAudio(att.mime)" :src="att.url" controls
-        class="w-full h-12 mt-4 mx-2" />
+      <template v-else-if="isAudio(att.mime)">
+        <div class="flex items-center gap-2 mt-4 px-2 w-full">
+          <audio :src="att.url" controls class="flex-1 h-12" />
+          <button v-if="props.interactive" type="button"
+            @click.stop="emit('open', i)"
+            class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition shrink-0" title="詳細を開く">
+            <Icon name="lucide:maximize-2" class="w-4 h-4" />
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 

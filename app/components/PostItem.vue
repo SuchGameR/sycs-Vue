@@ -30,9 +30,14 @@ const emit = defineEmits<{
   toggleBookmark: [postId: string]
   delete: [postId: string]
   report: [postId: string]
+  openMedia: [post: any]
 }>()
 
 const showMenu = ref(false)
+
+function openMedia() {
+  emit('openMedia', props.post)
+}
 
 function timeAgo(date: string) {
   const now = Date.now()
@@ -101,7 +106,12 @@ function linkify(text: string) {
 
         <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="linkify(post.content)" />
 
-        <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" />
+        <div v-if="post.attachments?.length" @click="openMedia">
+          <PostAttachments :attachments="post.attachments" interactive @open="openMedia" />
+        </div>
+        <button v-else-if="post.content" @click="openMedia" class="mt-1 text-xs text-slate-600 hover:text-indigo-400 transition">
+          スレッドを開く
+        </button>
 
         <div class="flex items-center gap-4 mt-3 text-slate-500">
           <button @click="emit('toggleLike', post.id)"
@@ -120,13 +130,17 @@ function linkify(text: string) {
             <span>{{ post.repostCount || 0 }}</span>
           </button>
 
+          <button @click="openMedia" class="flex items-center gap-1.5 transition text-sm hover:text-indigo-400">
+            <Icon name="lucide:message-circle" class="w-4 h-4" />
+            <span>{{ post.commentCount || 0 }}</span>
+          </button>
+
           <button @click="emit('toggleBookmark', post.id)"
             class="flex items-center gap-1.5 transition text-sm"
             :class="post.bookmarked ? 'text-amber-400' : 'hover:text-amber-400'">
             <svg viewBox="0 0 24 24" class="w-4 h-4" :class="post.bookmarked ? 'fill-amber-400 stroke-amber-400' : 'stroke-current fill-none'">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
             </svg>
-            <span v-if="false">{{ post.repostCount || 0 }}</span>
           </button>
 
           <span v-if="showViewCount" class="flex items-center gap-1 text-xs text-slate-600 ml-auto">

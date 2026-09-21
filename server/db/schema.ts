@@ -40,12 +40,32 @@ export const posts = pgTable('posts', {
   imageUrl: text('image_url'),
   visibility: text('visibility').default('public'),
   visibleTo: text('visible_to').default('[]'),
+  serverId: text('server_id'),
+  channelId: text('channel_id'),
   likeCount: integer('like_count').default(0),
   repostCount: integer('repost_count').default(0),
   viewCount: integer('view_count').default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
+
+export const postComments = pgTable('post_comments', {
+  id: text('id').primaryKey(),
+  postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const postReactions = pgTable('post_reactions', {
+  id: text('id').primaryKey(),
+  postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  emoji: text('emoji').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  userPostEmojiIdx: uniqueIndex('post_reactions_user_post_emoji_idx').on(t.userId, t.postId, t.emoji),
+}))
 
 export const likes = pgTable('likes', {
   id: text('id').primaryKey(),

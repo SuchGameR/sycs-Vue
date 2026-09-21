@@ -112,11 +112,33 @@ const channelDrafts = reactive<Record<string, any>>({})
 
 const channelTypes = [
   { key: 'text', label: 'テキスト', icon: 'lucide:hash' },
+  { key: 'video', label: '動画', icon: 'lucide:video' },
+  { key: 'music', label: '音楽', icon: 'lucide:music' },
+  { key: 'gallery', label: '画像', icon: 'lucide:image' },
   { key: 'voice', label: '音声', icon: 'lucide:volume-2' },
 ] as const
 
+const CHANNEL_ICONS: Record<string, string> = {
+  text: 'lucide:hash',
+  video: 'lucide:video',
+  music: 'lucide:music',
+  gallery: 'lucide:image',
+  voice: 'lucide:volume-2',
+}
+
 function channelTypeIcon(type?: string) {
-  return type === 'voice' ? 'lucide:volume-2' : 'lucide:hash'
+  return CHANNEL_ICONS[type || 'text'] || 'lucide:hash'
+}
+
+const CHANNEL_TYPE_LABEL: Record<string, string> = {
+  video: '動画',
+  music: '音楽',
+  gallery: '画像',
+  voice: '音声',
+}
+
+function channelTypeLabel(type?: string) {
+  return CHANNEL_TYPE_LABEL[type || 'text'] || ''
 }
 
 function draftOf(ch: any) {
@@ -459,7 +481,7 @@ const btnGhost = 'px-4 py-2 rounded-lg border border-slate-700 text-sm text-slat
                   <div class="flex items-center gap-2 px-4 py-3">
                     <Icon :name="channelTypeIcon(ch.type)" class="w-4 h-4 text-slate-500 shrink-0" />
                     <span class="text-sm font-bold text-white flex-1 truncate">{{ ch.name }}</span>
-                    <span v-if="ch.type === 'voice'" class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-1.5 py-0.5">音声</span>
+                    <span v-if="channelTypeLabel(ch.type)" class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-1.5 py-0.5">{{ channelTypeLabel(ch.type) }}</span>
                     <span v-if="ch.nsfw" class="text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/30 rounded px-1.5 py-0.5">NSFW</span>
                     <span v-if="ch.slowModeSeconds > 0" class="text-[10px] text-slate-500">スローモード {{ ch.slowModeSeconds }}s</span>
                     <button v-if="can.channels()" @click="expandedChannelId = expandedChannelId === ch.id ? null : ch.id" class="text-slate-500 hover:text-white transition">
@@ -488,6 +510,9 @@ const btnGhost = 'px-4 py-2 rounded-lg border border-slate-700 text-sm text-slat
                         </button>
                       </div>
                       <p v-if="draftOf(ch).type === 'voice'" class="text-[11px] text-emerald-500 mt-1">音声チャンネルでは通話に参加できます。メッセージは表示されません。</p>
+                      <p v-else-if="draftOf(ch).type === 'video'" class="text-[11px] text-indigo-400 mt-1">動画チャンネルでは動画を中心に投稿できます。</p>
+                      <p v-else-if="draftOf(ch).type === 'music'" class="text-[11px] text-indigo-400 mt-1">音楽チャンネルでは音声ファイルを中心に投稿できます。</p>
+                      <p v-else-if="draftOf(ch).type === 'gallery'" class="text-[11px] text-indigo-400 mt-1">画像ギャラリーでは画像を中心に投稿できます。</p>
                     </div>
                     <div>
                       <label :class="labelCls">説明</label>

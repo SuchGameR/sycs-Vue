@@ -3,9 +3,11 @@ import { readFile } from 'fs/promises'
 import { extname } from 'path'
 import { db } from '../../db'
 import * as schema from '../../db/schema'
+import { eq, and } from 'drizzle-orm'
 import { requireAuth } from '../../utils/auth'
 import { saveFileWithWatermark, urlToFilePath } from '../../utils/upload'
 import { emit } from '../../utils/eventBus'
+import { isServerMember } from '../../utils/serverAuth'
 
 const IMAGE_EXTENSIONS = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
 
@@ -18,6 +20,21 @@ export default defineEventHandler(async (event) => {
 
   const postId = randomUUID()
 
+  let serverId: string | null = null
+  let channelId: string | null = null
+  if (body.serverId) {
+    serverId = String(body.serverId)
+    const member = await isServerMember(user.id, serverId)
+    if (!member) throw createError({ statusCode: 403, message: 'このサーバーのメンバーではありません' })
+    if (body.channelId) {
+      channelId = String(body.channelId)
+      const channel = await db.query.serverChannels.findFirst({
+        where: and(eq(schema.serverChannels.id, channelId), eq(schema.serverChannels.serverId, serverId)),
+      })
+      if (!channel) throw createError({ statusCode: 404, message: 'チャンネルが見つかりません' })
+    }
+  }
+
   const [post] = await db.insert(schema.posts).values({
     id: postId,
     userId: user.id,
@@ -25,6 +42,8 @@ export default defineEventHandler(async (event) => {
     imageUrl: body.imageUrl || null,
     visibility: body.visibility || 'public',
     visibleTo: body.visibleTo ? JSON.stringify(body.visibleTo) : '[]',
+    serverId,
+    channelId,
   }).returning()
 
   const values: any[] = []

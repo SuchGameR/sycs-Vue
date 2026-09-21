@@ -8,26 +8,6 @@ const route = useRoute()
 const isHomePage = computed(() => route.path === '/home')
 const isProfilePage = computed(() => route.path.startsWith('/profile/'))
 const profileHeader = useState<{displayName: string; username: string; avatarUrl: string | null; bannerUrl: string | null} | null>('profile-header-state', () => null)
-
-const showMoreMenu = ref(false)
-const timeline = useTimeline()
-
-const timelineTabs = [
-  { key: 'recommended', label: 'オススメ' },
-  { key: 'global', label: 'グローバル' },
-  { key: 'local', label: 'ローカル' },
-]
-
-const extraTimelines = [
-  { key: 'trending', label: '急上昇' },
-  { key: 'following', label: 'フォロー中' },
-  { key: 'global', label: 'すべての投稿' },
-]
-
-function selectTab(key: string) {
-  timeline.value = key
-  showMoreMenu.value = false
-}
 </script>
 
 <template>
@@ -83,40 +63,7 @@ function selectTab(key: string) {
             </div>
           </template>
 
-          <!-- Timeline tabs (only on home page) -->
-          <nav v-if="isHomePage" class="flex items-center gap-0.5 bg-[#05070d] p-1 rounded-full border border-slate-800 ml-auto">
-            <button
-              v-for="tab in timelineTabs"
-              :key="tab.key"
-              @click="selectTab(tab.key)"
-              class="px-2.5 py-1 rounded-full text-xs font-medium transition whitespace-nowrap"
-              :class="(timeline || 'recommended') === tab.key ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-300'"
-            >
-              {{ tab.label }}
-            </button>
-            <div class="relative">
-              <button
-                @click="showMoreMenu = !showMoreMenu"
-                class="px-1.5 py-0.5 rounded-full text-xs font-medium transition text-slate-500 hover:text-slate-300"
-              >
-                <Icon name="lucide:plus" class="w-3.5 h-3.5" />
-              </button>
-              <div
-                v-if="showMoreMenu"
-                class="absolute top-full right-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-40"
-                @click.outside="showMoreMenu = false"
-              >
-                <button
-                  v-for="item in extraTimelines"
-                  :key="item.key"
-                  @click="selectTab(item.key)"
-                  class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 transition"
-                >
-                  {{ item.label }}
-                </button>
-              </div>
-            </div>
-          </nav>
+          <!-- Timeline tabs are rendered inside the timeline page -->
 
           <div class="flex items-center gap-2 ml-auto" :class="isProfilePage ? 'hidden' : ''">
           </div>

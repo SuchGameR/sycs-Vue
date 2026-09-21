@@ -7,12 +7,13 @@ export default defineEventHandler(async (event) => {
   const ctx = await requireServerMember(event, serverId)
   const roomKey = `server:${serverId}:${channelId}`
 
-  if (!isInRoom(roomKey, ctx.user.id)) {
-    throw createError({ statusCode: 403, message: '音声チャンネルに参加していません' })
-  }
-
   const body = await readBody(event)
   if (!body.to || !body.signal) throw createError({ statusCode: 400, message: 'シグナリングデータが不正です' })
+
+  const isDecline = body.signal?.type === 'decline'
+  if (!isInRoom(roomKey, ctx.user.id) && !isDecline) {
+    throw createError({ statusCode: 403, message: '音声チャンネルに参加していません' })
+  }
 
   relaySignal(roomKey, {
     userId: ctx.user.id,

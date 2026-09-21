@@ -257,6 +257,32 @@ async function initDbInternal() {
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `)
+    // Media SNS migrations
+    await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS server_id TEXT`)
+    await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS channel_id TEXT`)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS post_comments (
+        id TEXT PRIMARY KEY,
+        post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS post_reactions (
+        id TEXT PRIMARY KEY,
+        post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        emoji TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS post_reactions_user_post_emoji_idx ON post_reactions(user_id, post_id, emoji)
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS posts_server_channel_idx ON posts(server_id, channel_id)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS post_comments_post_idx ON post_comments(post_id)`)
     // Server system migrations
     await client.query(`ALTER TABLE server_roles ADD COLUMN IF NOT EXISTS permissions_mask BIGINT DEFAULT 0`)
     await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS slow_mode_seconds INTEGER DEFAULT 0`)

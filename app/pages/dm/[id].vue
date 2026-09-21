@@ -10,13 +10,9 @@ const messageDraft = ref('')
 const chatEditor = ref<InstanceType<typeof ChatEditor> | null>(null)
 const loading = ref(true)
 
-const voice = useVoiceCall({ ring: true })
+const voice = useVoiceCall()
 const voiceStatus = voice.status
-const voiceMembers = voice.members
-const voiceError = voice.errorMsg
-const voiceMuted = voice.muted
-const voiceIncoming = voice.incomingCaller
-const voiceRemoteStreams = voice.remoteStreams
+const voiceIncoming = voice.incoming
 
 const otherMember = ref<any>(null)
 
@@ -27,6 +23,8 @@ function dmVoiceConfig() {
     joinPath: `/api/dm/channels/${id}/voice/join`,
     leavePath: `/api/dm/channels/${id}/voice/leave`,
     signalPath: `/api/dm/channels/${id}/voice/signal`,
+    label: otherMember.value?.displayName || 'DM通話',
+    kind: 'dm' as const,
   }
 }
 
@@ -54,12 +52,11 @@ async function loadChannelInfo() {
 onMounted(async () => {
   await loadMessages()
   await loadChannelInfo()
-  voice.setChannel(dmVoiceConfig())
+  voice.watchRoom(dmVoiceConfig())
 })
 
 onUnmounted(() => {
-  voice.cleanup()
-  voice.leave()
+  voice.unwatchRoom(`dm:${channelId.value}`)
 })
 
 async function sendMessage(text?: string) {
@@ -75,17 +72,7 @@ async function sendMessage(text?: string) {
 }
 
 async function startCall() {
-  voice.setChannel(dmVoiceConfig())
-  await voice.join()
-}
-
-function acceptIncomingCall() {
-  voice.setChannel(dmVoiceConfig())
-  voice.acceptCall()
-}
-
-async function endCall() {
-  await voice.leave()
+  await voice.join(dmVoiceConfig())
 }
 
 const { data: me } = await useFetch('/api/auth/me', { key: 'dm-chat-me' })
@@ -146,39 +133,6 @@ function timeAgo(date: string) {
       </div>
     </div>
 
-    <div v-if="voiceError && voiceStatus === 'idle'" class="mb-3 shrink-0 bg-red-950/60 border border-red-800/50 rounded-lg px-4 py-2 text-sm text-red-300 flex items-center justify-between gap-3">
-      <span>{{ voiceError }}</span>
-      <button @click="voiceError = null" class="text-red-400 hover:text-white transition shrink-0">
-        <Icon name="lucide:x" class="w-4 h-4" />
-      </button>
-    </div>
-
-    <div v-if="voiceStatus === 'active' || voiceStatus === 'connecting'" class="mb-3 shrink-0 bg-slate-900 border border-emerald-800/50 rounded-lg px-4 py-2 flex items-center gap-2">
-      <Icon name="lucide:volume-2" class="w-4 h-4 text-emerald-400 shrink-0" />
-      <span v-if="voiceStatus === 'connecting'" class="text-sm text-slate-400">接続中...</span>
-      <span v-else class="text-sm font-bold text-white">{{ otherMember?.displayName || '通話中' }}</span>
-      <span v-if="voiceStatus === 'active'" class="text-xs text-emerald-400">通話中</span>
-      <div class="ml-auto flex items-center gap-1 shrink-0">
-        <button
-          @click="voice.toggleMute()"
-          class="p-1.5 rounded-md hover:bg-slate-800 transition"
-          :title="voiceMuted ? 'ミュート解除' : 'ミュート'"
-        >
-          <Icon :name="voiceMuted ? 'lucide:mic-off' : 'lucide:mic'" class="w-4 h-4" :class="voiceMuted ? 'text-red-400' : 'text-slate-400'" />
-        </button>
-        <button @click="endCall" class="p-1.5 rounded-md hover:bg-red-600/20 transition" title="通話を終了">
-          <Icon name="lucide:phone-off" class="w-4 h-4 text-red-400" />
-        </button>
-      </div>
-      <audio
-        v-for="(stream, uid) in voiceRemoteStreams"
-        :key="uid"
-        :srcObject="stream"
-        autoplay
-        class="hidden"
-      />
-    </div>
-
     <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 shrink-0">
       <ChatEditor
         ref="chatEditor"
@@ -189,28 +143,6 @@ function timeAgo(date: string) {
       <button @click="sendMessage()" :disabled="!messageDraft.trim()" class="text-indigo-400 hover:text-indigo-300 transition disabled:opacity-50 shrink-0">
         <Icon name="lucide:send" class="w-4 h-4" />
       </button>
-    </div>
-
-    <!-- Incoming call -->
-    <div v-if="voiceIncoming && voiceStatus === 'idle'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div class="bg-[#151a24] border border-slate-700 rounded-2xl p-8 w-80 text-center space-y-4">
-        <div class="w-20 h-20 mx-auto rounded-full bg-indigo-600 flex items-center justify-center text-2xl font-bold text-white overflow-hidden">
-          <img v-if="voiceIncoming.avatarUrl" :src="voiceIncoming.avatarUrl" class="w-full h-full object-cover" />
-          <template v-else>{{ voiceIncoming.displayName?.charAt(0) || '?' }}</template>
-        </div>
-        <div>
-          <p class="text-white font-bold">着信中...</p>
-          <p class="text-slate-400 text-sm mt-1">{{ voiceIncoming.displayName }} から通話が届いています</p>
-        </div>
-        <div class="flex justify-center gap-5">
-          <button @click="voice.declineCall()" class="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 transition flex items-center justify-center">
-            <Icon name="lucide:phone-off" class="w-6 h-6 text-white" />
-          </button>
-          <button @click="acceptIncomingCall" class="w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 transition flex items-center justify-center">
-            <Icon name="lucide:phone" class="w-6 h-6 text-white" />
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
