@@ -7,17 +7,20 @@ import { setCookie, getCookie, deleteCookie } from 'h3'
 import bcrypt from 'bcryptjs'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'sycs-dev-secret-change-in-production-please')
-const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000
 
 export interface JwtPayload {
   userId: string
   sessionId: string
+  remember?: boolean
 }
+
+const SHORT_SESSION_SECONDS = 7 * 24 * 60 * 60
+const LONG_SESSION_SECONDS = 30 * 24 * 60 * 60
 
 export async function createToken(payload: JwtPayload): Promise<string> {
   return new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('7d')
+    .setExpirationTime(payload.remember ? '30d' : '7d')
     .setIssuedAt()
     .sign(JWT_SECRET)
 }
@@ -39,18 +42,37 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 export async function createSession(userId: string, rememberMe = false): Promise<{ token: string }> {
   const sessionId = randomUUID()
-  const token = await createToken({ userId, sessionId })
+  const token = await createToken({ userId, sessionId, remember: rememberMe })
   return { token }
+}
+
+function cookieSecure(): boolean {
+  const override = process.env.SYCS_COOKIE_SECURE
+  if (override === 'true') return true
+  if (override === 'false') return false
+  return process.env.NODE_ENV === 'production'
 }
 
 export function setAuthCookie(event: any, token: string, rememberMe = false) {
   setCookie(event, 'sycs_token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     sameSite: 'lax',
     path: '/',
-    maxAge: rememberMe ? 30 * 24 * 60 * 60 : SESSION_DURATION_MS / 1000,
+    maxAge: rememberMe ? LONG_SESSION_SECONDS : SHORT_SESSION_SECONDS,
   })
+}
+
+export function renewAuthCookie(event: any) {
+  const token = getCookie(event, 'sycs_token')
+  if (!token) return
+  verifyToken(token).then((payload) => {
+    if (!payload) return
+    const remember = !!payload.remember
+    createToken({ userId: payload.userId, sessionId: payload.sessionId, remember }).then((fresh) => {
+      setAuthCookie(event, fresh, remember)
+    }).catch(() => {})
+  }).catch(() => {})
 }
 
 export function clearAuthCookie(event: any) {

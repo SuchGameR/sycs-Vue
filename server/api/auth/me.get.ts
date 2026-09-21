@@ -1,10 +1,11 @@
-import { getCurrentUser } from '../../utils/auth'
+import { getCurrentUser, renewAuthCookie } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   const user = await getCurrentUser(event)
   if (!user) {
     throw createError({ statusCode: 401, message: '認証が必要です' })
   }
+  renewAuthCookie(event)
   return {
     user: {
       id: user.id,

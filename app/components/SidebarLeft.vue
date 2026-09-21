@@ -16,7 +16,7 @@ async function handleSignout() {
 </script>
 
 <template>
-  <aside class="flex flex-col border-r border-slate-800 bg-[#0b0f19] h-[calc(100vh-57px)] sticky top-14 px-3 py-4 overflow-y-auto">
+  <aside class="flex flex-col border-r border-slate-800 bg-[#0b0f19] h-[calc(100vh-56px-var(--app-footer-h))] sticky top-14 px-3 py-4 overflow-y-auto">
     <NuxtLink to="/home" class="px-2 py-2 rounded-lg flex items-center gap-3 transition"
       :class="route.path === '/home' ? 'bg-slate-800/50 text-white font-medium' : 'text-slate-400 hover:bg-slate-800/30'">
       <Icon name="lucide:home" class="w-5 h-5 shrink-0" />

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { map: customEmojiMap } = useCustomEmojis()
+
 const props = defineProps<{
   post: any
 }>()
@@ -12,8 +14,6 @@ const loading = ref(true)
 const draft = ref('')
 const submitting = ref(false)
 const error = ref('')
-
-const PALETTE = ['👍', '❤️', '🔥', '😂', '😮', '👀']
 
 async function loadComments() {
   loading.value = true
@@ -139,20 +139,11 @@ function timeAgo(date: string) {
         :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-500'"
         :title="(r.users || []).map((u: any) => u.displayName || '').join(', ')"
       >
-        <span>{{ r.emoji }}</span>
+        <EmojiIcon :emoji="r.emoji" />
         <span class="text-xs">{{ r.count }}</span>
       </button>
 
-      <div class="relative group">
-        <button class="flex items-center gap-1 px-2 py-1 rounded-full text-sm border border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 transition" title="リアクションを追加">
-          <Icon name="lucide:smile-plus" class="w-4 h-4" />
-        </button>
-        <div class="absolute bottom-full left-0 mb-1 hidden group-hover:flex bg-slate-900 border border-slate-700 rounded-xl p-1.5 gap-1 shadow-xl z-20">
-          <button v-for="e in PALETTE" :key="e" @click="toggleReaction(e)" class="w-8 h-8 rounded-lg hover:bg-slate-800 text-lg transition">
-            {{ e }}
-          </button>
-        </div>
-      </div>
+      <ReactionPicker @select="toggleReaction" />
     </div>
 
     <!-- Comments -->
@@ -171,7 +162,7 @@ function timeAgo(date: string) {
               <span class="text-sm font-bold text-white truncate">{{ c.user?.displayName || '不明' }}</span>
               <span class="text-[11px] text-slate-600 shrink-0">{{ timeAgo(c.createdAt) }}</span>
             </div>
-            <p class="text-sm text-slate-300 whitespace-pre-wrap break-words">{{ c.content }}</p>
+            <p class="text-sm text-slate-300 whitespace-pre-wrap break-words" v-html="renderRichText(c.content, { custom: customEmojiMap })" />
           </div>
         </div>
         <p v-if="!comments.length" class="text-center text-slate-500 text-sm py-8">まだコメントはありません</p>
@@ -181,12 +172,13 @@ function timeAgo(date: string) {
     <!-- Composer -->
     <div class="border-t border-slate-800 p-3 shrink-0">
       <div class="flex items-end gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 transition">
-        <textarea
+        <EmojiTextarea
           v-model="draft"
-          rows="1"
+          class="flex-1"
+          :rows="1"
+          submit-on-enter
           placeholder="コメントを追加..."
-          class="flex-1 bg-transparent border-none focus:ring-0 text-sm text-white placeholder-slate-500 resize-none py-1.5 max-h-28"
-          @keydown.enter.exact.prevent="submitComment"
+          textarea-class="w-full bg-transparent border-none focus:ring-0 text-sm text-white placeholder-slate-500 resize-none py-1.5 max-h-28"
         />
         <button @click="submitComment" :disabled="!draft.trim() || submitting" class="p-1.5 text-indigo-400 hover:text-indigo-300 disabled:opacity-40 transition shrink-0">
           <Icon :name="submitting ? 'lucide:loader-2' : 'lucide:send'" class="w-4 h-4" :class="{ 'animate-spin': submitting }" />

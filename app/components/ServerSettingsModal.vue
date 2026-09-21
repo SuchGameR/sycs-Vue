@@ -115,6 +115,8 @@ const channelTypes = [
   { key: 'video', label: '動画', icon: 'lucide:video' },
   { key: 'music', label: '音楽', icon: 'lucide:music' },
   { key: 'gallery', label: '画像', icon: 'lucide:image' },
+  { key: 'model', label: '3Dモデル', icon: 'lucide:box' },
+  { key: 'file', label: 'ファイル', icon: 'lucide:paperclip' },
   { key: 'voice', label: '音声', icon: 'lucide:volume-2' },
 ] as const
 
@@ -123,6 +125,8 @@ const CHANNEL_ICONS: Record<string, string> = {
   video: 'lucide:video',
   music: 'lucide:music',
   gallery: 'lucide:image',
+  model: 'lucide:box',
+  file: 'lucide:paperclip',
   voice: 'lucide:volume-2',
 }
 
@@ -134,6 +138,8 @@ const CHANNEL_TYPE_LABEL: Record<string, string> = {
   video: '動画',
   music: '音楽',
   gallery: '画像',
+  model: '3Dモデル',
+  file: 'ファイル',
   voice: '音声',
 }
 
@@ -513,6 +519,8 @@ const btnGhost = 'px-4 py-2 rounded-lg border border-slate-700 text-sm text-slat
                       <p v-else-if="draftOf(ch).type === 'video'" class="text-[11px] text-indigo-400 mt-1">動画チャンネルでは動画を中心に投稿できます。</p>
                       <p v-else-if="draftOf(ch).type === 'music'" class="text-[11px] text-indigo-400 mt-1">音楽チャンネルでは音声ファイルを中心に投稿できます。</p>
                       <p v-else-if="draftOf(ch).type === 'gallery'" class="text-[11px] text-indigo-400 mt-1">画像ギャラリーでは画像を中心に投稿できます。</p>
+                      <p v-else-if="draftOf(ch).type === 'model'" class="text-[11px] text-indigo-400 mt-1">3Dモデルチャンネルでは .glb / .gltf などの3Dモデルを投稿・閲覧できます。</p>
+                      <p v-else-if="draftOf(ch).type === 'file'" class="text-[11px] text-indigo-400 mt-1">ファイルチャンネルでは PDF・ZIP などのファイルを共有できます。</p>
                     </div>
                     <div>
                       <label :class="labelCls">説明</label>

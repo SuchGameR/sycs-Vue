@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import FileCard from './media/FileCard.vue'
+
+const MODEL_EXT = /\.(glb|gltf|obj|fbx|stl|3ds)(\?|$)/i
+
 const props = defineProps<{
   attachments: Array<{
     id: string
@@ -8,9 +12,18 @@ const props = defineProps<{
     mime: string
   }>
   interactive?: boolean
+  postId?: string
 }>()
 
 const emit = defineEmits<{ open: [index: number] }>()
+
+const pane = useMediaPane()
+const inPane = computed(() => !!props.postId && pane.selected.value?.id === props.postId)
+
+watch(inPane, (pause) => {
+  if (!pause || !el.value) return
+  el.value.querySelectorAll('video,audio').forEach((node) => (node as HTMLMediaElement).pause())
+})
 
 const blurredMap = ref<Record<string, boolean>>({})
 
@@ -34,6 +47,10 @@ function isBlurred(att: any) {
 function isImage(mime: string) { return mime.startsWith('image/') }
 function isVideo(mime: string) { return mime.startsWith('video/') }
 function isAudio(mime: string) { return mime.startsWith('audio/') }
+function isModel(att: any) {
+  const m = String(att?.mime || att?.type || '').toLowerCase()
+  return m.startsWith('model/') || MODEL_EXT.test(String(att?.url || ''))
+}
 
 const el = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
@@ -57,6 +74,7 @@ onUnmounted(() => {
 })
 
 function gridClass(count: number) {
+  if (props.attachments.some(a => !isImage(a.mime) && !isVideo(a.mime) && !isAudio(a.mime))) return 'grid-cols-1'
   if (count === 1) return 'grid-cols-1'
   if (count <= 4) return 'grid-cols-2'
   return 'grid-cols-3'
@@ -171,8 +189,8 @@ onUnmounted(() => {
       <template v-if="isImage(att.mime)">
         <img :src="displayUrl(att)"
           :class="['w-full object-cover cursor-pointer transition duration-300', imageClass(attachments.length)]"
-          @click="isBlurred(att) ? reveal(att.id) : (props.interactive ? emit('open', i) : openModal(i))"
-          @dblclick="openModal(i)" />
+          @click.stop="isBlurred(att) ? reveal(att.id) : (props.interactive ? emit('open', i) : openModal(i))"
+          @dblclick="!props.interactive && openModal(i)" />
 
         <div v-if="isBlurred(att)"
           class="absolute inset-0 flex items-center justify-center cursor-pointer"
@@ -203,6 +221,29 @@ onUnmounted(() => {
             <Icon name="lucide:maximize-2" class="w-4 h-4" />
           </button>
         </div>
+      </template>
+
+      <template v-else-if="isModel(att)">
+        <div class="relative">
+          <div class="h-32 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-fuchsia-900/40 to-slate-900">
+            <Icon name="lucide:box" class="w-8 h-8 text-fuchsia-400" />
+            <span class="text-[11px] text-slate-400">3Dモデル</span>
+          </div>
+          <button v-if="props.interactive" type="button"
+            @click.stop="emit('open', i)"
+            class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
+            <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
+          </button>
+        </div>
+      </template>
+
+      <template v-else>
+        <FileCard :url="att.url" :mime="att.mime" />
+        <button v-if="props.interactive" type="button"
+          @click.stop="emit('open', i)"
+          class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
+          <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
+        </button>
       </template>
     </div>
   </div>

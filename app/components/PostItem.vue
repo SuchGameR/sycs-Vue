@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { map: customEmojiMap } = useCustomEmojis()
+
 const props = defineProps<{
   post: {
     id: string
@@ -52,17 +54,10 @@ function timeAgo(date: string) {
 }
 
 const isMine = computed(() => props.currentUserId === props.post.user.id)
-
-function linkify(text: string) {
-  return text.replace(
-    /(https?:\/\/[^\s]+)/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline">$1</a>'
-  )
-}
 </script>
 
 <template>
-  <div class="p-4 bg-slate-800/30 border border-slate-800 rounded-xl hover:bg-slate-800/50 transition">
+  <div class="py-4 px-3 bg-slate-800/30 border border-slate-800 hover:bg-slate-800/50 transition">
     <div class="flex gap-3">
       <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
         <img v-if="post.user.avatarUrl" :src="post.user.avatarUrl" class="w-10 h-10 rounded-full object-cover" />
@@ -82,33 +77,33 @@ function linkify(text: string) {
             <button @click="showMenu = !showMenu" class="p-1 rounded-full text-slate-500 hover:text-white hover:bg-slate-800 transition">
               <Icon name="lucide:ellipsis" class="w-4 h-4" />
             </button>
-            <div v-if="showMenu"
-              class="absolute top-full right-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-40"
-              @click.outside="showMenu = false">
-              <div class="px-4 py-1.5 text-xs text-slate-500 border-b border-slate-800">
-                閲覧数 {{ post.viewCount || 0 }}
+            <div v-if="showMenu" class="fixed inset-0 z-40" @click="showMenu = false" />
+            <Transition name="menu-pop">
+              <div v-if="showMenu"
+                class="absolute top-full right-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-40">
+                <div class="px-4 py-1.5 text-xs text-slate-500 border-b border-slate-800">
+                  閲覧数 {{ post.viewCount || 0 }}
+                </div>
+                <div class="px-4 py-1.5 text-xs text-slate-500">
+                  公開範囲: {{ { public: '公開', followers: 'フォロワー', close_friends: '親しい友達', specific: '特定の人' }[post.visibility || 'public'] }}
+                </div>
+                <hr class="border-slate-800 my-1" />
+                <button @click="emit('report', post.id); showMenu = false"
+                  class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/30 transition">
+                  報告
+                </button>
+                <button v-if="isMine" @click="emit('delete', post.id); showMenu = false"
+                  class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800/30 transition">
+                  削除
+                </button>
               </div>
-              <div class="px-4 py-1.5 text-xs text-slate-500">
-                公開範囲: {{ { public: '公開', followers: 'フォロワー', close_friends: '親しい友達', specific: '特定の人' }[post.visibility || 'public'] }}
-              </div>
-              <hr class="border-slate-800 my-1" />
-              <button @click="emit('report', post.id); showMenu = false"
-                class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/30 transition">
-                報告
-              </button>
-              <button v-if="isMine" @click="emit('delete', post.id); showMenu = false"
-                class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800/30 transition">
-                削除
-              </button>
-            </div>
+            </Transition>
           </div>
         </div>
 
-        <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="linkify(post.content)" />
+        <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
 
-        <div v-if="post.attachments?.length" @click="openMedia">
-          <PostAttachments :attachments="post.attachments" interactive @open="openMedia" />
-        </div>
+        <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" :post-id="post.id" interactive @open="openMedia" />
         <button v-else-if="post.content" @click="openMedia" class="mt-1 text-xs text-slate-600 hover:text-indigo-400 transition">
           スレッドを開く
         </button>
@@ -152,3 +147,9 @@ function linkify(text: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.menu-pop-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.menu-pop-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
+.menu-pop-enter-from, .menu-pop-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }
+</style>

@@ -63,9 +63,10 @@ const profileHeader = useState<{displayName: string; username: string; avatarUrl
             </div>
           </template>
 
-          <!-- Timeline tabs are rendered inside the timeline page -->
+          <!-- Timeline tabs on home -->
+          <TimelineTabs v-if="isHomePage" class="mx-auto max-w-[560px]" />
 
-          <div class="flex items-center gap-2 ml-auto" :class="isProfilePage ? 'hidden' : ''">
+          <div v-if="!isHomePage" class="flex items-center gap-2 ml-auto" :class="isProfilePage ? 'hidden' : ''">
           </div>
         </div>
       </div>

@@ -288,6 +288,19 @@ async function initDbInternal() {
     await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS slow_mode_seconds INTEGER DEFAULT 0`)
     await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS nsfw BOOLEAN DEFAULT FALSE`)
     await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`)
+    // Custom emoji migrations
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS custom_emojis (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        url TEXT NOT NULL,
+        mime TEXT NOT NULL DEFAULT 'image/png',
+        animated BOOLEAN DEFAULT FALSE,
+        creator_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS custom_emojis_name_idx ON custom_emojis(name)`)
   } finally {
     client.release()
   }

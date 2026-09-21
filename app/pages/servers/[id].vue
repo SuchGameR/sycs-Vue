@@ -31,6 +31,8 @@ const CHANNEL_META: Record<string, { label: string; icon: string }> = {
   video: { label: '動画チャンネル', icon: 'lucide:video' },
   music: { label: '音楽チャンネル', icon: 'lucide:music' },
   gallery: { label: '画像ギャラリー', icon: 'lucide:image' },
+  model: { label: '3Dモデルチャンネル', icon: 'lucide:box' },
+  file: { label: 'ファイルチャンネル', icon: 'lucide:paperclip' },
 }
 
 const textChannels = computed(() => channels.value.filter(c => c.type !== 'voice'))
@@ -38,7 +40,7 @@ const voiceChannels = computed(() => channels.value.filter(c => c.type === 'voic
 
 const groupedChannels = computed(() => {
   const groups: Array<{ type: string; label: string; icon: string; channels: any[] }> = []
-  for (const type of ['text', 'video', 'music', 'gallery']) {
+  for (const type of ['text', 'video', 'music', 'gallery', 'model', 'file']) {
     const list = channels.value.filter(c => (c.type || 'text') === type)
     if (list.length) groups.push({ type, ...(CHANNEL_META[type] || CHANNEL_META.text), channels: list })
   }
@@ -58,11 +60,13 @@ const canManage = computed(() =>
   || hasPermission(myPermissions.value, PERMISSIONS.MANAGE_SERVER)
 )
 
-const composerMediaKind = computed<'any' | 'video' | 'image' | 'audio'>(() => {
+const composerMediaKind = computed<'any' | 'video' | 'image' | 'audio' | 'model' | 'file'>(() => {
   const t = activeChannel.value?.type
   if (t === 'video') return 'video'
   if (t === 'gallery') return 'image'
   if (t === 'music') return 'audio'
+  if (t === 'model') return 'model'
+  if (t === 'file') return 'file'
   return 'any'
 })
 

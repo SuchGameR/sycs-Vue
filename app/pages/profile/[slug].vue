@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { map: customEmojiMap } = useCustomEmojis()
 definePageMeta({})
 
 const route = useRoute()
@@ -141,10 +142,6 @@ async function toggleBookmark(postId: string) {
   if (!p) return
   try { const res = await $fetch<{ bookmarked: boolean }>('/api/bookmarks/toggle', { method: 'POST', body: { postId } }); p.bookmarked = res.bookmarked } catch {}
 }
-
-function linkify(text: string) {
-  return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline">$1</a>')
-}
 </script>
 
 <template>
@@ -234,7 +231,7 @@ function linkify(text: string) {
                   <NuxtLink :to="`/profile/@${post.user.username}`" class="font-bold text-white hover:underline truncate">{{ post.user.displayName }}</NuxtLink>
                   <span class="text-slate-500 text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
                 </div>
-                <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="linkify(post.content)" />
+                <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
                 <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" />
                 <div class="flex items-center gap-4 mt-3 text-slate-500">
                   <button @click="toggleLike(post.id)" class="flex items-center gap-1.5 transition text-sm" :class="post.liked ? 'text-indigo-400' : 'hover:text-indigo-400'">

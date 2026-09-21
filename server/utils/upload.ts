@@ -5,12 +5,21 @@ import { join, extname } from 'path'
 import sharp from 'sharp'
 import opentype from 'opentype.js'
 
-const ALLOWED = ['.png', '.jpeg', '.jpg', '.gif', '.webp', '.webm', '.mp4', '.mp3', '.ogg']
+const ALLOWED = [
+  '.png', '.jpeg', '.jpg', '.gif', '.webp',
+  '.webm', '.mp4',
+  '.mp3', '.ogg',
+  '.glb', '.gltf', '.obj', '.fbx', '.stl',
+  '.pdf', '.zip', '.txt', '.md', '.json', '.csv',
+]
 const IMAGE_TYPES = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
+const MODEL_TYPES = ['.glb', '.gltf', '.obj', '.fbx', '.stl']
 
 const MAX_SIZE_IMAGE = 10 * 1024 * 1024
 const MAX_SIZE_VIDEO = 50 * 1024 * 1024
 const MAX_SIZE_AUDIO = 30 * 1024 * 1024
+const MAX_SIZE_MODEL = 100 * 1024 * 1024
+const MAX_SIZE_FILE = 50 * 1024 * 1024
 
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads')
 
@@ -36,6 +45,12 @@ export function validateFile(filename: string, type: string, buffer: Buffer) {
   if (type.startsWith('audio/') && buffer.length > MAX_SIZE_AUDIO) {
     throw createError({ statusCode: 400, message: '音声は30MB以下にしてください' })
   }
+  if ((type.startsWith('model/') || MODEL_TYPES.includes(ext)) && buffer.length > MAX_SIZE_MODEL) {
+    throw createError({ statusCode: 400, message: '3Dモデルは100MB以下にしてください' })
+  }
+  if (!type.startsWith('image/') && !type.startsWith('video/') && !type.startsWith('audio/') && !type.startsWith('model/') && !MODEL_TYPES.includes(ext) && buffer.length > MAX_SIZE_FILE) {
+    throw createError({ statusCode: 400, message: 'ファイルは50MB以下にしてください' })
+  }
 }
 
 export async function saveFile(buffer: Buffer, filename: string): Promise<{ url: string; blurUrl: string | null }> {
@@ -56,6 +71,31 @@ export async function saveFile(buffer: Buffer, filename: string): Promise<{ url:
   }
 
   return { url: `/uploads/${name}`, blurUrl }
+}
+
+const EMOJI_EXT = ['.png', '.gif', '.webp', '.jpg', '.jpeg']
+const MAX_SIZE_EMOJI = 1024 * 1024
+
+export function validateEmojiFile(filename: string, buffer: Buffer) {
+  const ext = extname(filename).toLowerCase()
+  if (!EMOJI_EXT.includes(ext)) {
+    throw createError({ statusCode: 400, message: '絵文字は PNG / GIF / WebP / JPEG のみ対応しています' })
+  }
+  if (buffer.length > MAX_SIZE_EMOJI) {
+    throw createError({ statusCode: 400, message: '絵文字は1MB以下にしてください' })
+  }
+}
+
+export async function saveEmoji(buffer: Buffer, filename: string): Promise<{ url: string; mime: string; animated: boolean }> {
+  await ensureDir()
+  const ext = extname(filename).toLowerCase()
+  const name = `${randomUUID()}${ext}`
+  await writeFile(join(UPLOAD_DIR, name), buffer)
+  const mime = ext === '.gif' ? 'image/gif'
+    : ext === '.webp' ? 'image/webp'
+    : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg'
+    : 'image/png'
+  return { url: `/uploads/${name}`, mime, animated: ext === '.gif' }
 }
 
 function escapeXml(s: string): string {

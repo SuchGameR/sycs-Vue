@@ -29,6 +29,8 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode'
   ],
 
+  css: ['~/assets/css/app.css'],
+
   app: {
     head: {
       title: 'SYCS - Ultra Modern Chat & SNS',

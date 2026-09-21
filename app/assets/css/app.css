@@ -1,0 +1,14 @@
+.sycs-emoji {
+  display: inline-block;
+  width: 1.375em;
+  height: 1.375em;
+  vertical-align: -0.3em;
+  object-fit: contain;
+  margin: 0 0.02em;
+}
+
+.sycs-emoji--lg {
+  width: 2.25em;
+  height: 2.25em;
+  vertical-align: -0.45em;
+}

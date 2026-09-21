@@ -1,11 +1,39 @@
 <script setup lang="ts">
+const { map: customEmojiMap } = useCustomEmojis()
+
+import VideoPlayer from './media/VideoPlayer.vue'
+import MusicPlayer from './media/MusicPlayer.vue'
+import ImageGallery from './media/ImageGallery.vue'
+import FileCard from './media/FileCard.vue'
+import ModelViewer from './media/ModelViewer.vue'
+
+const MODEL_EXT = /\.(glb|gltf|obj|fbx|stl|3ds)(\?|$)/i
+
 const pane = useMediaPane()
 const { selected, sourceLabel, mobileFull, kind } = pane
 
+const mediaIndex = ref(0)
+watch(() => selected.value?.id, () => { mediaIndex.value = 0 })
+
 const attachments = computed<any[]>(() => selected.value?.attachments || [])
-const firstImage = computed(() => attachments.value.find(a => String(a.mime || '').startsWith('image/')))
+const images = computed(() => attachments.value.filter(a => String(a.mime || '').startsWith('image/')))
+const firstImage = computed(() => images.value[0])
 const firstVideo = computed(() => attachments.value.find(a => String(a.mime || '').startsWith('video/')))
 const firstAudio = computed(() => attachments.value.find(a => String(a.mime || '').startsWith('audio/')))
+const firstModel = computed(() => attachments.value.find(a => String(a.mime || '').toLowerCase().startsWith('model/') || MODEL_EXT.test(String(a.url || ''))))
+const files = computed(() => attachments.value.filter(a => {
+  const mime = String(a.mime || '')
+  return !mime.startsWith('image/') && !mime.startsWith('video/') && !mime.startsWith('audio/') && !mime.toLowerCase().startsWith('model/') && !MODEL_EXT.test(String(a.url || ''))
+}))
+
+const kindIcon = computed(() => {
+  if (kind.value === 'video') return 'lucide:video'
+  if (kind.value === 'image') return 'lucide:image'
+  if (kind.value === 'audio') return 'lucide:music'
+  if (kind.value === 'model') return 'lucide:box'
+  if (kind.value === 'file') return 'lucide:file'
+  return 'lucide:message-square'
+})
 
 function onPatch(postId: string, patch: any) {
   if (selected.value?.id !== postId) return
@@ -40,7 +68,7 @@ onUnmounted(() => { if (import.meta.client) document.body.style.overflow = '' })
         <button class="shrink-0" @click="pane.openMobileFull()">
           <img v-if="firstImage" :src="firstImage.url" class="w-11 h-11 rounded-lg object-cover" />
           <div v-else class="w-11 h-11 rounded-lg bg-slate-800 flex items-center justify-center">
-            <Icon :name="kind === 'video' ? 'lucide:video' : kind === 'audio' ? 'lucide:music' : 'lucide:message-square'" class="w-5 h-5 text-indigo-400" />
+            <Icon :name="kindIcon" class="w-5 h-5 text-indigo-400" />
           </div>
         </button>
         <button class="flex-1 min-w-0 text-left" @click="pane.openMobileFull()">
@@ -68,21 +96,23 @@ onUnmounted(() => { if (import.meta.client) document.body.style.overflow = '' })
 
         <div class="flex-1 overflow-y-auto min-h-0">
           <div class="px-3 pt-3">
-            <video v-if="firstVideo" :src="firstVideo.url" controls autoplay playsinline class="w-full rounded-xl bg-black" />
-            <div v-else-if="firstImage" class="rounded-xl overflow-hidden bg-black/40">
-              <img :src="firstImage.url" class="w-full max-h-[45vh] object-contain" />
-            </div>
-            <div v-else-if="firstAudio" class="rounded-xl bg-gradient-to-br from-indigo-900/50 to-slate-900 p-4">
-              <div class="flex items-center gap-3 mb-3">
-                <div class="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center"><Icon name="lucide:music" class="w-6 h-6 text-white" /></div>
-                <p class="text-sm font-bold text-white">オーディオ</p>
-              </div>
-              <audio :src="firstAudio.url" controls autoplay class="w-full" />
+            <VideoPlayer v-if="firstVideo" :src="firstVideo.url" />
+            <ImageGallery v-else-if="images.length" :images="images" :index="mediaIndex" @update:index="mediaIndex = $event" />
+            <MusicPlayer
+              v-else-if="firstAudio"
+              :src="firstAudio.url"
+              title="オーディオ"
+              :artist="'@' + (selected.user?.username || '')"
+            />
+            <ModelViewer v-else-if="firstModel" :src="firstModel.url" />
+
+            <div v-else-if="files.length" class="space-y-2">
+              <FileCard v-for="f in files" :key="f.id" :url="f.url" :mime="f.mime" />
             </div>
           </div>
 
           <div class="px-3 py-3">
-            <p v-if="selected.content" class="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap break-words">{{ selected.content }}</p>
+            <p v-if="selected.content" class="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
             <div class="flex items-center gap-4 mt-3 text-slate-500 text-sm">
               <span class="flex items-center gap-1.5"><Icon name="lucide:heart" class="w-4 h-4" :class="selected.liked ? 'text-indigo-400 fill-indigo-400' : ''" />{{ selected.likeCount || 0 }}</span>
               <span class="flex items-center gap-1.5"><Icon name="lucide:repeat-2" class="w-4 h-4" />{{ selected.repostCount || 0 }}</span>

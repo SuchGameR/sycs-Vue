@@ -89,7 +89,7 @@ function decline() {
   <div>
     <!-- error toast -->
     <Transition name="slide-up">
-      <div v-if="showError" class="fixed bottom-20 min-[681px]:bottom-6 right-4 z-[90] bg-red-950/90 border border-red-800/60 rounded-xl px-4 py-3 text-sm text-red-200 flex items-center gap-3 max-w-xs shadow-2xl">
+      <div v-if="showError" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[90] bg-red-950/90 border border-red-800/60 rounded-xl px-4 py-3 text-sm text-red-200 flex items-center gap-3 max-w-xs shadow-2xl">
         <Icon name="lucide:phone-missed" class="w-4 h-4 shrink-0" />
         <span class="flex-1">{{ errorMsg }}</span>
         <button @click="dismissError" class="text-red-400 hover:text-white transition shrink-0">
@@ -100,7 +100,7 @@ function decline() {
 
     <!-- incoming call -->
     <Transition name="slide-up">
-      <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-6 right-4 z-[95] w-72 bg-[#151a24] border border-slate-700 rounded-2xl p-4 shadow-2xl">
+      <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] w-72 bg-[#151a24] border border-slate-700 rounded-2xl p-4 shadow-2xl">
         <div class="flex items-center gap-3">
           <img v-if="incoming.from.avatarUrl" :src="incoming.from.avatarUrl" class="w-11 h-11 rounded-full object-cover" />
           <div v-else class="w-11 h-11 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
@@ -124,7 +124,7 @@ function decline() {
 
     <!-- active call dock -->
     <Transition name="slide-up">
-      <div v-if="!incoming && (status === 'active' || status === 'connecting')" class="fixed bottom-20 min-[681px]:bottom-6 right-4 z-[90] w-72 bg-[#151a24] border border-emerald-800/40 rounded-2xl p-3 shadow-2xl">
+      <div v-if="!incoming && (status === 'active' || status === 'connecting')" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[90] w-72 bg-[#151a24] border border-emerald-800/40 rounded-2xl p-3 shadow-2xl">
         <div class="flex items-center gap-2">
           <span class="relative flex w-2.5 h-2.5 shrink-0">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />

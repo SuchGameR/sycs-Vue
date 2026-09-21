@@ -232,3 +232,13 @@ export const postViews = pgTable('post_views', {
   userId: text('user_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
+
+export const customEmojis = pgTable('custom_emojis', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  url: text('url').notNull(),
+  mime: text('mime').notNull().default('image/png'),
+  animated: boolean('animated').default(false),
+  creatorId: text('creator_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})

@@ -2,7 +2,17 @@
 const route = useRoute()
 const isServerPage = computed(() => route.path.startsWith('/servers/') && !!route.params.id)
 
+const isDesktop = useIsDesktop()
+const workbench = useWorkbench()
+const { layout } = workbench
+
 const serverCache = ref<any>(null)
+
+const mediaPane = useMediaPane()
+
+watch(mediaPane.selected, (post) => {
+  if (post && !workbench.layout.value.mediaPane) workbench.setLayout({ mediaPane: true })
+})
 
 async function loadServerHeader() {
   if (!isServerPage.value) { serverCache.value = null; return }
@@ -18,6 +28,14 @@ watch(() => route.params.id, loadServerHeader)
 
 const { on } = useRealtime()
 let offRealtime: (() => void)[] = []
+
+const customEmojis = useCustomEmojis()
+onMounted(() => customEmojis.ensure())
+
+const offEmojiRealtime = [
+  on('emoji.new', () => customEmojis.refresh()),
+  on('emoji.deleted', () => customEmojis.refresh()),
+]
 
 watch(isServerPage, (v) => {
   offRealtime.forEach(off => off())
@@ -38,25 +56,30 @@ watch(isServerPage, (v) => {
 
 onUnmounted(() => {
   offRealtime.forEach(off => off())
+  offEmojiRealtime.forEach(off => off())
 })
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#0b0f19] text-slate-100">
+  <div class="min-h-screen bg-[#0b0f19] text-slate-100 [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px]">
     <AppHeader
       :is-server-page="isServerPage"
       :server="serverCache"
       class="sticky top-0 z-50 bg-[#0b0f19] border-b border-slate-800"
     />
     <div class="flex">
-      <SidebarLeft class="hidden min-[681px]:flex w-48 min-[1024px]:w-60 border-r border-slate-800 h-[calc(100vh-56px)] sticky top-14" />
-      <main class="flex-1 min-w-0 h-[calc(100vh-56px)] overflow-y-auto">
+      <SidebarLeft
+        v-if="layout.sidebar"
+        class="hidden min-[681px]:flex w-48 min-[1024px]:w-60 border-r border-slate-800 sticky top-14"
+      />
+      <main class="flex-1 min-w-0 h-[calc(100vh-56px-var(--app-footer-h))] overflow-y-auto">
         <slot />
       </main>
-      <MediaDetailPane />
+      <MediaDetailPane v-if="isDesktop && layout.mediaPane" />
     </div>
     <MobileNav class="min-[681px]:hidden" />
-    <MediaMiniPlayer />
+    <MediaMiniPlayer v-if="!isDesktop" />
     <VoiceCallDock />
+    <WorkbenchFooter />
   </div>
 </template>

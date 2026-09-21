@@ -1,10 +1,20 @@
-export type MediaKind = 'video' | 'image' | 'audio' | 'text'
+export type MediaKind = 'video' | 'image' | 'audio' | 'model' | 'file' | 'text'
+
+const MODEL_EXT = /\.(glb|gltf|obj|fbx|stl|3ds)(\?|$)/i
+
+function isModelAttachment(att: any): boolean {
+  const mime = String(att?.mime || att?.type || '').toLowerCase()
+  if (mime.startsWith('model/')) return true
+  return MODEL_EXT.test(String(att?.url || ''))
+}
 
 export function mediaKindOf(post: any): MediaKind {
   const atts: any[] = post?.attachments || []
   if (atts.some(a => String(a.mime || a.type || '').startsWith('video'))) return 'video'
   if (atts.some(a => String(a.mime || a.type || '').startsWith('audio'))) return 'audio'
+  if (atts.some(isModelAttachment)) return 'model'
   if (atts.some(a => String(a.mime || a.type || '').startsWith('image'))) return 'image'
+  if (atts.length) return 'file'
   return 'text'
 }
 

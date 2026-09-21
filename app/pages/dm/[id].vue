@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { map: customEmojiMap } = useCustomEmojis()
 import ChatEditor from '~/components/ChatEditor.vue'
 
 definePageMeta({ middleware: 'auth' })
@@ -128,7 +129,7 @@ function timeAgo(date: string) {
             <span class="font-bold text-white text-sm">{{ msg.sender?.displayName || '不明' }}</span>
             <span class="text-xs text-slate-600">{{ timeAgo(msg.createdAt) }}</span>
           </div>
-          <p class="text-slate-300 text-sm whitespace-pre-wrap break-words">{{ msg.content }}</p>
+          <p class="text-slate-300 text-sm whitespace-pre-wrap break-words" v-html="renderRichText(msg.content, { custom: customEmojiMap })" />
         </div>
       </div>
     </div>

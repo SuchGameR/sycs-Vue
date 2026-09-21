@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import ModelViewer from './media/ModelViewer.vue'
+
 const props = defineProps<{
-  mediaKind?: 'any' | 'video' | 'image' | 'audio'
+  mediaKind?: 'any' | 'video' | 'image' | 'audio' | 'model' | 'file'
   placeholder?: string
 }>()
 
@@ -14,7 +16,6 @@ const pendingFiles = ref<Array<{
   type: string; mime: string; blur: boolean; watermark: boolean
 }>>([])
 const uploading = ref(false)
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const activePreview = ref<number | null>(null)
 const showPrivacy = ref(false)
@@ -33,21 +34,34 @@ const visibilityOptions: VisibilityOption[] = [
 const selectedVis = computed(() => visibilityOptions.find(o => o.key === visibility.value))
 
 const MAX_FILES = 8
-const ALLOWED = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/webm', 'video/mp4', 'audio/mpeg', 'audio/ogg']
 
-const allowedForKind = computed(() => {
-  if (props.mediaKind === 'video') return ALLOWED.filter(t => t.startsWith('video/'))
-  if (props.mediaKind === 'image') return ALLOWED.filter(t => t.startsWith('image/'))
-  if (props.mediaKind === 'audio') return ALLOWED.filter(t => t.startsWith('audio/'))
-  return ALLOWED
+const KINDS: Record<string, { mimes: string[]; exts: string[] }> = {
+  image: { mimes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'], exts: ['.png', '.jpg', '.jpeg', '.gif', '.webp'] },
+  video: { mimes: ['video/webm', 'video/mp4'], exts: ['.webm', '.mp4'] },
+  audio: { mimes: ['audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/mp4'], exts: ['.mp3', '.ogg', '.wav', '.m4a'] },
+  model: { mimes: ['model/gltf-binary', 'model/gltf+json', 'model/obj'], exts: ['.glb', '.gltf', '.obj', '.fbx', '.stl'] },
+  file: { mimes: ['application/pdf', 'application/zip', 'text/plain', 'text/markdown', 'application/json', 'text/csv'], exts: ['.pdf', '.zip', '.txt', '.md', '.json', '.csv'] },
+}
+const ALL_KINDS = ['image', 'video', 'audio', 'model', 'file']
+
+const allowedKinds = computed(() => {
+  const k = String(props.mediaKind || '')
+  return KINDS[k] ? [k] : ALL_KINDS
 })
 
-const acceptAttr = computed(() => allowedForKind.value.map(t => `.${t.split('/')[1]}`).join(','))
+const acceptAttr = computed(() => allowedKinds.value.flatMap(k => KINDS[k].exts).join(','))
 
-function autoResize() {
-  const el = textareaRef.value; if (!el) return
-  el.style.height = 'auto'
-  el.style.height = `${Math.min(el.scrollHeight, 20 * 8)}px`
+function fileExt(name: string) {
+  const m = name.toLowerCase().match(/\.([a-z0-9]+)$/)
+  return m ? '.' + m[1] : ''
+}
+
+function kindOfFile(f: File): string | null {
+  const ext = fileExt(f.name)
+  for (const k of allowedKinds.value) {
+    if (KINDS[k].mimes.includes(f.type) || KINDS[k].exts.includes(ext)) return k
+  }
+  return null
 }
 
 function onFileSelect(e: Event) {
@@ -55,12 +69,13 @@ function onFileSelect(e: Event) {
   if (!input.files?.length) return
   const remaining = MAX_FILES - pendingFiles.value.length
   for (const f of Array.from(input.files).slice(0, remaining)) {
-    if (!allowedForKind.value.includes(f.type)) continue
+    const kind = kindOfFile(f)
+    if (!kind) continue
     pendingFiles.value.push({
       file: f,
       preview: URL.createObjectURL(f),
-      type: f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'audio',
-      mime: f.type,
+      type: kind,
+      mime: f.type || KINDS[kind].mimes[0],
       blur: false,
       watermark: false,
     })
@@ -99,7 +114,6 @@ async function handleSubmit() {
     pendingFiles.value = []
     visibility.value = 'public'
     visibleTo.value = []
-    nextTick(autoResize)
   } finally { uploading.value = false }
 }
 
@@ -111,6 +125,7 @@ function fileIcon(mime: string) {
   if (mime.startsWith('image/')) return 'lucide:image'
   if (mime.startsWith('video/')) return 'lucide:video'
   if (mime.startsWith('audio/')) return 'lucide:music'
+  if (mime.startsWith('model/')) return 'lucide:box'
   return 'lucide:file'
 }
 </script>
@@ -121,9 +136,9 @@ function fileIcon(mime: string) {
       <Icon name="lucide:user" class="w-5 h-5" />
     </div>
     <div class="flex-1 space-y-2">
-      <textarea ref="textareaRef" v-model="content" @input="autoResize"
-        class="w-full bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 resize-none text-sm leading-5"
-        :placeholder="placeholder || 'なにかあった？'" rows="2" />
+      <EmojiTextarea v-model="content" :rows="2" auto-resize
+        textarea-class="w-full bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 resize-none text-sm leading-5"
+        :placeholder="placeholder || 'なにかあった？'" />
 
       <!-- File previews (clickable) -->
       <div v-if="pendingFiles.length" class="flex flex-wrap gap-2">
@@ -150,6 +165,8 @@ function fileIcon(mime: string) {
               <img v-if="activeFile()!.type === 'image'" :src="activeFile()!.preview" class="max-w-full max-h-[50vh] object-contain rounded-t-2xl" />
               <video v-else-if="activeFile()!.type === 'video'" :src="activeFile()!.preview" controls autoplay muted loop
                 class="max-w-full max-h-[50vh] rounded-t-2xl" />
+              <audio v-else-if="activeFile()!.type === 'audio'" :src="activeFile()!.preview" controls class="w-full m-4" />
+              <ModelViewer v-else-if="activeFile()!.type === 'model'" :src="activeFile()!.preview" class="w-full" />
               <div v-else class="text-slate-500 p-8">
                 <Icon :name="fileIcon(activeFile()!.mime)" class="w-12 h-12 mx-auto" />
               </div>
@@ -159,7 +176,7 @@ function fileIcon(mime: string) {
             </div>
             <div class="p-4 space-y-3">
               <p class="text-xs text-slate-500 truncate">{{ activeFile()!.file.name }}</p>
-              <label class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition"
+              <label v-if="activeFile()!.type === 'image'" class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition"
                 :class="activeFile()!.blur ? 'bg-indigo-600/20' : 'bg-slate-800/30 hover:bg-slate-800/50'">
                 <input type="checkbox" :checked="activeFile()!.blur"
                   @change="pendingFiles[activePreview!].blur = !pendingFiles[activePreview!].blur"
@@ -169,7 +186,7 @@ function fileIcon(mime: string) {
                   <p class="text-xs text-slate-500">閲覧者がクリックで表示できるぼかしを適用</p>
                 </div>
               </label>
-              <label class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition"
+              <label v-if="activeFile()!.type === 'image'" class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition"
                 :class="activeFile()!.watermark ? 'bg-indigo-600/20' : 'bg-slate-800/30 hover:bg-slate-800/50'">
                 <input type="checkbox" :checked="activeFile()!.watermark"
                   @change="pendingFiles[activePreview!].watermark = !pendingFiles[activePreview!].watermark"
@@ -199,8 +216,8 @@ function fileIcon(mime: string) {
               <Icon :name="selectedVis?.icon || 'lucide:globe'" class="w-3.5 h-3.5" />
               <span class="hidden sm:inline">{{ selectedVis?.label || '公開' }}</span>
             </button>
-            <div v-if="showPrivacy" class="absolute bottom-full left-0 mb-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-44"
-              @click.outside="showPrivacy = false">
+            <div v-if="showPrivacy" class="fixed inset-0 z-40" @click="showPrivacy = false" />
+            <div v-if="showPrivacy" class="absolute bottom-full left-0 mb-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-44">
               <button v-for="opt in visibilityOptions" :key="opt.key"
                 @click="visibility = opt.key; showPrivacy = false"
                 class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition"
