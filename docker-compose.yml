@@ -11,6 +11,9 @@ services:
       - PORT=3000
       - HOST=0.0.0.0
       - DATABASE_URL=postgres://sycs:sycs_password@db:5432/sycs
+      - PHP_API_BASE=${PHP_API_BASE:-}
+      - PHP_BRIDGE_SECRET=${PHP_BRIDGE_SECRET:-}
+      - PHP_STATIC_COOKIE=${PHP_STATIC_COOKIE:-}
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
     volumes:

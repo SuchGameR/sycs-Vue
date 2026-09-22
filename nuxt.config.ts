@@ -3,6 +3,14 @@ import { defineNuxtConfig } from 'nuxt/config'
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+
+  runtimeConfig: {
+    phpApiBase: process.env.PHP_API_BASE || '',
+    phpApiParam: process.env.PHP_API_PARAM || 'api',
+    phpBridgeSecret: process.env.PHP_BRIDGE_SECRET || '',
+    phpStaticCookie: process.env.PHP_STATIC_COOKIE || '',
+    phpForwardCookie: process.env.PHP_FORWARD_COOKIE !== 'false',
+  },
   
   vite: {
     resolve: {
