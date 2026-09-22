@@ -10,6 +10,7 @@ export const users = pgTable('users', {
   bannerUrl: text('banner_url'),
   bio: text('bio').default(''),
   settings: text('settings').default('{}'),
+  isPrivate: boolean('is_private').default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
@@ -54,6 +55,7 @@ export const postComments = pgTable('post_comments', {
   postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   content: text('content').notNull(),
+  attachments: text('attachments').default('[]'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
@@ -261,3 +263,13 @@ export const playlistItems = pgTable('playlist_items', {
 }, (t) => ({
   playlistPostIdx: uniqueIndex('playlist_items_playlist_post_idx').on(t.playlistId, t.postId),
 }))
+
+export const userBadges = pgTable('user_badges', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull().default('icon'),
+  value: text('value').notNull(),
+  label: text('label'),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})

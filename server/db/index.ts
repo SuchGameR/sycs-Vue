@@ -283,6 +283,7 @@ async function initDbInternal() {
     `)
     await client.query(`CREATE INDEX IF NOT EXISTS posts_server_channel_idx ON posts(server_id, channel_id)`)
     await client.query(`CREATE INDEX IF NOT EXISTS post_comments_post_idx ON post_comments(post_id)`)
+    await client.query(`ALTER TABLE post_comments ADD COLUMN IF NOT EXISTS attachments TEXT DEFAULT '[]'`)
     // Server system migrations
     await client.query(`ALTER TABLE server_roles ADD COLUMN IF NOT EXISTS permissions_mask BIGINT DEFAULT 0`)
     await client.query(`ALTER TABLE server_channels ADD COLUMN IF NOT EXISTS slow_mode_seconds INTEGER DEFAULT 0`)
@@ -323,6 +324,20 @@ async function initDbInternal() {
     `)
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS playlist_items_playlist_post_idx ON playlist_items(playlist_id, post_id)`)
     await client.query(`CREATE INDEX IF NOT EXISTS playlists_user_idx ON playlists(user_id)`)
+    // Badges & private accounts
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE`)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_badges (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL DEFAULT 'icon',
+        value TEXT NOT NULL,
+        label TEXT,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS user_badges_user_idx ON user_badges(user_id)`)
     // Merge legacy likes into ❤️ reactions (likes are deprecated in favour of reactions)
     await client.query(`
       INSERT INTO post_reactions (id, post_id, user_id, emoji)

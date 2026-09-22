@@ -2,6 +2,7 @@ import { db } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq, desc, inArray, and } from 'drizzle-orm'
 import { getCurrentUser } from '../../../utils/auth'
+import { enrichUsers, publicUser } from '../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -10,6 +11,24 @@ export default defineEventHandler(async (event) => {
   const offset = Number(query.offset) || 0
 
   const currentUser = await getCurrentUser(event)
+
+  // Private ("鍵") account: only self and followers may see posts.
+  const target = await db.query.users.findFirst({
+    where: eq(schema.users.id, id!),
+    columns: { id: true, isPrivate: true },
+  })
+  if (target?.isPrivate && currentUser?.id !== id) {
+    let isFollowing = false
+    if (currentUser) {
+      const f = await db.query.follows.findFirst({
+        where: and(eq(schema.follows.followerId, currentUser.id), eq(schema.follows.followingId, id!)),
+      })
+      isFollowing = !!f
+    }
+    if (!isFollowing) {
+      return { posts: [], nextOffset: offset, hasMore: false, locked: true }
+    }
+  }
 
   const posts = await db.query.posts.findMany({
     where: eq(schema.posts.userId, id),
@@ -21,7 +40,8 @@ export default defineEventHandler(async (event) => {
   const users = userIds.length
     ? await db.query.users.findMany({ where: inArray(schema.users.id, userIds) })
     : []
-  const userMap = Object.fromEntries(users.map(u => [u.id, u]))
+  const extras = await enrichUsers(users)
+  const userMap = Object.fromEntries(users.map(u => [u.id, publicUser(u, extras[u.id])]))
 
   const postIds = posts.map(p => p.id)
   const attachments = postIds.length

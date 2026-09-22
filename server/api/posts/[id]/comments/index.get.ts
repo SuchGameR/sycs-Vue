@@ -2,6 +2,8 @@ import { db } from '../../../../db'
 import * as schema from '../../../../db/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { getCurrentUser } from '../../../../utils/auth'
+import { parseAttachments } from '../../../../utils/attachments'
+import { enrichUsers, publicUser } from '../../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const postId = getRouterParam(event, 'id')
@@ -22,9 +24,14 @@ export default defineEventHandler(async (event) => {
     ? await db.query.users.findMany({ where: inArray(schema.users.id, userIds) })
     : []
   const userMap = Object.fromEntries(users.map(u => [u.id, u]))
+  const extras = await enrichUsers(users)
 
   return {
-    comments: comments.map(c => ({ ...c, user: userMap[c.userId] || null })),
+    comments: comments.map(c => ({
+      ...c,
+      attachments: parseAttachments(c.attachments),
+      user: userMap[c.userId] ? publicUser(userMap[c.userId], extras[c.userId]) : null,
+    })),
     nextOffset: offset + comments.length,
     hasMore: comments.length === limit,
   }

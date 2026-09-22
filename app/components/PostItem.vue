@@ -130,6 +130,8 @@ onMounted(ensureMe)
           <NuxtLink :to="`/profile/@${post.user.username}`" class="font-bold text-white hover:underline truncate">
             {{ post.user.displayName }}
           </NuxtLink>
+          <UserBadges :badges="post.user.badges" />
+          <UserTitle :title="post.user.title" />
           <span class="text-slate-500 text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
 
           <!-- "..." menu -->

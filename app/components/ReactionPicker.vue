@@ -13,8 +13,7 @@ const open = ref(false)
 const query = ref('')
 const customText = ref('')
 const customError = ref('')
-const trigger = ref<HTMLElement | null>(null)
-const pos = ref({ bottom: 0, left: 0, width: 336 })
+const { trigger, update: updatePos, style: panelStyle } = useDropdownPosition(336)
 
 const emojiName = ref('')
 const emojiFile = ref<File | null>(null)
@@ -47,18 +46,32 @@ async function ensureMe() {
 
 function toggle() {
   if (open.value) { open.value = false; return }
-  const rect = trigger.value?.getBoundingClientRect()
-  if (rect) {
-    const width = 336
-    const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8)
-    pos.value = { bottom: window.innerHeight - rect.top + 8, left, width }
-  }
   open.value = true
   customError.value = ''
   uploadError.value = ''
   custom.ensure()
   ensureMe()
+  nextTick(() => updatePos(460))
 }
+
+function reposition() { updatePos(460) }
+
+watch(open, (v) => {
+  if (!import.meta.client) return
+  if (v) {
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+  } else {
+    window.removeEventListener('scroll', reposition, true)
+    window.removeEventListener('resize', reposition)
+  }
+})
+
+onUnmounted(() => {
+  if (!import.meta.client) return
+  window.removeEventListener('scroll', reposition, true)
+  window.removeEventListener('resize', reposition)
+})
 
 function choose(emoji: string) {
   prefs.pushRecent(emoji)
@@ -138,8 +151,8 @@ async function removeEmoji(id: string) {
       <Transition name="rp-pop">
         <div
           v-if="open"
-          class="fixed z-[299] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-3"
-          :style="{ left: pos.left + 'px', bottom: pos.bottom + 'px', width: pos.width + 'px' }"
+          class="fixed z-[299] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-3 overflow-y-auto"
+          :style="panelStyle"
           @click.stop
         >
           <div v-if="recent.length" class="mb-2">

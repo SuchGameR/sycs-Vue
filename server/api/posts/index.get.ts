@@ -129,6 +129,25 @@ export default defineEventHandler(async (event) => {
     return false
   }
 
+  // Private ("鍵") accounts: only self and followers can see their posts.
+  const privacyCache = new Map<string, boolean>()
+  async function ensurePrivacy(rows: any[]) {
+    const missing = [...new Set(rows.map(r => r.userId))].filter(uid => !privacyCache.has(uid))
+    if (!missing.length) return
+    const us = await db.query.users.findMany({
+      where: inArray(schema.users.id, missing),
+      columns: { id: true, isPrivate: true },
+    })
+    for (const u of us) privacyCache.set(u.id, !!u.isPrivate)
+  }
+  const authorVisible = (p: typeof schema.posts.$inferSelect) => {
+    if (serverId) return true
+    if (!privacyCache.get(p.userId)) return true
+    if (!currentUser) return false
+    if (p.userId === currentUser.id) return true
+    return followers.has(p.userId)
+  }
+
   // Fetch in batches until we have `limit` visible posts or the source is exhausted,
   // so `offset`/`nextOffset` stay correct despite post-fetch visibility filtering.
   const collected: any[] = []
@@ -138,8 +157,9 @@ export default defineEventHandler(async (event) => {
   while (collected.length < limit && !reachedEnd && !pageFull) {
     const batch = await db.query.posts.findMany({ limit, offset: cursor, where, orderBy })
     if (!batch.length) { reachedEnd = true; break }
+    await ensurePrivacy(batch)
     for (const row of batch) {
-      if (isVisible(row)) {
+      if (isVisible(row) && authorVisible(row)) {
         if (collected.length >= limit) { pageFull = true; break }
         collected.push(row)
       }

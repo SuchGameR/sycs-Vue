@@ -11,6 +11,7 @@ const displayName = ref(user.value?.displayName || "");
 const bio = ref(user.value?.bio || "");
 const avatarUrl = ref(user.value?.avatarUrl || "");
 const bannerUrl = ref(user.value?.bannerUrl || "");
+const isPrivate = ref(user.value?.isPrivate || false);
 const birthday = ref(s.value.birthday || "");
 const birthplace = ref(s.value.birthplace || "");
 const theme = ref(s.value.theme || "dark");
@@ -212,6 +213,7 @@ async function save() {
         bio: bio.value,
         avatarUrl: avatarUrl.value || null,
         bannerUrl: bannerUrl.value || null,
+        isPrivate: isPrivate.value,
       },
     });
     await $fetch("/api/users/settings", {
@@ -361,6 +363,14 @@ async function save() {
                 rows="3"
                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
               />
+            </div>
+            <div v-if="user?.badges?.length || user?.title" class="p-3 bg-slate-800/30 rounded-lg">
+              <p class="text-sm font-medium text-white mb-2">バッジ・称号</p>
+              <div class="flex items-center gap-2 flex-wrap">
+                <UserBadges :badges="user.badges" size="md" />
+                <UserTitle :title="user.title" />
+              </div>
+              <p class="text-xs text-slate-500 mt-2">バッジはサーバー側で付与されます。称号は利用状況に応じて自動で決まります。</p>
             </div>
           </div>
 
@@ -568,9 +578,28 @@ async function save() {
           </div>
 
           <div v-if="activeCategory === 'privacy'" class="space-y-4">
+            <div class="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
+              <div class="pr-4">
+                <p class="text-sm font-medium text-white flex items-center gap-1.5">
+                  <Icon name="lucide:lock" class="w-4 h-4 text-slate-400" />
+                  鍵アカウント
+                </p>
+                <p class="text-xs text-slate-500 mt-1">
+                  オンにすると、フォロワーだけがあなたの投稿を閲覧できます。
+                </p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                <input type="checkbox" v-model="isPrivate" class="sr-only peer" />
+                <div
+                  class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition peer-checked:after:translate-x-4"
+                ></div>
+              </label>
+            </div>
             <div class="p-3 bg-slate-800/30 rounded-lg">
-              <p class="text-sm font-medium text-white">アカウント設定</p>
-              <p class="text-xs text-slate-500 mt-1">現在は公開設定です</p>
+              <p class="text-sm font-medium text-white">現在の設定</p>
+              <p class="text-xs mt-1" :class="isPrivate ? 'text-amber-400' : 'text-slate-500'">
+                {{ isPrivate ? '非公開アカウント（鍵アカ）' : '公開アカウント' }}
+              </p>
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import { db } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq, count } from 'drizzle-orm'
+import { enrichUsers, publicUser } from '../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const username = getRouterParam(event, 'username')
@@ -11,5 +12,6 @@ export default defineEventHandler(async (event) => {
   const [following] = await db.select({ count: count() }).from(schema.follows).where(eq(schema.follows.followerId, user.id))
   const [postsCount] = await db.select({ count: count() }).from(schema.posts).where(eq(schema.posts.userId, user.id))
 
-  return { user, stats: { followers: followers.count, following: following.count, posts: postsCount.count } }
+  const extras = await enrichUsers([user])
+  return { user: publicUser(user, extras[user.id]), stats: { followers: followers.count, following: following.count, posts: postsCount.count } }
 })

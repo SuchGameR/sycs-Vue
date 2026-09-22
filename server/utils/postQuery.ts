@@ -1,6 +1,7 @@
 import { db } from '../db'
 import * as schema from '../db/schema'
 import { and, eq, inArray } from 'drizzle-orm'
+import { enrichUsers, publicUser } from './userExtras'
 
 export interface ReactionSummary {
   emoji: string
@@ -17,7 +18,8 @@ export async function serializePosts(posts: any[], currentUser: any | null) {
   const postUsers = postUserIds.length
     ? await db.query.users.findMany({ where: inArray(schema.users.id, postUserIds) })
     : []
-  const postUserMap = Object.fromEntries(postUsers.map(u => [u.id, u]))
+  const postExtras = await enrichUsers(postUsers)
+  const postUserMap = Object.fromEntries(postUsers.map(u => [u.id, publicUser(u, postExtras[u.id])]))
 
   const attachments = await db.query.postAttachments.findMany({
     where: inArray(schema.postAttachments.postId, postIds),

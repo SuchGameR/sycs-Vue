@@ -139,7 +139,7 @@ function timeAgo(date: string) {
               </div>
             </NuxtLink>
             <div class="min-w-0">
-              <p class="text-sm font-bold text-white truncate">{{ selected.user?.displayName || '不明' }}</p>
+              <p class="text-sm font-bold text-white truncate flex items-center gap-1">{{ selected.user?.displayName || '不明' }}<UserBadges :badges="selected.user?.badges" /></p>
               <p class="text-[11px] text-slate-500 truncate">@{{ selected.user?.username }} · {{ timeAgo(selected.createdAt) }}</p>
             </div>
           </div>

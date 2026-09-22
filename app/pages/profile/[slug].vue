@@ -57,13 +57,13 @@ const activeTab = ref<'all' | 'images' | 'videos'>('all')
 const showFilter = ref(false)
 const showStickyBar = ref(false)
 const profileNameRef = ref<HTMLElement | null>(null)
-const profileHeaderState = useState<{displayName: string; username: string; avatarUrl: string | null; bannerUrl: string | null} | null>('profile-header-state', () => null)
+const profileHeaderState = useState<{displayName: string; username: string; avatarUrl: string | null; bannerUrl: string | null; badges?: any[]; title?: string | null} | null>('profile-header-state', () => null)
 
 function onScroll() {
   if (!profileNameRef.value || !profile.value) return
   const top = profileNameRef.value.getBoundingClientRect().top
   showStickyBar.value = top < 58
-  profileHeaderState.value = top < 58 ? { displayName: profile.value.user.displayName, username: profile.value.user.username, avatarUrl: profile.value.user.avatarUrl, bannerUrl: profile.value.user.bannerUrl } : null
+  profileHeaderState.value = top < 58 ? { displayName: profile.value.user.displayName, username: profile.value.user.username, avatarUrl: profile.value.user.avatarUrl, bannerUrl: profile.value.user.bannerUrl, badges: profile.value.user.badges, title: profile.value.user.title } : null
 }
 
 onMounted(() => {
@@ -88,8 +88,9 @@ async function loadProfile() {
     if (s.startsWith('@')) {
       const username = s.slice(1)
       resolvedUsername.value = username
-      data = await $fetch(`/api/users/by-username/${username}`, { signal: ac.signal })
-      resolvedId.value = data.user.id
+      const resolved = await $fetch(`/api/users/by-username/${username}`, { signal: ac.signal })
+      resolvedId.value = resolved.user.id
+      data = await $fetch(`/api/users/${resolved.user.id}/profile`, { signal: ac.signal })
     } else {
       data = await $fetch(`/api/users/${s}/profile`, { signal: ac.signal })
       resolvedId.value = s
@@ -97,7 +98,7 @@ async function loadProfile() {
     }
     profile.value = data
     clearTimeout(timeout)
-    await loadPosts(true)
+    if (!data.locked) await loadPosts(true)
   } catch {
     profile.value = null
   } finally {
@@ -187,7 +188,12 @@ async function toggleBookmark(postId: string) {
           </div>
           <div class="flex items-start justify-between">
             <div>
-              <h1 ref="profileNameRef" class="text-xl font-bold text-white">{{ profile.user.displayName }}</h1>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h1 ref="profileNameRef" class="text-xl font-bold text-white">{{ profile.user.displayName }}</h1>
+                <UserBadges :badges="profile.user.badges" size="md" />
+                <UserTitle :title="profile.user.title" />
+                <Icon v-if="profile.isPrivate" name="lucide:lock" class="w-4 h-4 text-slate-400" title="鍵アカウント" />
+              </div>
               <p class="text-slate-500">@{{ profile.user.username }}</p>
               <p v-if="profile.user.bio" class="mt-2 text-slate-300 text-sm">{{ profile.user.bio }}</p>
               <div v-if="settings.website || settings.github || settings.twitter" class="flex flex-wrap gap-3 mt-2">
@@ -243,7 +249,12 @@ async function toggleBookmark(postId: string) {
 
       <!-- Posts -->
       <div class="px-5 space-y-3 py-4">
-        <template v-if="filteredPosts.length">
+        <div v-if="profile.locked" class="text-center py-12 text-slate-400">
+          <Icon name="lucide:lock" class="w-10 h-10 mx-auto mb-3 text-slate-500" />
+          <p class="font-bold text-white">このアカウントは非公開です</p>
+          <p class="text-sm mt-1">フォローすると投稿を閲覧できます。</p>
+        </div>
+        <template v-else-if="filteredPosts.length">
           <div v-for="post in filteredPosts" :key="post.id" class="p-4 bg-slate-800/30 border border-slate-800 rounded-xl">
             <div class="flex gap-3">
               <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
@@ -253,6 +264,8 @@ async function toggleBookmark(postId: string) {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">
                   <NuxtLink :to="`/profile/@${post.user.username}`" class="font-bold text-white hover:underline truncate">{{ post.user.displayName }}</NuxtLink>
+                  <UserBadges :badges="post.user.badges" />
+                  <UserTitle :title="post.user.title" />
                   <span class="text-slate-500 text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
                 </div>
                 <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
@@ -269,11 +282,11 @@ async function toggleBookmark(postId: string) {
             </div>
           </div>
         </template>
-        <p v-else class="text-center text-slate-500 py-8">まだ投稿がありません</p>
+        <p v-else-if="!profile.locked" class="text-center text-slate-500 py-8">まだ投稿がありません</p>
 
-        <div ref="postSentinel" class="h-1" aria-hidden="true"></div>
-        <div v-if="loadingMorePosts" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
-        <p v-else-if="userPosts.length && !postHasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
+        <div v-if="!profile.locked" ref="postSentinel" class="h-1" aria-hidden="true"></div>
+        <div v-if="!profile.locked && loadingMorePosts" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
+        <p v-else-if="!profile.locked && userPosts.length && !postHasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
       </div>
     </template>
   </div>

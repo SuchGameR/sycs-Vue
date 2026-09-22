@@ -7,7 +7,7 @@ const props = defineProps<{
 const route = useRoute()
 const isHomePage = computed(() => route.path === '/home')
 const isProfilePage = computed(() => route.path.startsWith('/profile/'))
-const profileHeader = useState<{displayName: string; username: string; avatarUrl: string | null; bannerUrl: string | null} | null>('profile-header-state', () => null)
+const profileHeader = useState<{displayName: string; username: string; avatarUrl: string | null; bannerUrl: string | null; badges?: any[]; title?: string | null} | null>('profile-header-state', () => null)
 </script>
 
 <template>
@@ -43,7 +43,7 @@ const profileHeader = useState<{displayName: string; username: string; avatarUrl
               <img v-if="profileHeader.avatarUrl" :src="profileHeader.avatarUrl" class="w-8 h-8 rounded-full object-cover shrink-0" />
               <div v-else class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">{{ profileHeader.displayName?.charAt(0) || '?' }}</div>
               <div class="min-w-0">
-                <p class="text-sm font-bold text-white truncate leading-tight">{{ profileHeader.displayName }}</p>
+                <p class="text-sm font-bold text-white truncate leading-tight flex items-center gap-1">{{ profileHeader.displayName }}<UserBadges :badges="profileHeader.badges" /></p>
                 <p class="text-[10px] text-slate-500 leading-tight">@{{ profileHeader.username }}</p>
               </div>
             </div>

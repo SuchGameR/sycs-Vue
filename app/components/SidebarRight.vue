@@ -67,7 +67,7 @@ onUnmounted(stopTrendingPolling)
           {{ userData.user.displayName?.charAt(0) || '?' }}
         </div>
         <div class="min-w-0">
-          <p class="text-sm font-bold text-white truncate">{{ userData.user.displayName }}</p>
+          <p class="text-sm font-bold text-white truncate flex items-center gap-1">{{ userData.user.displayName }}<UserBadges :badges="userData.user.badges" /></p>
           <p class="text-xs text-slate-500 truncate">@{{ userData.user.username }}</p>
         </div>
       </NuxtLink>
@@ -97,7 +97,7 @@ onUnmounted(stopTrendingPolling)
             {{ p.user?.displayName?.charAt(0) || '?' }}
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-[11px] text-slate-400 truncate">{{ p.user?.displayName || '不明' }}</p>
+            <p class="text-[11px] text-slate-400 truncate flex items-center gap-1">{{ p.user?.displayName || '不明' }}<UserBadges :badges="p.user?.badges" /></p>
             <p class="text-xs text-slate-200 leading-snug line-clamp-2 break-words whitespace-pre-wrap">{{ p.content }}</p>
             <p class="text-[10px] text-slate-600 mt-0.5 flex items-center gap-1">
               <Icon name="lucide:smile-plus" class="w-3 h-3" />

@@ -1,4 +1,5 @@
 import { getCurrentUser, renewAuthCookie } from '../../utils/auth'
+import { enrichUsers } from '../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const user = await getCurrentUser(event)
@@ -6,6 +7,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: '認証が必要です' })
   }
   renewAuthCookie(event)
+  const extras = await enrichUsers([user])
   return {
     user: {
       id: user.id,
@@ -13,7 +15,12 @@ export default defineEventHandler(async (event) => {
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      bannerUrl: user.bannerUrl,
       bio: user.bio,
+      settings: user.settings || '{}',
+      isPrivate: !!user.isPrivate,
+      badges: extras[user.id]?.badges || [],
+      title: extras[user.id]?.title || null,
       createdAt: user.createdAt,
     },
   }

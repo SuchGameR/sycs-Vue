@@ -17,8 +17,35 @@ const pendingFiles = ref<Array<{
 }>>([])
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const dragging = ref(false)
 const activePreview = ref<number | null>(null)
 const showPrivacy = ref(false)
+
+const { trigger: visTrigger, update: updateVisPos, style: visStyle } = useDropdownPosition(200)
+
+function togglePrivacy() {
+  showPrivacy.value = !showPrivacy.value
+  if (showPrivacy.value) nextTick(() => updateVisPos(260))
+}
+
+function repositionVis() { if (showPrivacy.value) updateVisPos(260) }
+
+watch(showPrivacy, (v) => {
+  if (!import.meta.client) return
+  if (v) {
+    window.addEventListener('scroll', repositionVis, true)
+    window.addEventListener('resize', repositionVis)
+  } else {
+    window.removeEventListener('scroll', repositionVis, true)
+    window.removeEventListener('resize', repositionVis)
+  }
+})
+
+onUnmounted(() => {
+  if (!import.meta.client) return
+  window.removeEventListener('scroll', repositionVis, true)
+  window.removeEventListener('resize', repositionVis)
+})
 
 const visibility = ref('public')
 const visibleTo = ref<string[]>([])
@@ -83,6 +110,32 @@ function onFileSelect(e: Event) {
   input.value = ''
 }
 
+function addFiles(files: FileList | File[]) {
+  const remaining = MAX_FILES - pendingFiles.value.length
+  for (const f of Array.from(files).slice(0, Math.max(0, remaining))) {
+    const kind = kindOfFile(f)
+    if (!kind) continue
+    pendingFiles.value.push({
+      file: f,
+      preview: URL.createObjectURL(f),
+      type: kind,
+      mime: f.type || KINDS[kind].mimes[0],
+      blur: false,
+      watermark: false,
+    })
+  }
+}
+
+function onPaste(e: ClipboardEvent) {
+  const files = e.clipboardData?.files
+  if (files?.length) { e.preventDefault(); addFiles(files) }
+}
+
+function onDrop(e: DragEvent) {
+  dragging.value = false
+  if (e.dataTransfer?.files?.length) { e.preventDefault(); addFiles(e.dataTransfer.files) }
+}
+
 function removeFile(index: number) {
   const f = pendingFiles.value[index]
   if (f.preview) URL.revokeObjectURL(f.preview)
@@ -131,7 +184,14 @@ function fileIcon(mime: string) {
 </script>
 
 <template>
-  <div class="flex gap-3">
+  <div
+    class="flex gap-3 rounded-2xl transition p-1 -m-1"
+    :class="dragging ? 'ring-2 ring-indigo-500 bg-indigo-600/10' : ''"
+    @dragover.prevent="dragging = true"
+    @dragleave.prevent="dragging = false"
+    @drop="onDrop"
+    @paste="onPaste"
+  >
     <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
       <Icon name="lucide:user" class="w-5 h-5" />
     </div>
@@ -210,14 +270,16 @@ function fileIcon(mime: string) {
           </button>
           <span v-if="pendingFiles.length" class="text-[11px] text-slate-600">{{ pendingFiles.length }}/{{ MAX_FILES }}</span>
 
-          <div class="relative">
-            <button @click="showPrivacy = !showPrivacy"
-              class="p-1.5 rounded-full text-slate-500 hover:text-indigo-400 hover:bg-slate-800/50 transition text-xs flex items-center gap-1">
-              <Icon :name="selectedVis?.icon || 'lucide:globe'" class="w-3.5 h-3.5" />
-              <span class="hidden sm:inline">{{ selectedVis?.label || '公開' }}</span>
-            </button>
-            <div v-if="showPrivacy" class="fixed inset-0 z-40" @click="showPrivacy = false" />
-            <div v-if="showPrivacy" class="absolute bottom-full left-0 mb-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-44">
+          <button @click="togglePrivacy" ref="visTrigger"
+            class="p-1.5 rounded-full text-slate-500 hover:text-indigo-400 hover:bg-slate-800/50 transition text-xs flex items-center gap-1">
+            <Icon :name="selectedVis?.icon || 'lucide:globe'" class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">{{ selectedVis?.label || '公開' }}</span>
+          </button>
+          <Teleport to="body">
+            <div v-if="showPrivacy" class="fixed inset-0 z-[298]" @click="showPrivacy = false" />
+            <div v-if="showPrivacy"
+              class="fixed z-[299] bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl overflow-y-auto"
+              :style="visStyle">
               <button v-for="opt in visibilityOptions" :key="opt.key"
                 @click="visibility = opt.key; showPrivacy = false"
                 class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition"
@@ -225,7 +287,7 @@ function fileIcon(mime: string) {
                 <Icon :name="opt.icon" class="w-4 h-4" /> {{ opt.label }}
               </button>
             </div>
-          </div>
+          </Teleport>
         </div>
 
         <button @click="handleSubmit"
