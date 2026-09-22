@@ -485,7 +485,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
           <div class="flex items-center gap-2 shrink-0">
             <span :class="['px-2.5 py-1 rounded-full border text-xs font-medium flex items-center gap-1.5', stateMeta.cls]">
               <span :class="['w-2 h-2 rounded-full', stateMeta.dot]" />
-              {{ callState === 'active' ? '通話中' : stateMeta.label }}
+              {{ callState === 'connected' ? '通話中' : stateMeta.label }}
             </span>
             <span v-if="status === 'active'" class="text-xs text-slate-400 tabular-nums">{{ callTime }}</span>
             <span class="text-xs text-slate-500">{{ tiles.length + screenTiles.length }}名</span>

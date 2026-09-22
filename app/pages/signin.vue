@@ -2,7 +2,7 @@
 definePageMeta({ layout: false })
 
 const route = useRoute()
-const email = ref('')
+const login = ref('')
 const password = ref('')
 const rememberMe = ref(true)
 const error = ref('')
@@ -20,7 +20,7 @@ async function handleSubmit() {
   try {
     const res = await $fetch('/api/auth/signin', {
       method: 'POST',
-      body: { email: email.value, password: password.value, rememberMe: rememberMe.value },
+      body: { email: login.value, password: password.value, rememberMe: rememberMe.value },
     })
     if (res.user) await navigateTo(redirectTarget.value)
   } catch (e: any) {
@@ -45,10 +45,10 @@ async function handleSubmit() {
         </div>
 
         <div>
-          <label class="block text-sm text-slate-400 mb-1">メールアドレス</label>
-          <input v-model="email" type="email" required
+          <label class="block text-sm text-slate-400 mb-1">ユーザーID または メールアドレス</label>
+          <input v-model="login" required
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            placeholder="you@example.com" />
+            placeholder="username or you@example.com" autocomplete="username" />
         </div>
 
         <div>

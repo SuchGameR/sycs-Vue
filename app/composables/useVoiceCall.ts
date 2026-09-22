@@ -528,6 +528,7 @@ async function handleSignal(msg: any) {
 }
 
 function handleUpdate(msg: any) {
+  const callerIdx = (msg.members || []).findIndex((m: any) => m.userId !== me.value?.userId)
   if (!msg.roomKey) return
   const count = (msg.members || []).length
   presence.value = { ...presence.value, [msg.roomKey]: count }
@@ -573,6 +574,7 @@ function scheduleDmWatchRefresh() {
 function init() {
   if (initialized) return
   initialized = true
+
   const { on } = useRealtime()
   offs = [
     on('voice.update', handleUpdate),
@@ -624,6 +626,7 @@ function unwatchRoom(roomKey: string) {
 }
 
 async function join(cfg?: VoiceRoomConfig) {
+
   init()
   if (cfg) activeRoom.value = cfg
   const room = activeRoom.value
@@ -651,6 +654,7 @@ async function join(cfg?: VoiceRoomConfig) {
 }
 
 async function leave() {
+
   const room = activeRoom.value
   saveWbNow()
   activeRoom.value = null
@@ -803,3 +807,4 @@ export function useVoiceCall() {
     sendWhiteboard,
   }
 }
+

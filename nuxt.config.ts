@@ -5,7 +5,12 @@ const isStaticPages =
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  // Isolated build artifacts when NUXT_BUILD_DIR is set (lets a production
+  // build coexist with the dev server's .nuxt without clobbering it).
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
+  // DevTools adds runtime hooks + client code to every page load.
+  // Opt in with NUXT_DEVTOOLS=true when needed.
+  devtools: { enabled: process.env.NUXT_DEVTOOLS === 'true' },
 
 <<<<<<< HEAD
   // GitHub Pages（プロジェクトサイト）: リポジトリ名は sycs-Vue
@@ -66,7 +71,8 @@ export default defineNuxtConfig({
   css: ['~/assets/css/app.css'],
 
   nitro: {
-    preset: isStaticPages ? 'static' : undefined,
+    // GitHub Actions の generate 時に static プリセットを使う
+    preset: process.env.NITRO_PRESET === 'static' ? 'static' : undefined,
   },
 
   // 静的生成時: API は出さない・ページのプリレンダーで API/DB に依存しない

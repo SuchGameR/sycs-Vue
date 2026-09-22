@@ -1,0 +1,1 @@
+import{$ as e,F as t,O as n,dt as r}from"./DVNY-iZa.js";import{u as i}from"./BwntHe7B.js";import{t as a}from"./CNs_Ozdc.js";var o=t({__name:`index`,async setup(t){let o,s;return a({middleware:`auth`}),[o,s]=r(()=>i(`/home`,{replace:!0})),await o,s(),(t,r)=>(e(),n(`div`))}});export{o as default};

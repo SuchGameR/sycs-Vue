@@ -1,6 +1,6 @@
 import { db, initDb } from '../../db'
 import * as schema from '../../db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 import { verifyPassword, createSession, setAuthCookie } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
@@ -10,19 +10,23 @@ export default defineEventHandler(async (event) => {
   const { email, password, rememberMe } = body
 
   if (!email || !password) {
-    throw createError({ statusCode: 400, message: 'メールアドレスとパスワードを入力してください' })
+    throw createError({ statusCode: 400, message: 'ユーザーIDまたはメールアドレスとパスワードを入力してください' })
   }
 
+  const login = String(email).trim().toLowerCase()
   const user = await db.query.users.findFirst({
-    where: eq(schema.users.email, email),
+    where: or(
+      eq(schema.users.email, email),
+      eq(schema.users.username, login),
+    ),
   })
   if (!user || !user.passwordHash) {
-    throw createError({ statusCode: 401, message: 'メールアドレスまたはパスワードが正しくありません' })
+    throw createError({ statusCode: 401, message: 'ユーザーIDまたはメールアドレス、パスワードが正しくありません' })
   }
 
   const valid = await verifyPassword(password, user.passwordHash)
   if (!valid) {
-    throw createError({ statusCode: 401, message: 'メールアドレスまたはパスワードが正しくありません' })
+    throw createError({ statusCode: 401, message: 'ユーザーIDまたはメールアドレス、パスワードが正しくありません' })
   }
 
   const { token } = await createSession(user.id, rememberMe)

@@ -1,0 +1,1 @@
+import{m as e}from"./DVNY-iZa.js";import{c as t,u as n}from"./BwntHe7B.js";import{t as r}from"./Bd07Ro-3.js";import"./BBNxDH8c.js";var i=t(async t=>{let i,a;try{if(!([i,a]=e(()=>r(`/api/auth/me`,{headers:void 0})),i=await i,a(),i).user)throw Error()}catch{let e=t.fullPath;return n(`/signin?redirect=${encodeURIComponent(e)}`)}},1);export{i as default};
