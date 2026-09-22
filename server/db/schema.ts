@@ -287,3 +287,10 @@ export const userBadges = pgTable('user_badges', {
   position: integer('position').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
+
+export const whiteboardStates = pgTable('whiteboard_states', {
+  roomKey: text('room_key').primaryKey(),
+  strokes: jsonb('strokes').notNull().default('[]').$type<any[]>(),
+  updatedById: text('updated_by_id').references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})

@@ -72,6 +72,9 @@ const localVideoStream = ref<MediaStream | null>(null)
 const screenStream = ref<MediaStream | null>(null)
 const reactions = ref<{ id: number; from: string; emoji: string }[]>([])
 const whiteboardEvents = ref<{ from: string; data: any }[]>([])
+const whiteboardStrokes = ref<any[]>([])
+const remoteScreenStreams = ref<Record<string, MediaStream>>({})
+const currentFacing = ref<'user' | 'environment'>('user')
 
 const callState = computed<StatusLabel>(() => {
   if (status.value !== 'active') return status.value
@@ -153,15 +156,28 @@ function videoSourceStream(): MediaStream | null {
 // silent/absent audio when the peer is created before the local stream is ready and
 // lets camera/screen tracks join an already-running call.
 function attachLocalTracks(pc: RTCPeerConnection) {
-  const l = localStream.value
-  if (l) {
-    for (const t of l.getTracks()) {
-      const sender = pc.getSenders().find(s => s.track?.kind === t.kind)
-      if (!sender) pc.addTrack(t, l)
-      else if (sender.track?.id !== t.id) sender.replaceTrack(t).catch(() => {})
-    }
-  }
+  syncAudioSenders(pc)
   syncOptionalVideoSender(pc)
+}
+
+// While screen sharing captures audio, send the desktop audio instead of the mic so
+// the other side actually hears what is being shared; revert to the mic afterwards.
+function syncAudioSenders(pc: RTCPeerConnection) {
+  const l = localStream.value
+  const screenAudio = screenSharing.value ? screenStream.value?.getAudioTracks()[0] : null
+  const mic = l?.getAudioTracks()[0] || null
+  const preferred = screenAudio || mic
+  const senders = pc.getSenders()
+  const audioSender = senders.find(s => s.track?.kind === 'audio')
+  if (preferred) {
+    if (!audioSender) {
+      pc.addTrack(preferred, screenAudio ? screenStream.value! : l!)
+    } else if (audioSender.track?.id !== preferred.id) {
+      audioSender.replaceTrack(preferred).catch(() => {})
+    }
+  } else if (audioSender) {
+    audioSender.replaceTrack(null).catch(() => {})
+  }
 }
 
 function syncOptionalVideoSender(pc: RTCPeerConnection) {
@@ -178,6 +194,14 @@ function syncOptionalVideoSender(pc: RTCPeerConnection) {
 
 function refreshTracksAcrossPeers() {
   for (const pc of peers.values()) attachLocalTracks(pc)
+}
+
+function isScreenLike(e: any, uid: string) {
+  if (e.track.kind !== 'video') return false
+  if (e.track.contentHint === 'detail') return true
+  const existing = remoteStreams.value[uid]
+  if (existing && existing.getVideoTracks().length > 0) return true
+  return false
 }
 
 async function ensureLocalStream() {
@@ -199,7 +223,7 @@ async function setCamera(on: boolean) {
     if (on) {
       if (!localVideoStream.value) {
         localVideoStream.value = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: currentFacing.value },
           audio: false,
         })
       }
@@ -218,6 +242,34 @@ async function setCamera(on: boolean) {
   refreshTracksAcrossPeers()
 }
 
+// Switch front/back camera. Tries the instant on-track applyConstraints path first,
+// then falls back to acquiring the other camera without stopping the current stream
+// first (so the preview never blinks to black).
+async function switchCamera() {
+  try {
+    const next: 'user' | 'environment' = currentFacing.value === 'user' ? 'environment' : 'user'
+    const cur = localVideoStream.value
+    if (cur) {
+      const t = cur.getVideoTracks()[0]
+      if (t?.applyConstraints) {
+        await t.applyConstraints({ facingMode: next })
+        currentFacing.value = next
+        return
+      }
+    }
+    const fresh = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: next },
+      audio: false,
+    })
+    localVideoStream.value = fresh
+    currentFacing.value = next
+    refreshTracksAcrossPeers()
+    cur?.getTracks().forEach(t => t.stop())
+  } catch {
+    throw new Error('カメラを切り替えられません')
+  }
+}
+
 async function toggleScreenShare() {
   try {
     if (screenSharing.value) {
@@ -228,9 +280,12 @@ async function toggleScreenShare() {
       if (!navigator.mediaDevices?.getDisplayMedia) {
         throw new Error('この環境では画面共有を利用できません')
       }
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
       screenStream.value = stream
       screenSharing.value = true
+      // Desktop captures e.g. tab/system audio alongside video; make sure it is sent.
+      const sa = stream.getAudioTracks()[0]
+      if (sa) sa.enabled = true
       stream.getVideoTracks()[0]?.addEventListener('ended', () => {
         screenSharing.value = false
         screenStream.value = null
@@ -260,8 +315,37 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
     if (e.candidate) signalTo(room, member.userId, { type: 'ice', data: e.candidate })
   }
   pc.ontrack = (e) => {
+    const uid = member.userId
     const ms = e.streams[0] || new MediaStream([e.track])
-    remoteStreams.value = { ...remoteStreams.value, [member.userId]: ms }
+    // Screen-share video (contentHint 'detail', or a second video track for the
+    // same peer) is kept separate so it can be shown in its own tile.
+    if (isScreenLike(e, uid)) {
+      remoteScreenStreams.value = { ...remoteScreenStreams.value, [uid]: ms }
+      const audioTracks = ms.getAudioTracks()
+      if (audioTracks.length) {
+        const cur = remoteStreams.value[uid]
+        if (cur) {
+          for (const a of audioTracks) { try { cur.addTrack(a) } catch { /* ignore */ } }
+          remoteStreams.value = { ...remoteStreams.value }
+        } else {
+          remoteStreams.value = { ...remoteStreams.value, [uid]: new MediaStream(audioTracks) }
+        }
+      }
+      ms.addEventListener('removetrack', () => {
+        if (ms.getVideoTracks().length === 0) {
+          const next = { ...remoteScreenStreams.value }
+          delete next[uid]
+          remoteScreenStreams.value = next
+          const remaining = ms.getAudioTracks()
+          if (remaining.length) {
+            const cur = remoteStreams.value[uid]
+            if (cur) { for (const a of remaining) { try { cur.addTrack(a) } catch { /* ignore */ } } }
+          }
+        }
+      })
+    } else {
+      remoteStreams.value = { ...remoteStreams.value, [uid]: ms }
+    }
   }
   // Polite/impolite negotiation: both sides may offer (needed for camera/screen
   // tracks to be added by either side); glare is resolved by polite (lower id) rolling back.
@@ -288,6 +372,7 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'connected') {
       connectionState.value = 'connected'
+      if (whiteboardStrokes.value.length) wbSyncTo(member.userId)
     } else if (pc.connectionState === 'closed') {
       closePeer(member.userId)
     }
@@ -386,6 +471,7 @@ function ensurePeer(room: VoiceRoomConfig, member: VoiceMember) {
   if (me.value && member.userId === me.value.userId) return
   const pc = getPeer(room, member)
   flushIce(member.userId)
+  if (whiteboardStrokes.value.length) wbSyncTo(member.userId)
   return pc
 }
 
@@ -437,6 +523,7 @@ async function handleSignal(msg: any) {
     setTimeout(() => { reactions.value = reactions.value.filter(r => r.id !== id) }, 3200)
   } else if (signal.type === 'wb') {
     whiteboardEvents.value.push({ from: from.userId, data: signal.data })
+    if (applyWbData(signal.data)) scheduleWbSave()
   }
 }
 
@@ -492,6 +579,9 @@ function init() {
     on('voice.signal', handleSignal),
   ]
   ensureMe().then(watchAllDmRooms).catch(() => {})
+  if (import.meta.client) {
+    window.addEventListener('pagehide', () => { if (status.value === 'active') saveWbNow() })
+  }
 }
 
 async function watchAllDmRooms() {
@@ -551,6 +641,7 @@ async function join(cfg?: VoiceRoomConfig) {
     for (const m of res.members || []) {
       if (m.userId !== me.value?.userId) ensurePeer(room, m)
     }
+    loadWbForRoom(room.roomKey)
   } catch (e: any) {
     errorMsg.value = e?.data?.message || e?.message || '通話に参加できませんでした'
     status.value = 'idle'
@@ -561,6 +652,7 @@ async function join(cfg?: VoiceRoomConfig) {
 
 async function leave() {
   const room = activeRoom.value
+  saveWbNow()
   activeRoom.value = null
   status.value = 'idle'
   connectionState.value = 'new'
@@ -577,6 +669,7 @@ async function leave() {
   cameraEnabled.value = false
   screenSharing.value = false
   remoteStreams.value = {}
+  remoteScreenStreams.value = {}
   if (room) {
     $fetch(room.leavePath, { method: 'POST' }).catch(() => {})
   }
@@ -617,9 +710,55 @@ function sendReaction(emoji: string) {
   for (const uid of [...peers.keys()]) signalTo(room, uid, { type: 'reaction', data: emoji })
 }
 
+let wbSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+function applyWbData(data: any) {
+  if (data?.segments?.length) {
+    whiteboardStrokes.value = [...whiteboardStrokes.value, { segments: data.segments, color: data.color, width: data.width }]
+  } else if (data?.clear) {
+    whiteboardStrokes.value = []
+  } else if (Array.isArray(data?.sync)) {
+    whiteboardStrokes.value = data.sync
+  } else {
+    return false
+  }
+  return true
+}
+
+function wbSyncTo(uid: string) {
+  const room = activeRoom.value
+  if (!room || !whiteboardStrokes.value.length) return
+  signalTo(room, uid, { type: 'wb', data: { sync: whiteboardStrokes.value } })
+}
+
+function scheduleWbSave() {
+  const room = activeRoom.value
+  if (!room || status.value !== 'active') return
+  if (wbSaveTimer) clearTimeout(wbSaveTimer)
+  wbSaveTimer = setTimeout(() => { wbSaveTimer = null; saveWbNow() }, 2000)
+}
+
+function saveWbNow() {
+  const room = activeRoom.value
+  if (!room) return
+  if (wbSaveTimer) { clearTimeout(wbSaveTimer); wbSaveTimer = null }
+  $fetch('/api/whiteboard', { method: 'POST', body: { roomKey: room.roomKey, strokes: whiteboardStrokes.value } })
+    .catch(() => {})
+}
+
+async function loadWbForRoom(roomKey: string) {
+  try {
+    const res = await $fetch<{ strokes: any[] }>(`/api/whiteboard/${encodeURIComponent(roomKey)}`)
+    if (Array.isArray(res?.strokes)) whiteboardStrokes.value = res.strokes
+  } catch { /* no saved board */ }
+  for (const uid of [...peers.keys()]) wbSyncTo(uid)
+}
+
 function sendWhiteboard(data: any) {
   const room = activeRoom.value
   if (!room) return
+  const changed = applyWbData(data)
+  if (changed) scheduleWbSave()
   for (const uid of [...peers.keys()]) signalTo(room, uid, { type: 'wb', data })
 }
 
@@ -645,6 +784,9 @@ export function useVoiceCall() {
     presence,
     reactions,
     whiteboardEvents,
+    whiteboardStrokes,
+    remoteScreenStreams,
+    currentFacing,
     watchRoom,
     unwatchRoom,
     refreshDmRooms,
@@ -655,6 +797,7 @@ export function useVoiceCall() {
     toggleMute,
     toggleSpeakerMute,
     setCamera,
+    switchCamera,
     toggleScreenShare,
     sendReaction,
     sendWhiteboard,

@@ -371,6 +371,15 @@ async function initDbInternal() {
       )
     `)
     await client.query(`CREATE INDEX IF NOT EXISTS user_badges_user_idx ON user_badges(user_id)`)
+    // Per-call whiteboard auto-save (strokes JSON)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS whiteboard_states (
+        room_key TEXT PRIMARY KEY,
+        strokes JSONB NOT NULL DEFAULT '[]',
+        updated_by_id TEXT REFERENCES users(id),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
     // Merge legacy likes into ❤️ reactions (likes are deprecated in favour of reactions)
     await client.query(`
       INSERT INTO post_reactions (id, post_id, user_id, emoji)
