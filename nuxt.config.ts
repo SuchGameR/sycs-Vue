@@ -1,16 +1,16 @@
 import { defineNuxtConfig } from 'nuxt/config'
 
+const isStaticPages =
+  process.env.GITHUB_PAGES === 'true' || process.env.NITRO_PRESET === 'static'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
-  // GitHub Pages（プロジェクトサイト）用
-  // ユーザーサイトにする場合は baseURL: '/' に戻す
-  // 設定をやめるときは baseURL の条件分岐と下記 nitro / routeRules を削除すればOK
+  // GitHub Pages（プロジェクトサイト）: リポジトリ名は sycs-Vue
+  // ローカル dev では baseURL は '/' のまま
   app: {
-    baseURL: process.env.GITHUB_PAGES === 'true' || process.env.NITRO_PRESET === 'static'
-      ? '/SYCS/'
-      : '/',
+    baseURL: isStaticPages ? '/sycs-Vue/' : '/',
     head: {
       title: 'SYCS - Ultra Modern Chat & SNS',
       meta: [
@@ -51,17 +51,18 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/app.css'],
 
-  // コンポーネントの設定を削除（デフォルトで ~/components が自動認識されるため）
-
   nitro: {
-    // GitHub Actions の generate 時に static プリセットを使う
-    preset: process.env.NITRO_PRESET === 'static' ? 'static' : undefined,
+    preset: isStaticPages ? 'static' : undefined,
   },
 
-  // 静的生成時、API ルートはプリレンダーしない（DB 不要でビルドを通す）
+  // 静的生成時: API は出さない・ページのプリレンダーで API/DB に依存しない
   routeRules: {
     '/api/**': { prerender: false },
+    '/**': isStaticPages ? { prerender: true } : undefined,
   },
+
+  // SPA フォールバック寄りの静的出力（DB 無しでも generate を通しやすくする）
+  ssr: isStaticPages ? false : true,
 
   tailwindcss: {
     exposeConfig: true,

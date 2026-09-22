@@ -2,7 +2,7 @@ name: Deploy Nuxt to GitHub Pages
 
 on:
   push:
-    branches: [nuxt-brandnew]
+    branches: [nuxt-deploy]
   workflow_dispatch:
 
 permissions:
@@ -33,8 +33,9 @@ jobs:
       - name: Generate static site
         run: npm run generate
         env:
-          # 静的生成時に API/DB を必須にしない（プレビュー用途）
           NITRO_PRESET: static
+          GITHUB_PAGES: "true"
+          SKIP_DB: "true"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
