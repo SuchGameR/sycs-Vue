@@ -1,6 +1,6 @@
 import { db } from '../../../db'
 import * as schema from '../../../db/schema'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
@@ -30,10 +30,29 @@ export default defineEventHandler(async (event) => {
     orderBy: (c, { desc }) => [desc(c.updatedAt)],
   })
 
-  const result = channels.map(ch => ({
-    ...ch,
-    members: allMembers.filter(m => m.channelId === ch.id).map(m => memberUserMap[m.userId]).filter(Boolean),
-  }))
+  const lastMessages = await db.execute<{ channelId: string; content: string; createdAt: Date; senderId: string }>(sql`
+    SELECT DISTINCT ON (channel_id) channel_id AS "channelId", content, created_at AS "createdAt", sender_id AS "senderId"
+    FROM dm_messages
+    WHERE channel_id = ANY(${channelIds})
+    ORDER BY channel_id, created_at DESC
+  `)
+  const lastMessageMap = new Map(lastMessages.rows.map(r => [r.channelId, r]))
+  const lastSenderIds = [...new Set(lastMessages.rows.map(r => r.senderId))]
+  const lastSenders = lastSenderIds.length
+    ? await db.query.users.findMany({ where: inArray(schema.users.id, lastSenderIds) })
+    : []
+  const lastSenderMap = Object.fromEntries(lastSenders.map(u => [u.id, u]))
+
+  const result = channels.map(ch => {
+    const last = lastMessageMap.get(ch.id)
+    return {
+      ...ch,
+      members: allMembers.filter(m => m.channelId === ch.id).map(m => memberUserMap[m.userId]).filter(Boolean),
+      lastMessage: last
+        ? { content: last.content, createdAt: last.createdAt, sender: lastSenderMap[last.senderId] || null }
+        : null,
+    }
+  })
 
   return { channels: result }
 })

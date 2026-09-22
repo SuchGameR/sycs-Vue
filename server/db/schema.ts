@@ -177,7 +177,10 @@ export const dmChannels = pgTable('dm_channels', {
   id: text('id').primaryKey(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-})
+  pairKey: text('pair_key'),
+}, (t) => ({
+  pairKeyIdx: uniqueIndex('dm_channels_pair_key_idx').on(t.pairKey),
+}))
 
 export const dmChannelMembers = pgTable('dm_channel_members', {
   id: text('id').primaryKey(),

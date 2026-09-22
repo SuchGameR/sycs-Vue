@@ -54,7 +54,7 @@ export const PHP_ACTIONS = {
 export function usePhpBridge() {
   const status = useState<BridgeStatus | null>('php-bridge:status', () => null)
   const events = useState<BridgeEvent[]>('php-bridge:events', () => [])
-  const busy = useState(false, () => false)
+  const busy = useState('php-bridge:busy', () => false)
 
   async function refreshStatus(): Promise<BridgeStatus> {
     const res = await $fetch<BridgeStatus>('/api/bridge/status')

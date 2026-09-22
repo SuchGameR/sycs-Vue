@@ -50,16 +50,6 @@ async function loadChannelInfo() {
   } catch { /* ignore */ }
 }
 
-onMounted(async () => {
-  await loadMessages()
-  await loadChannelInfo()
-  voice.watchRoom(dmVoiceConfig())
-})
-
-onUnmounted(() => {
-  voice.unwatchRoom(`dm:${channelId.value}`)
-})
-
 async function sendMessage(text?: string) {
   const content = (text ?? messageDraft.value).trim()
   if (!content) return
@@ -77,6 +67,28 @@ async function startCall() {
 }
 
 const { data: me } = await useFetch('/api/auth/me', { key: 'dm-chat-me' })
+
+const { on } = useRealtime()
+let offDm: (() => void)[] = []
+
+function handleDmMessage(p: any) {
+  if (!p.channelId || p.channelId !== channelId.value) return
+  if (!p.message?.id) return
+  if (messages.value.some(m => m.id === p.message.id)) return
+  messages.value.push(p.message)
+}
+
+onMounted(async () => {
+  await loadMessages()
+  await loadChannelInfo()
+  voice.watchRoom(dmVoiceConfig())
+  offDm = [on('dm.message', handleDmMessage)]
+})
+
+onUnmounted(() => {
+  offDm.forEach(off => off())
+  voice.unwatchRoom(`dm:${channelId.value}`)
+})
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime()

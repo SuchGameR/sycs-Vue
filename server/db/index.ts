@@ -211,6 +211,62 @@ async function initDbInternal() {
     await client.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS dm_channel_members_channel_user_idx ON dm_channel_members(channel_id, user_id)
     `)
+    // DM pair key: canonical key for a 1:1 channel so duplicates can never be created.
+    await client.query(`ALTER TABLE dm_channels ADD COLUMN IF NOT EXISTS pair_key TEXT`)
+    await client.query(`
+      WITH pairs AS (
+        SELECT channel_id, string_agg(user_id, ':' ORDER BY user_id) AS pair_key
+        FROM dm_channel_members
+        GROUP BY channel_id
+      )
+      UPDATE dm_channels c SET pair_key = p.pair_key
+      FROM pairs p
+      WHERE c.id = p.channel_id AND c.pair_key IS NULL
+    `)
+    await client.query(`
+      WITH ranked AS (
+        SELECT id, pair_key,
+               row_number() OVER (PARTITION BY pair_key ORDER BY created_at, id) AS rn
+        FROM dm_channels WHERE pair_key IS NOT NULL
+      ),
+      dups AS (
+        SELECT r.id, d_keep.id AS keep_id
+        FROM ranked r
+        JOIN ranked d_keep ON d_keep.pair_key = r.pair_key AND d_keep.rn = 1
+        WHERE r.rn > 1
+      )
+      UPDATE dm_messages m SET channel_id = d.keep_id
+      FROM dups d WHERE m.channel_id = d.id
+    `)
+    await client.query(`
+      WITH ranked AS (
+        SELECT id, pair_key,
+               row_number() OVER (PARTITION BY pair_key ORDER BY created_at, id) AS rn
+        FROM dm_channels WHERE pair_key IS NOT NULL
+      ),
+      dups AS (
+        SELECT r.id FROM ranked r
+        JOIN ranked d_keep ON d_keep.pair_key = r.pair_key AND d_keep.rn = 1
+        WHERE r.rn > 1
+      )
+      DELETE FROM dm_channel_members m USING dups d WHERE m.channel_id = d.id
+    `)
+    await client.query(`
+      WITH ranked AS (
+        SELECT id, pair_key,
+               row_number() OVER (PARTITION BY pair_key ORDER BY created_at, id) AS rn
+        FROM dm_channels WHERE pair_key IS NOT NULL
+      )
+      DELETE FROM dm_channels c
+      WHERE c.id IN (
+        SELECT r.id FROM ranked r
+        JOIN ranked d_keep ON d_keep.pair_key = r.pair_key AND d_keep.rn = 1
+        WHERE r.rn > 1
+      )
+    `)
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS dm_channels_pair_key_idx ON dm_channels(pair_key)
+    `)
     await client.query(`
       CREATE TABLE IF NOT EXISTS dm_messages (
         id TEXT PRIMARY KEY,

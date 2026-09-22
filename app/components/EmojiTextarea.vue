@@ -4,7 +4,7 @@ import { Document } from '@tiptap/extension-document'
 import { Paragraph } from '@tiptap/extension-paragraph'
 import { Text } from '@tiptap/extension-text'
 import { HardBreak } from '@tiptap/extension-hard-break'
-import { searchEmoji, isEmojiOnlyMessage } from '~/utils/emoji'
+import { searchEmoji, shouldJumboEmoji } from '~/utils/emoji'
 import { EmojiImage, serializeDoc, textToDoc } from '~/utils/richEditor'
 
 const props = defineProps<{
@@ -52,7 +52,7 @@ function minHeight() {
 function refreshState(ed: any) {
   hasContent.value = !ed.isEmpty
   const text = serializeDoc(ed.state.doc)
-  const jumbo = isEmojiOnlyMessage(text, custom.map.value)
+  const jumbo = shouldJumboEmoji(text, custom.map.value)
   if (ed.view?.dom) {
     ed.view.dom.style.fontSize = jumbo ? '1.75rem' : ''
     ed.view.dom.style.minHeight = jumbo ? '' : minHeight()
@@ -170,7 +170,7 @@ function setFromModel(value: string) {
   ed.commands.setContent(textToDoc(value, custom.map.value), { emitUpdate: false })
   const text = serializeDoc(ed.state.doc)
   hasContent.value = !ed.isEmpty
-  if (ed.view?.dom) ed.view.dom.style.fontSize = isEmojiOnlyMessage(text, custom.map.value) ? '1.75rem' : ''
+  if (ed.view?.dom) ed.view.dom.style.fontSize = shouldJumboEmoji(text, custom.map.value) ? '1.75rem' : ''
 }
 
 watch(() => props.modelValue, (v) => setFromModel(String(v ?? '')))

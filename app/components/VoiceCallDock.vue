@@ -78,6 +78,10 @@ onUnmounted(stopRing)
 async function accept() {
   stopRing()
   await voice.acceptCall()
+  const room = voice.activeRoom.value
+  if (room?.kind === 'dm' && room.roomKey.startsWith('dm:')) {
+    navigateTo(`/dm/${room.roomKey.slice(3)}`)
+  }
 }
 function decline() {
   stopRing()

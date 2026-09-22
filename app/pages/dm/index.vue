@@ -14,10 +14,31 @@ async function loadChannels() {
   }
 }
 
-onMounted(loadChannels)
+const { on } = useRealtime()
+let offRealtime: (() => void)[] = []
+
+onMounted(() => {
+  loadChannels()
+  offRealtime = [on('dm.message', loadChannels)]
+})
+
+onUnmounted(() => {
+  offRealtime.forEach(off => off())
+})
 
 function otherMembers(ch: any) {
   return ch.members?.filter((m: any) => m.id !== me.value?.user?.id) || []
+}
+
+function timeAgo(date?: string) {
+  if (!date) return ''
+  const diff = Date.now() - new Date(date).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'たった今'
+  if (minutes < 60) return `${minutes}分前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}時間前`
+  return `${Math.floor(hours / 24)}日前`
 }
 
 const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
@@ -38,12 +59,19 @@ const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
         :to="`/dm/${ch.id}`"
         class="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl hover:bg-slate-800/50 transition"
       >
-        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
-          {{ otherMembers(ch)[0]?.displayName?.charAt(0) || '?' }}
+        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
+          <img v-if="otherMembers(ch)[0]?.avatarUrl" :src="otherMembers(ch)[0].avatarUrl" class="w-full h-full object-cover" />
+          <template v-else>{{ otherMembers(ch)[0]?.displayName?.charAt(0) || '?' }}</template>
         </div>
-        <div class="min-w-0">
-          <p class="text-sm font-bold text-white truncate">{{ otherMembers(ch).map((m: any) => m.displayName).join(', ') || '不明' }}</p>
-          <p class="text-xs text-slate-500">DMを開く</p>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-sm font-bold text-white truncate">{{ otherMembers(ch).map((m: any) => m.displayName).join(', ') || '不明' }}</p>
+            <span v-if="ch.lastMessage?.createdAt" class="text-[11px] text-slate-600 shrink-0">{{ timeAgo(ch.lastMessage.createdAt) }}</span>
+          </div>
+          <p v-if="ch.lastMessage" class="text-xs text-slate-400 truncate">
+            <span class="text-slate-300">{{ ch.lastMessage.sender?.displayName }}: </span>{{ ch.lastMessage.content }}
+          </p>
+          <p v-else class="text-xs text-slate-500">DMを開く</p>
         </div>
       </NuxtLink>
     </div>

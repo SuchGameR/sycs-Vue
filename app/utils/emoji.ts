@@ -158,6 +158,16 @@ export function isEmojiOnlyMessage(text: string, custom?: CustomEmojiMap): boole
   return true
 }
 
+/**
+ * True when the message should render "jumbo" (Discord-style large emoji).
+ * Same as `isEmojiOnlyMessage`, but a message whose typed length is 3
+ * characters or fewer keeps the normal `sycs-emoji` image sizing instead.
+ */
+export function shouldJumboEmoji(text: string, custom?: CustomEmojiMap): boolean {
+  if (!isEmojiOnlyMessage(text, custom)) return false
+  return [...String(text ?? '').trim()].length > 3
+}
+
 export function replaceShortcodes(text: string, custom?: CustomEmojiMap): string {
   return text.replace(/:([a-z0-9_+-]+):/gi, (match, name: string) => {
     const key = name.toLowerCase()

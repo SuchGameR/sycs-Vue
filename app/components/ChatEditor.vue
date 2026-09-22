@@ -4,7 +4,7 @@ import { Document } from '@tiptap/extension-document'
 import { Paragraph } from '@tiptap/extension-paragraph'
 import { Text } from '@tiptap/extension-text'
 import { HardBreak } from '@tiptap/extension-hard-break'
-import { searchEmoji, isEmojiOnlyMessage } from '~/utils/emoji'
+import { searchEmoji, shouldJumboEmoji } from '~/utils/emoji'
 import { EmojiImage, serializeDoc } from '~/utils/richEditor'
 
 const props = defineProps<{ placeholder?: string }>()
@@ -30,7 +30,7 @@ interface EmojiSuggestion {
 function refreshState(ed: any) {
   hasContent.value = !ed.isEmpty
   const text = serializeDoc(ed.state.doc)
-  jumbo.value = isEmojiOnlyMessage(text, custom.map.value)
+  jumbo.value = shouldJumboEmoji(text, custom.map.value)
   if (ed.view?.dom) ed.view.dom.style.fontSize = jumbo.value ? '1.75rem' : ''
   emit('update', text)
 }

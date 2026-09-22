@@ -43,6 +43,9 @@ async function loadPosts(reset = true, silent = false) {
       posts.value = [...posts.value, ...incoming.filter(p => !seen.has(p.id))]
     }
     return { hasMore: hasMore.value }
+  } catch (e: any) {
+    postError.value = e.data?.message || 'タイムラインの読み込みに失敗しました'
+    if (reset) posts.value = []
   } finally {
     if (!silent) loading.value = false
   }

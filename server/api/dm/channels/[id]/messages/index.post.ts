@@ -4,6 +4,7 @@ import * as schema from '../../../../../db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { requireAuth } from '../../../../../utils/auth'
 import { checkMessageFlood, validateMessageContent } from '../../../../../utils/rateLimit'
+import { broadcast } from '../../../../../utils/realtime'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -38,5 +39,10 @@ export default defineEventHandler(async (event) => {
     ? await db.query.users.findFirst({ where: eq(schema.users.id, message.senderId) })
     : null
 
-  return { message: message ? { ...message, sender } : null }
+  const result = message ? { ...message, sender } : null
+  if (result) {
+    broadcast({ type: 'dm.message', channelId: channelId!, message: result })
+  }
+
+  return { message: result }
 })

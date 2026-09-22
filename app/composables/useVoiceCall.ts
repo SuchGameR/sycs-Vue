@@ -202,7 +202,34 @@ function init() {
     on('voice.update', handleUpdate),
     on('voice.signal', handleSignal),
   ]
-  ensureMe().catch(() => {})
+  ensureMe().then(watchAllDmRooms).catch(() => {})
+}
+
+async function watchAllDmRooms() {
+  try {
+    const data = await $fetch<{ channels: any[] }>('/api/dm/channels')
+    for (const ch of data.channels || []) {
+      const roomKey = `dm:${ch.id}`
+      const others = (ch.members || []).filter((m: any) => m.id !== me.value?.userId)
+      const label = others.map((m: any) => m.displayName || m.username).join(', ') || 'DM通話'
+      watchedRooms.set(roomKey, {
+        roomKey,
+        joinPath: `/api/dm/channels/${ch.id}/voice/join`,
+        leavePath: `/api/dm/channels/${ch.id}/voice/leave`,
+        signalPath: `/api/dm/channels/${ch.id}/voice/signal`,
+        label,
+        kind: 'dm',
+      })
+    }
+  } catch { /* not authenticated or offline */ }
+}
+
+async function refreshDmRooms() {
+  for (const key of [...watchedRooms.keys()]) {
+    if (key.startsWith('dm:')) watchedRooms.delete(key)
+  }
+  await ensureMe().catch(() => {})
+  await watchAllDmRooms()
 }
 
 function watchRoom(cfg: VoiceRoomConfig) {
@@ -310,6 +337,7 @@ export function useVoiceCall() {
     presence,
     watchRoom,
     unwatchRoom,
+    refreshDmRooms,
     join,
     leave,
     acceptCall,
