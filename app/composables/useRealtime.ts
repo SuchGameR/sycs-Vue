@@ -19,6 +19,14 @@ function connectRealtime() {
         try { fn(payload) } catch { /* ignore */ }
       }
     }
+    const type = `${payload?.type ?? ''}`
+    for (const key of Object.keys(handlers)) {
+      if (key.endsWith('*') && type.startsWith(key.slice(0, -1))) {
+        for (const fn of [...handlers[key]]) {
+          try { fn(payload) } catch { /* ignore */ }
+        }
+      }
+    }
   })
   es.onerror = () => {
     // EventSource reconnects automatically
