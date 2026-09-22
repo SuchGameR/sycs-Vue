@@ -8,11 +8,13 @@ export default defineEventHandler(async (event) => {
   await initDb()
 
   const query = getQuery(event)
-  const { code } = query
+  const { code, state } = query
 
   if (!code) {
     throw createError({ statusCode: 400, message: 'Invalid OAuth callback' })
   }
+
+  const target = typeof state === 'string' && state.startsWith('/') && !state.startsWith('//') ? state : '/home'
 
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
@@ -52,7 +54,7 @@ export default defineEventHandler(async (event) => {
   if (existingAccount) {
     const { token } = await createSession(existingAccount.userId)
     setAuthCookie(event, token)
-    return sendRedirect(event, '/home')
+    return sendRedirect(event, target)
   }
 
   const existingUser = googleUser.email
@@ -98,5 +100,5 @@ export default defineEventHandler(async (event) => {
 
   const { token } = await createSession(userId)
   setAuthCookie(event, token)
-  return sendRedirect(event, '/')
+  return sendRedirect(event, target)
 })

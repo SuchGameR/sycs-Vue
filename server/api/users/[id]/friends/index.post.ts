@@ -12,14 +12,27 @@ export default defineEventHandler(async (event) => {
   const existing = await db.query.friends.findFirst({
     where: or(
       and(eq(schema.friends.userId, user.id), eq(schema.friends.friendId, friendId!)),
-      and(eq(schema.friends.userId, friendId!), eq(schema.friends.friendId, user.id))
+      and(eq(schema.friends.userId, friendId!), eq(schema.friends.friendId, user.id)),
     ),
   })
-  if (existing) throw createError({ statusCode: 409, message: '既にフレンドリクエストを送信済みです' })
+
+  if (existing) {
+    if (existing.status === 'accepted') {
+      throw createError({ statusCode: 409, data: { code: 'ALREADY_FRIENDS' }, message: '既にフレンド関係にあります' })
+    }
+    const isInbound = existing.userId === friendId
+    if (isInbound) {
+      throw createError({ statusCode: 409, data: { code: 'INBOUND_PENDING' }, message: '相手からフレンド申請が届いています' })
+    }
+    await db.update(schema.friends)
+      .set({ updatedAt: new Date() })
+      .where(eq(schema.friends.id, existing.id))
+    return { success: true, reSent: true }
+  }
 
   await db.insert(schema.friends).values({
     id: randomUUID(), userId: user.id, friendId: friendId!, status: 'pending',
   })
 
-  return { success: true }
+  return { success: true, reSent: false }
 })

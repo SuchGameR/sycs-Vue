@@ -2,6 +2,7 @@ import { db } from '../../../../../db'
 import * as schema from '../../../../../db/schema'
 import { eq, and, desc, inArray } from 'drizzle-orm'
 import { requireAuth } from '../../../../../utils/auth'
+import { publicUser } from '../../../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -22,7 +23,7 @@ export default defineEventHandler(async (event) => {
   const senders = senderIds.length
     ? await db.query.users.findMany({ where: inArray(schema.users.id, senderIds) })
     : []
-  const senderMap = Object.fromEntries(senders.map(s => [s.id, s]))
+  const senderMap = Object.fromEntries(senders.map(s => [s.id, publicUser(s)]))
   const messagesWithSenders = messages.map(m => ({ ...m, sender: senderMap[m.senderId] || null }))
 
   return { messages: messagesWithSenders.reverse() }

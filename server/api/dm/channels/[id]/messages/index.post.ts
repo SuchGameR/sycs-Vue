@@ -4,7 +4,8 @@ import * as schema from '../../../../../db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { requireAuth } from '../../../../../utils/auth'
 import { checkMessageFlood, validateMessageContent } from '../../../../../utils/rateLimit'
-import { broadcast } from '../../../../../utils/realtime'
+import { broadcastToUsers } from '../../../../../utils/realtime'
+import { publicUser } from '../../../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -39,9 +40,16 @@ export default defineEventHandler(async (event) => {
     ? await db.query.users.findFirst({ where: eq(schema.users.id, message.senderId) })
     : null
 
-  const result = message ? { ...message, sender } : null
+  const result = message ? { ...message, sender: publicUser(sender) } : null
   if (result) {
-    broadcast({ type: 'dm.message', channelId: channelId!, message: result })
+    const memberRows = await db.query.dmChannelMembers.findMany({
+      where: eq(schema.dmChannelMembers.channelId, channelId!),
+      columns: { userId: true },
+    })
+    broadcastToUsers(
+      { type: 'dm.message', channelId: channelId!, message: result },
+      memberRows.map(m => m.userId),
+    )
   }
 
   return { message: result }

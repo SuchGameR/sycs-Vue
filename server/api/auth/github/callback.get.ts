@@ -14,6 +14,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Invalid OAuth callback' })
   }
 
+  const target = typeof state === 'string' && state.startsWith('/') && !state.startsWith('//') ? state : '/home'
+
   const clientId = process.env.GITHUB_CLIENT_ID
   const clientSecret = process.env.GITHUB_CLIENT_SECRET
 
@@ -44,7 +46,7 @@ export default defineEventHandler(async (event) => {
   if (existingAccount) {
     const { token } = await createSession(existingAccount.userId)
     setAuthCookie(event, token)
-    return sendRedirect(event, '/home')
+    return sendRedirect(event, target)
   }
 
   const existingUser = githubUser.email
@@ -89,5 +91,5 @@ export default defineEventHandler(async (event) => {
 
   const { token } = await createSession(userId)
   setAuthCookie(event, token)
-  return sendRedirect(event, '/')
+  return sendRedirect(event, target)
 })

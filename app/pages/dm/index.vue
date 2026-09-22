@@ -19,7 +19,7 @@ let offRealtime: (() => void)[] = []
 
 onMounted(() => {
   loadChannels()
-  offRealtime = [on('dm.message', loadChannels)]
+  offRealtime = [on('dm.message', loadChannels), on('dm.message.edited', loadChannels)]
 })
 
 onUnmounted(() => {
@@ -65,11 +65,13 @@ const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
         </div>
         <div class="min-w-0 flex-1">
           <div class="flex items-center justify-between gap-2">
-            <p class="text-sm font-bold text-white truncate">{{ otherMembers(ch).map((m: any) => m.displayName).join(', ') || '不明' }}</p>
+            <p class="text-sm font-bold text-white truncate">{{ otherMembers(ch).map((m: any) => m.displayName).join(', ') || '不明' }}
+              <span class="text-xs font-normal text-slate-500">@{{ otherMembers(ch).map((m: any) => m.username).join(', @') || '?' }}</span>
+            </p>
             <span v-if="ch.lastMessage?.createdAt" class="text-[11px] text-slate-600 shrink-0">{{ timeAgo(ch.lastMessage.createdAt) }}</span>
           </div>
           <p v-if="ch.lastMessage" class="text-xs text-slate-400 truncate">
-            <span class="text-slate-300">{{ ch.lastMessage.sender?.displayName }}: </span>{{ ch.lastMessage.content }}
+            <span class="text-slate-300">{{ ch.lastMessage.sender?.displayName }}<span v-if="ch.lastMessage.edited" class="text-slate-500">（編集済み）</span>: </span>{{ ch.lastMessage.content }}
           </p>
           <p v-else class="text-xs text-slate-500">DMを開く</p>
         </div>

@@ -15,15 +15,44 @@ export interface VoiceRoomConfig {
 }
 
 interface SignalPayload {
-  type: 'offer' | 'answer' | 'ice' | 'decline'
+  type: 'offer' | 'answer' | 'ice' | 'decline' | 'reaction' | 'wb'
   data?: any
 }
 
 const PC_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+  iceServers: [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'stun:stun.services.mozilla.com:3478' },
+  ],
+  iceCandidatePoolSize: 4,
+}
+
+// A TURN server is required for reliable calls across strict NATs.
+// If TURN_URLS is configured via env, the client pulls credentials here.
+async function tryExtendTurnConfig() {
+  try {
+    const res = await $fetch<{ urls: string[]; username?: string; credential?: string }>('/api/voice/turn')
+    if (res?.urls?.length) {
+      const turn: RTCIceServer = { urls: res.urls, username: res.username, credential: res.credential }
+      if (!PC_CONFIG.iceServers!.some(s => (s as any).urls?.includes?.(res.urls[0]))) {
+        PC_CONFIG.iceServers!.push(turn)
+      }
+    }
+  } catch { /* optional TURN config */ }
+}
+let turnLoaded = false
+function pcConfigWithTurn() {
+  if (!turnLoaded) {
+    turnLoaded = true
+    tryExtendTurnConfig()
+  }
+  return PC_CONFIG
 }
 
 let initialized = false
+
+type StatusLabel = 'idle' | 'connecting' | 'active' | 'connected' | 'reconnecting'
 
 const me = ref<VoiceMember | null>(null)
 const activeRoom = ref<VoiceRoomConfig | null>(null)
@@ -36,23 +65,39 @@ const localStream = ref<MediaStream | null>(null)
 const incoming = ref<{ room: VoiceRoomConfig; from: VoiceMember } | null>(null)
 const presence = ref<Record<string, number>>({})
 const connectionState = ref<'new' | 'connecting' | 'connected' | 'disconnected' | 'failed'>('new')
+const speakerMuted = ref(false)
+const cameraEnabled = ref(false)
+const screenSharing = ref(false)
+const localVideoStream = ref<MediaStream | null>(null)
+const screenStream = ref<MediaStream | null>(null)
+const reactions = ref<{ id: number; from: string; emoji: string }[]>([])
+const whiteboardEvents = ref<{ from: string; data: any }[]>([])
+
+const callState = computed<StatusLabel>(() => {
+  if (status.value !== 'active') return status.value
+  if (connectionState.value === 'connected') return 'connected'
+  if (connectionState.value === 'failed' || connectionState.value === 'disconnected') return 'reconnecting'
+  return 'connecting'
+})
 
 const watchedRooms = new Map<string, VoiceRoomConfig>()
 const peers = new Map<string, RTCPeerConnection>()
 const pendingIce = new Map<string, any[]>()
+const lastIceRestart = new Map<string, number>()
+const lastOfferAt = new Map<string, number>()
 
 let offs: (() => void)[] = []
+let watchdog: ReturnType<typeof setInterval> | null = null
 
 function queueOrAddIce(userId: string, candidate: any) {
+  const q = pendingIce.get(userId) || []
   const pc = peers.get(userId)
-  if (!pc) return
-  if (pc.remoteDescription) {
-    pc.addIceCandidate(candidate).catch(() => {})
-  } else {
-    const q = pendingIce.get(userId) || []
+  if (!pc || !pc.remoteDescription) {
     q.push(candidate)
     pendingIce.set(userId, q)
+    return
   }
+  pc.addIceCandidate(candidate).catch(() => {})
 }
 
 function flushIce(userId: string) {
@@ -75,16 +120,142 @@ async function ensureMe() {
   }
 }
 
-function signalTo(room: VoiceRoomConfig, to: string, signal: SignalPayload) {
-  $fetch(room.signalPath, { method: 'POST', body: { to, signal } }).catch(() => {})
+function signalTo(room: VoiceRoomConfig, to: string, signal: SignalPayload, attempt = 0) {
+  $fetch(room.signalPath, { method: 'POST', body: { to, signal } })
+    .catch(() => {
+      if (attempt < 2 && ['offer', 'answer', 'ice'].includes(signal.type)) {
+        setTimeout(() => signalTo(room, to, signal, attempt + 1), 200 * (attempt + 1))
+      }
+    })
 }
+
+/* ---- local media tracks ---- */
+
+function optionalVideoTracks(): MediaStreamTrack[] {
+  if (screenSharing.value && screenStream.value) {
+    const t = screenStream.value.getVideoTracks()[0]
+    return t ? [t] : []
+  }
+  if (cameraEnabled.value && localVideoStream.value) {
+    const t = localVideoStream.value.getVideoTracks()[0]
+    return t ? [t] : []
+  }
+  return []
+}
+
+function videoSourceStream(): MediaStream | null {
+  if (screenSharing.value && screenStream.value) return screenStream.value
+  if (cameraEnabled.value && localVideoStream.value) return localVideoStream.value
+  return null
+}
+
+// Attach any local tracks that are missing on a peer connection. This both fixes
+// silent/absent audio when the peer is created before the local stream is ready and
+// lets camera/screen tracks join an already-running call.
+function attachLocalTracks(pc: RTCPeerConnection) {
+  const l = localStream.value
+  if (l) {
+    for (const t of l.getTracks()) {
+      const sender = pc.getSenders().find(s => s.track?.kind === t.kind)
+      if (!sender) pc.addTrack(t, l)
+      else if (sender.track?.id !== t.id) sender.replaceTrack(t).catch(() => {})
+    }
+  }
+  syncOptionalVideoSender(pc)
+}
+
+function syncOptionalVideoSender(pc: RTCPeerConnection) {
+  const vt = optionalVideoTracks()
+  const src = videoSourceStream()
+  const vidSender = pc.getSenders().find(s => s.track?.kind === 'video')
+  if (vt.length && src) {
+    if (!vidSender) pc.addTrack(vt[0], src)
+    else if (vidSender.track?.id !== vt[0].id) vidSender.replaceTrack(vt[0]).catch(() => {})
+  } else if (!vt.length && vidSender) {
+    vidSender.replaceTrack(null).catch(() => {})
+  }
+}
+
+function refreshTracksAcrossPeers() {
+  for (const pc of peers.values()) attachLocalTracks(pc)
+}
+
+async function ensureLocalStream() {
+  if (localStream.value) return localStream.value
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('この環境ではマイクを利用できません')
+  }
+  localStream.value = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: false,
+  })
+  localStream.value.getAudioTracks().forEach(t => { t.enabled = !muted.value })
+  refreshTracksAcrossPeers()
+  return localStream.value
+}
+
+async function setCamera(on: boolean) {
+  try {
+    if (on) {
+      if (!localVideoStream.value) {
+        localVideoStream.value = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          audio: false,
+        })
+      }
+      cameraEnabled.value = true
+    } else {
+      localVideoStream.value?.getTracks().forEach(t => t.stop())
+      localVideoStream.value = null
+      cameraEnabled.value = false
+    }
+  } catch {
+    localVideoStream.value?.getTracks().forEach(t => t.stop())
+    localVideoStream.value = null
+    cameraEnabled.value = false
+    throw new Error('カメラを使用できません')
+  }
+  refreshTracksAcrossPeers()
+}
+
+async function toggleScreenShare() {
+  try {
+    if (screenSharing.value) {
+      screenStream.value?.getTracks().forEach(t => t.stop())
+      screenStream.value = null
+      screenSharing.value = false
+    } else {
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        throw new Error('この環境では画面共有を利用できません')
+      }
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+      screenStream.value = stream
+      screenSharing.value = true
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+        screenSharing.value = false
+        screenStream.value = null
+        refreshTracksAcrossPeers()
+      })
+    }
+  } catch {
+    screenStream.value?.getTracks().forEach(t => t.stop())
+    screenStream.value = null
+    screenSharing.value = false
+  }
+  refreshTracksAcrossPeers()
+}
+
+/* ---- peer ---- */
 
 function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection {
   const existing = peers.get(member.userId)
-  if (existing) return existing
-  const pc = new RTCPeerConnection(PC_CONFIG)
+  if (existing) {
+    attachLocalTracks(existing)
+    return existing
+  }
+  const pc = new RTCPeerConnection(pcConfigWithTurn())
   peers.set(member.userId, pc)
-  localStream.value?.getTracks().forEach(t => pc.addTrack(t, localStream.value!))
+  attachLocalTracks(pc)
   pc.onicecandidate = (e) => {
     if (e.candidate) signalTo(room, member.userId, { type: 'ice', data: e.candidate })
   }
@@ -92,22 +263,59 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
     const ms = e.streams[0] || new MediaStream([e.track])
     remoteStreams.value = { ...remoteStreams.value, [member.userId]: ms }
   }
-  pc.onconnectionstatechange = () => {
-    if (['failed', 'closed'].includes(pc.connectionState)) {
-      closePeer(member.userId)
-    } else if (pc.connectionState === 'connected') {
-      connectionState.value = 'connected'
+  // Polite/impolite negotiation: both sides may offer (needed for camera/screen
+  // tracks to be added by either side); glare is resolved by polite (lower id) rolling back.
+  pc.onnegotiationneeded = () => {
+    if (!me.value) return
+    if (pc.signalingState !== 'stable') return
+    pc.createOffer()
+      .then((offer) => pc.setLocalDescription(offer))
+      .then(() => signalTo(room, member.userId, { type: 'offer', data: pc.localDescription! }))
+      .catch(() => {})
+  }
+  pc.oniceconnectionstatechange = () => {
+    const state = pc.iceConnectionState
+    if (state === 'failed' || state === 'disconnected') {
+      const now = Date.now()
+      if (now - (lastIceRestart.get(member.userId) || 0) > 6000) {
+        lastIceRestart.set(member.userId, now)
+        if (typeof pc.restartIce === 'function') pc.restartIce().catch(() => {})
+      }
     }
+    if (state === 'connected') connectionState.value = 'connected'
+    markConnection()
+  }
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'connected') {
+      connectionState.value = 'connected'
+    } else if (pc.connectionState === 'closed') {
+      closePeer(member.userId)
+    }
+    markConnection()
   }
   return pc
 }
 
+function markConnection() {
+  if (!peers.size) return
+  const anyConnected = [...peers.values()].some(p => p.connectionState === 'connected')
+  if (anyConnected) {
+    connectionState.value = 'connected'
+  } else if ([...peers.values()].every(p => ['failed', 'closed', 'new'].includes(p.connectionState))) {
+    connectionState.value = 'failed'
+  }
+}
+
 function closePeer(userId: string) {
   pendingIce.delete(userId)
+  lastIceRestart.delete(userId)
+  lastOfferAt.delete(userId)
   const pc = peers.get(userId)
   if (pc) {
     pc.onicecandidate = null
     pc.ontrack = null
+    pc.onnegotiationneeded = null
+    pc.oniceconnectionstatechange = null
     pc.onconnectionstatechange = null
     pc.close()
     peers.delete(userId)
@@ -119,30 +327,91 @@ function closePeer(userId: string) {
   }
 }
 
-function ensurePeer(room: VoiceRoomConfig, member: VoiceMember) {
-  const pc = getPeer(room, member)
-  if (me.value && me.value.userId < member.userId) {
-    if (pc.signalingState === 'stable' && !pc.localDescription) {
-      pc.createOffer()
-        .then(offer => pc.setLocalDescription(offer))
-        .then(() => signalTo(room, member.userId, { type: 'offer', data: pc.localDescription }))
-        .catch(() => {})
+// Offer a peer if a connection has not formed. Rolled back and re-offered on a
+// throttle so that lost offers/answers eventually recover on either side.
+function renegotiateIfStuck(room: VoiceRoomConfig, userId: string) {
+  if (!me.value || me.value.userId >= userId) return
+  const pc = peers.get(userId)
+  if (!pc || pc.connectionState === 'connected') return
+  const now = Date.now()
+  if (now - (lastOfferAt.get(userId) || 0) < 3000) return
+  lastOfferAt.set(userId, now)
+  ;(async () => {
+    try {
+      if (pc.signalingState === 'have-local-offer') await pc.setLocalDescription({ type: 'rollback' as any })
+      if (pc.signalingState === 'stable') {
+        await pc.setLocalDescription(await pc.createOffer())
+        signalTo(room, userId, { type: 'offer', data: pc.localDescription! })
+      }
+    } catch { /* ignore */ }
+  })()
+}
+
+function startWatchdog() {
+  if (watchdog) return
+  let tick = 0
+  watchdog = setInterval(() => {
+    const room = activeRoom.value
+    if (!room || (status.value !== 'active' && status.value !== 'connecting')) {
+      stopWatchdog()
+      return
     }
+    tick++
+    for (const uid of [...peers.keys()]) {
+      renegotiateIfStuck(room, uid)
+      if (tick % 10 === 0) {
+        $fetch(room.joinPath, { method: 'POST' })
+          .then((res: any) => {
+            if (res?.members) {
+              members.value = res.members || []
+              for (const m of members.value) {
+                if (m.userId !== me.value?.userId) ensurePeer(room, m)
+              }
+            }
+          })
+          .catch(() => {})
+      }
+    }
+  }, 3000)
+}
+
+function stopWatchdog() {
+  if (watchdog) {
+    clearInterval(watchdog)
+    watchdog = null
   }
+}
+
+function ensurePeer(room: VoiceRoomConfig, member: VoiceMember) {
+  if (me.value && member.userId === me.value.userId) return
+  const pc = getPeer(room, member)
+  flushIce(member.userId)
   return pc
 }
+
+/* ---- signals ---- */
 
 async function handleSignal(msg: any) {
   const room = activeRoom.value
   if (!room || msg.roomKey !== room.roomKey) return
   if (msg.to && me.value && msg.to !== me.value.userId) return
   const from = msg.from as VoiceMember
-  if (!from?.userId) return
+  if (!from?.userId || from.userId === me.value?.userId) return
   const signal = msg.signal as SignalPayload
+  const isPolite = me.value ? me.value.userId < from.userId : true
 
   if (signal.type === 'offer') {
+    if (!localStream.value) { try { await ensureLocalStream() } catch { /* audio optional until join */ } }
     const pc = getPeer(room, from)
     try {
+      if (pc.signalingState === 'have-local-offer') {
+        if (isPolite) {
+          await pc.setLocalDescription({ type: 'rollback' as any })
+        } else {
+          // impolite side keeps its own offer; ignore the incoming one
+          return
+        }
+      }
       await pc.setRemoteDescription(signal.data)
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
@@ -162,6 +431,12 @@ async function handleSignal(msg: any) {
   } else if (signal.type === 'decline') {
     errorMsg.value = '相手が通話を拒否しました'
     await leave()
+  } else if (signal.type === 'reaction') {
+    const id = Date.now() + Math.random()
+    reactions.value.push({ id, from: from.userId, emoji: signal.data })
+    setTimeout(() => { reactions.value = reactions.value.filter(r => r.id !== id) }, 3200)
+  } else if (signal.type === 'wb') {
+    whiteboardEvents.value.push({ from: from.userId, data: signal.data })
   }
 }
 
@@ -170,12 +445,14 @@ function handleUpdate(msg: any) {
   const count = (msg.members || []).length
   presence.value = { ...presence.value, [msg.roomKey]: count }
 
+  if (!me.value?.userId) return
+
   const room = activeRoom.value
   if (room && msg.roomKey === room.roomKey && (status.value === 'connecting' || status.value === 'active')) {
     const list = (msg.members || []) as VoiceMember[]
     members.value = list
     for (const m of list) {
-      if (m.userId !== me.value?.userId) ensurePeer(room, m)
+      if (m.userId !== me.value.userId) ensurePeer(room, m)
     }
     const currentIds = new Set(list.map(m => m.userId))
     for (const id of [...peers.keys()]) {
@@ -185,13 +462,25 @@ function handleUpdate(msg: any) {
   }
 
   // Incoming ring for watched rooms
+  if (!watchedRooms.has(msg.roomKey) && typeof msg.roomKey === 'string' && msg.roomKey.startsWith('dm:')) {
+    scheduleDmWatchRefresh()
+  }
   if (status.value === 'idle' && !incoming.value) {
     const watched = watchedRooms.get(msg.roomKey)
     if (watched && watched.kind === 'dm') {
-      const caller = (msg.members || []).find((m: any) => m.userId !== me.value?.userId)
+      const caller = (msg.members || []).find((m: any) => m.userId !== me.value.userId)
       if (caller) incoming.value = { room: watched, from: caller }
     }
   }
+}
+
+let dmRefreshTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleDmWatchRefresh() {
+  if (dmRefreshTimer) return
+  dmRefreshTimer = setTimeout(() => {
+    dmRefreshTimer = null
+    refreshDmRooms().catch(() => {})
+  }, 500)
 }
 
 function init() {
@@ -244,19 +533,6 @@ function unwatchRoom(roomKey: string) {
   }
 }
 
-async function ensureLocalStream() {
-  if (localStream.value) return localStream.value
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error('この環境ではマイクを利用できません')
-  }
-  localStream.value = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: false,
-  })
-  localStream.value.getAudioTracks().forEach(t => { t.enabled = !muted.value })
-  return localStream.value
-}
-
 async function join(cfg?: VoiceRoomConfig) {
   init()
   if (cfg) activeRoom.value = cfg
@@ -271,6 +547,7 @@ async function join(cfg?: VoiceRoomConfig) {
     const res = await $fetch<{ members: VoiceMember[] }>(room.joinPath, { method: 'POST' })
     members.value = res.members || []
     status.value = 'active'
+    startWatchdog()
     for (const m of res.members || []) {
       if (m.userId !== me.value?.userId) ensurePeer(room, m)
     }
@@ -278,7 +555,7 @@ async function join(cfg?: VoiceRoomConfig) {
     errorMsg.value = e?.data?.message || e?.message || '通話に参加できませんでした'
     status.value = 'idle'
     connectionState.value = 'new'
-    await leave()
+    startWatchdog()
   }
 }
 
@@ -289,9 +566,16 @@ async function leave() {
   connectionState.value = 'new'
   members.value = []
   incoming.value = null
+  stopWatchdog()
   for (const id of [...peers.keys()]) closePeer(id)
   localStream.value?.getTracks().forEach(t => t.stop())
   localStream.value = null
+  localVideoStream.value?.getTracks().forEach(t => t.stop())
+  localVideoStream.value = null
+  screenStream.value?.getTracks().forEach(t => t.stop())
+  screenStream.value = null
+  cameraEnabled.value = false
+  screenSharing.value = false
   remoteStreams.value = {}
   if (room) {
     $fetch(room.leavePath, { method: 'POST' }).catch(() => {})
@@ -309,7 +593,6 @@ async function declineCall() {
   const inc = incoming.value
   incoming.value = null
   if (!inc) return
-  // Decline may be sent even though we never joined the room.
   $fetch(inc.room.signalPath, {
     method: 'POST',
     body: { to: inc.from.userId, signal: { type: 'decline' } },
@@ -321,6 +604,25 @@ function toggleMute() {
   localStream.value?.getAudioTracks().forEach(t => { t.enabled = !muted.value })
 }
 
+function toggleSpeakerMute() {
+  speakerMuted.value = !speakerMuted.value
+}
+
+function sendReaction(emoji: string) {
+  const room = activeRoom.value
+  if (!room || status.value !== 'active') return
+  const id = Date.now() + Math.random()
+  reactions.value.push({ id, from: me.value?.userId || 'me', emoji })
+  setTimeout(() => { reactions.value = reactions.value.filter(r => r.id !== id) }, 3200)
+  for (const uid of [...peers.keys()]) signalTo(room, uid, { type: 'reaction', data: emoji })
+}
+
+function sendWhiteboard(data: any) {
+  const room = activeRoom.value
+  if (!room) return
+  for (const uid of [...peers.keys()]) signalTo(room, uid, { type: 'wb', data })
+}
+
 export function useVoiceCall() {
   init()
   return {
@@ -328,13 +630,21 @@ export function useVoiceCall() {
     activeRoom,
     status,
     connectionState,
+    callState,
     errorMsg,
     muted,
+    speakerMuted,
     members,
     remoteStreams,
     localStream,
+    cameraEnabled,
+    screenSharing,
+    localVideoStream,
+    screenStream,
     incoming,
     presence,
+    reactions,
+    whiteboardEvents,
     watchRoom,
     unwatchRoom,
     refreshDmRooms,
@@ -343,5 +653,10 @@ export function useVoiceCall() {
     acceptCall,
     declineCall,
     toggleMute,
+    toggleSpeakerMute,
+    setCamera,
+    toggleScreenShare,
+    sendReaction,
+    sendWhiteboard,
   }
 }

@@ -4,6 +4,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const data = await $fetch('/api/auth/me', { headers })
     if (!data.user) throw new Error()
   } catch {
-    return navigateTo('/signin')
+    const redirect = to.fullPath
+    return navigateTo(`/signin?redirect=${encodeURIComponent(redirect)}`)
   }
 })

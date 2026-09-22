@@ -1,7 +1,8 @@
 import { db } from '../../../db'
 import * as schema from '../../../db/schema'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, inArray, desc } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
+import { publicUser } from '../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -30,26 +31,28 @@ export default defineEventHandler(async (event) => {
     orderBy: (c, { desc }) => [desc(c.updatedAt)],
   })
 
-  const lastMessages = await db.execute<{ channelId: string; content: string; createdAt: Date; senderId: string }>(sql`
-    SELECT DISTINCT ON (channel_id) channel_id AS "channelId", content, created_at AS "createdAt", sender_id AS "senderId"
-    FROM dm_messages
-    WHERE channel_id = ANY(${channelIds})
-    ORDER BY channel_id, created_at DESC
-  `)
-  const lastMessageMap = new Map(lastMessages.rows.map(r => [r.channelId, r]))
-  const lastSenderIds = [...new Set(lastMessages.rows.map(r => r.senderId))]
-  const lastSenders = lastSenderIds.length
-    ? await db.query.users.findMany({ where: inArray(schema.users.id, lastSenderIds) })
+  const lastMessages = await db.query.dmMessages.findMany({
+    where: inArray(schema.dmMessages.channelId, channelIds),
+    orderBy: [desc(schema.dmMessages.createdAt)],
+    limit: 500,
+  })
+  const lastMessageMap = new Map<string, { content: string; createdAt: Date; senderId: string; edited: boolean }>()
+  for (const m of lastMessages) {
+    if (!lastMessageMap.has(m.channelId)) lastMessageMap.set(m.channelId, { content: m.content, createdAt: m.createdAt, senderId: m.senderId, edited: !!m.edited })
+  }
+  const lastSenders = [...new Set(lastMessages.map(m => m.senderId))]
+  const lastSenderUsers = lastSenders.length
+    ? await db.query.users.findMany({ where: inArray(schema.users.id, lastSenders) })
     : []
-  const lastSenderMap = Object.fromEntries(lastSenders.map(u => [u.id, u]))
+  const lastSenderMap = Object.fromEntries(lastSenderUsers.map(u => [u.id, u]))
 
   const result = channels.map(ch => {
     const last = lastMessageMap.get(ch.id)
     return {
       ...ch,
-      members: allMembers.filter(m => m.channelId === ch.id).map(m => memberUserMap[m.userId]).filter(Boolean),
+      members: allMembers.filter(m => m.channelId === ch.id).map(m => memberUserMap[m.userId]).filter(Boolean).map(publicUser),
       lastMessage: last
-        ? { content: last.content, createdAt: last.createdAt, sender: lastSenderMap[last.senderId] || null }
+        ? { content: last.content, createdAt: last.createdAt, edited: last.edited, sender: publicUser(lastSenderMap[last.senderId]) }
         : null,
     }
   })

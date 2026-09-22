@@ -1,11 +1,18 @@
 <script setup lang="ts">
 definePageMeta({ layout: false })
 
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const rememberMe = ref(true)
 const error = ref('')
 const loading = ref(false)
+
+const redirectTarget = computed(() => {
+  const r = route.query.redirect
+  if (typeof r !== 'string' || !r.startsWith('/') || r.startsWith('//')) return '/home'
+  return r
+})
 
 async function handleSubmit() {
   error.value = ''
@@ -15,7 +22,7 @@ async function handleSubmit() {
       method: 'POST',
       body: { email: email.value, password: password.value, rememberMe: rememberMe.value },
     })
-    if (res.user) await navigateTo('/home')
+    if (res.user) await navigateTo(redirectTarget.value)
   } catch (e: any) {
     error.value = e.data?.message || 'ログインに失敗しました'
   } finally {
@@ -68,12 +75,12 @@ async function handleSubmit() {
       </div>
 
       <div class="space-y-3">
-        <a href="/api/auth/github"
+        <a :href="`/api/auth/github?redirect=${encodeURIComponent(redirectTarget)}`"
           class="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 border border-slate-700 rounded-lg font-medium hover:bg-slate-700 transition">
           <Icon name="mdi:github" class="text-xl" />
           GitHub でログイン
         </a>
-        <a href="/api/auth/google"
+        <a :href="`/api/auth/google?redirect=${encodeURIComponent(redirectTarget)}`"
           class="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 border border-slate-700 rounded-lg font-medium hover:bg-slate-700 transition">
           <Icon name="mdi:google" class="text-xl" />
           Google でログイン

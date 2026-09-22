@@ -212,6 +212,9 @@ async function initDbInternal() {
       CREATE UNIQUE INDEX IF NOT EXISTS dm_channel_members_channel_user_idx ON dm_channel_members(channel_id, user_id)
     `)
     // DM pair key: canonical key for a 1:1 channel so duplicates can never be created.
+    // Non-destructive: backfill existing channels, then create the unique index. If
+    // duplicate rows remain (created before this migration), create the index anyway
+    // when safe, and report instead of crashing the boot.
     await client.query(`ALTER TABLE dm_channels ADD COLUMN IF NOT EXISTS pair_key TEXT`)
     await client.query(`
       WITH pairs AS (
@@ -223,50 +226,13 @@ async function initDbInternal() {
       FROM pairs p
       WHERE c.id = p.channel_id AND c.pair_key IS NULL
     `)
-    await client.query(`
-      WITH ranked AS (
-        SELECT id, pair_key,
-               row_number() OVER (PARTITION BY pair_key ORDER BY created_at, id) AS rn
-        FROM dm_channels WHERE pair_key IS NOT NULL
-      ),
-      dups AS (
-        SELECT r.id, d_keep.id AS keep_id
-        FROM ranked r
-        JOIN ranked d_keep ON d_keep.pair_key = r.pair_key AND d_keep.rn = 1
-        WHERE r.rn > 1
-      )
-      UPDATE dm_messages m SET channel_id = d.keep_id
-      FROM dups d WHERE m.channel_id = d.id
-    `)
-    await client.query(`
-      WITH ranked AS (
-        SELECT id, pair_key,
-               row_number() OVER (PARTITION BY pair_key ORDER BY created_at, id) AS rn
-        FROM dm_channels WHERE pair_key IS NOT NULL
-      ),
-      dups AS (
-        SELECT r.id FROM ranked r
-        JOIN ranked d_keep ON d_keep.pair_key = r.pair_key AND d_keep.rn = 1
-        WHERE r.rn > 1
-      )
-      DELETE FROM dm_channel_members m USING dups d WHERE m.channel_id = d.id
-    `)
-    await client.query(`
-      WITH ranked AS (
-        SELECT id, pair_key,
-               row_number() OVER (PARTITION BY pair_key ORDER BY created_at, id) AS rn
-        FROM dm_channels WHERE pair_key IS NOT NULL
-      )
-      DELETE FROM dm_channels c
-      WHERE c.id IN (
-        SELECT r.id FROM ranked r
-        JOIN ranked d_keep ON d_keep.pair_key = r.pair_key AND d_keep.rn = 1
-        WHERE r.rn > 1
-      )
-    `)
-    await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS dm_channels_pair_key_idx ON dm_channels(pair_key)
-    `)
+    try {
+      await client.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS dm_channels_pair_key_idx ON dm_channels(pair_key)
+      `)
+    } catch (err: any) {
+      console.warn('[db] Skipping dm_channels_pair_key_idx:', err?.message || err)
+    }
     await client.query(`
       CREATE TABLE IF NOT EXISTS dm_messages (
         id TEXT PRIMARY KEY,
@@ -276,6 +242,17 @@ async function initDbInternal() {
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `)
+    await client.query(`ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FALSE`)
+    await client.query(`ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS dm_message_edits (
+        id TEXT PRIMARY KEY,
+        message_id TEXT NOT NULL REFERENCES dm_messages(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        edited_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS dm_message_edits_message_idx ON dm_message_edits(message_id)`)
     await client.query(`
       CREATE TABLE IF NOT EXISTS post_attachments (
         id TEXT PRIMARY KEY,

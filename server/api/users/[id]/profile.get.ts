@@ -1,6 +1,6 @@
 import { db } from '../../../db'
 import * as schema from '../../../db/schema'
-import { eq, and, count } from 'drizzle-orm'
+import { eq, and, count, or } from 'drizzle-orm'
 import { getCurrentUser } from '../../../utils/auth'
 import { enrichUsers, publicUser } from '../../../utils/userExtras'
 
@@ -20,6 +20,20 @@ export default defineEventHandler(async (event) => {
   }
   const locked = !!user.isPrivate && !isSelf && !isFollowing
 
+  let friendStatus: 'none' | 'sent' | 'received' | 'accepted' = 'none'
+  if (viewer && !isSelf) {
+    const fr = await db.query.friends.findFirst({
+      where: or(
+        and(eq(schema.friends.userId, viewer.id), eq(schema.friends.friendId, id!)),
+        and(eq(schema.friends.userId, id!), eq(schema.friends.friendId, viewer.id)),
+      ),
+    })
+    if (fr) {
+      if (fr.status === 'accepted') friendStatus = 'accepted'
+      else friendStatus = fr.userId === viewer.id ? 'sent' : 'received'
+    }
+  }
+
   const [followers] = await db.select({ count: count() }).from(schema.follows).where(eq(schema.follows.followingId, id))
   const [following] = await db.select({ count: count() }).from(schema.follows).where(eq(schema.follows.followerId, id))
   const [postsCount] = await db.select({ count: count() }).from(schema.posts).where(eq(schema.posts.userId, id))
@@ -33,5 +47,6 @@ export default defineEventHandler(async (event) => {
     isPrivate: !!user.isPrivate,
     isFollowing,
     isSelf,
+    friendStatus,
   }
 })

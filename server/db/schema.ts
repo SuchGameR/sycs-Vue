@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean, uniqueIndex, bigint } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, timestamp, boolean, uniqueIndex, index, bigint } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -196,8 +196,19 @@ export const dmMessages = pgTable('dm_messages', {
   channelId: text('channel_id').notNull().references(() => dmChannels.id, { onDelete: 'cascade' }),
   senderId: text('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   content: text('content').notNull(),
+  edited: boolean('edited').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
+
+export const dmMessageEdits = pgTable('dm_message_edits', {
+  id: text('id').primaryKey(),
+  messageId: text('message_id').notNull().references(() => dmMessages.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  editedAt: timestamp('edited_at').notNull().defaultNow(),
+}, (t) => ({
+  messageIdx: index('dm_message_edits_message_idx').on(t.messageId),
+}))
 
 export const serverInvites = pgTable('server_invites', {
   id: text('id').primaryKey(),

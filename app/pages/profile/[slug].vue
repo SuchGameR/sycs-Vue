@@ -97,6 +97,7 @@ async function loadProfile() {
       resolvedUsername.value = data.user.username
     }
     profile.value = data
+    friendStatus.value = data.friendStatus || 'none'
     clearTimeout(timeout)
     if (!data.locked) await loadPosts(true)
   } catch {
@@ -122,10 +123,21 @@ const filteredPosts = computed(() => {
   return posts
 })
 
+const followBusy = ref(false)
 async function toggleFollow() {
-  if (!profile.value) return
-  try { await $fetch(`/api/users/${resolvedId.value}/follow`, { method: 'POST' }); await loadProfile() }
-  catch { await $fetch(`/api/users/${resolvedId.value}/unfollow`, { method: 'POST' }); await loadProfile() }
+  if (!profile.value || followBusy.value) return
+  followBusy.value = true
+  const isFollowing = profile.value.isFollowing
+  try {
+    await $fetch(`/api/users/${resolvedId.value}/${isFollowing ? 'unfollow' : 'follow'}`, { method: 'POST' })
+    profile.value.isFollowing = !isFollowing
+    const delta = isFollowing ? -1 : 1
+    profile.value.stats.followers = Math.max(0, (profile.value.stats.followers || 0) + delta)
+  } catch (e: any) {
+    await loadProfile()
+  } finally {
+    followBusy.value = false
+  }
 }
 
 async function toggleCloseFriend() {
@@ -133,14 +145,66 @@ async function toggleCloseFriend() {
   catch { await $fetch(`/api/users/${resolvedId.value}/close-friends`, { method: 'DELETE' }) }
 }
 
+const friendBusy = ref(false)
+const friendCooldown = ref(0)
+let friendCooldownTimer: ReturnType<typeof setInterval> | null = null
+watch(friendCooldown, (cd) => {
+  if (cd <= 0) {
+    if (friendCooldownTimer) { clearInterval(friendCooldownTimer); friendCooldownTimer = null }
+  } else if (!friendCooldownTimer) {
+    friendCooldownTimer = setInterval(() => { friendCooldown.value = Math.max(0, friendCooldown.value - 1) }, 1000)
+  }
+})
+onUnmounted(() => { if (friendCooldownTimer) clearInterval(friendCooldownTimer) })
+
+const friendStatus = ref<'none' | 'sent' | 'received' | 'accepted'>('none')
+const isFriend = computed(() => friendStatus.value === 'accepted')
+const sentCountdown = computed(() => friendCooldown.value > 0 ? `(${friendCooldown.value}秒)` : '')
+
 async function sendFriendRequest() {
-  try { await $fetch(`/api/users/${resolvedId.value}/friends`, { method: 'POST' }); alert('フレンドリクエストを送信しました') }
-  catch { alert('既にリクエスト済みです') }
+  if (!profile.value || friendBusy.value) return
+  if (friendStatus.value === 'sent' && friendCooldown.value > 0) return
+  friendBusy.value = true
+  try {
+    await $fetch(`/api/users/${resolvedId.value}/friends`, { method: 'POST' })
+    friendStatus.value = 'sent'
+    friendCooldown.value = 30
+  } catch (e: any) {
+    const code = e?.data?.code
+    if (code === 'ALREADY_FRIENDS') {
+      friendStatus.value = 'accepted'
+      friendCooldown.value = 0
+    } else if (code === 'INBOUND_PENDING') {
+      friendStatus.value = 'received'
+    } else {
+      alert(e?.data?.message || 'フレンド申請を送信できませんでした')
+    }
+  } finally {
+    friendBusy.value = false
+  }
 }
 
+async function acceptFriendRequest() {
+  if (!profile.value || friendBusy.value) return
+  friendBusy.value = true
+  try {
+    await $fetch(`/api/users/${resolvedId.value}/friends/accept`, { method: 'POST' })
+    friendStatus.value = 'accepted'
+    friendCooldown.value = 0
+  } catch {
+    alert('フレンド申請を承認できませんでした')
+  } finally {
+    friendBusy.value = false
+  }
+}
+
+const startingDM = ref(false)
 async function startDM() {
+  if (startingDM.value) return
+  startingDM.value = true
   try { const data = await $fetch('/api/dm/channels', { method: 'POST', body: { participantId: resolvedId.value } }); await navigateTo(`/dm/${data.channel.id}`) }
   catch { alert('DMを作成できませんでした') }
+  finally { startingDM.value = false }
 }
 
 function timeAgo(date: string) {
@@ -207,9 +271,26 @@ async function toggleBookmark(postId: string) {
                 <button @click="showSettings = true" class="px-4 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition flex items-center gap-1.5"><Icon name="lucide:settings" class="w-4 h-4" /> 設定</button>
               </template>
               <template v-else-if="me?.user">
-                <button @click="toggleFollow" class="px-4 py-1.5 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition">フォロー</button>
+                <button @click="toggleFollow" :disabled="followBusy"
+                  class="px-4 py-1.5 rounded-lg text-sm font-bold transition disabled:opacity-50"
+                  :class="profile.isFollowing ? 'border border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-indigo-600 text-white hover:bg-indigo-700'">
+                  {{ profile.isFollowing ? 'フォロー中' : 'フォロー' }}
+                </button>
                 <button @click="toggleCloseFriend" class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition" title="親しい友達"><Icon name="lucide:heart" class="w-4 h-4" /></button>
-                <button @click="sendFriendRequest" class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition" title="フレンド申請"><Icon name="lucide:user-plus" class="w-4 h-4" /></button>
+                <template v-if="friendStatus === 'accepted'">
+                  <span class="px-3 py-1.5 rounded-lg border border-emerald-700/60 bg-emerald-500/10 text-sm text-emerald-400 font-medium"
+                    title="フレンド"><Icon name="lucide:user-check" class="w-4 h-4" /></span>
+                </template>
+                <button v-else-if="friendStatus === 'received'" @click="acceptFriendRequest" :disabled="friendBusy"
+                  class="px-3 py-1.5 rounded-lg border border-emerald-600 text-sm text-emerald-400 hover:bg-emerald-600/10 transition disabled:opacity-50"
+                  title="相手から申請が来ています - 承認"><Icon name="lucide:user-check" class="w-4 h-4" /></button>
+                <button v-else @click="sendFriendRequest" :disabled="friendBusy || (friendStatus === 'sent' && friendCooldown > 0)"
+                  class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm transition disabled:opacity-50"
+                  :class="friendStatus === 'sent' ? 'text-indigo-400 border-indigo-700/60 bg-indigo-500/10' : 'text-slate-300 hover:bg-slate-800'"
+                  :title="friendStatus === 'sent' ? `申請済み - ${friendCooldown}秒後に再送できます` : 'フレンド申請'">
+                  <Icon :name="friendStatus === 'sent' ? 'lucide:check-check' : 'lucide:user-plus'" class="w-4 h-4" />
+                  <span v-if="friendStatus === 'sent'" class="ml-1">{{ sentCountdown }}</span>
+                </button>
                 <button @click="startDM" class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition" title="DMを送る"><Icon name="lucide:message-square" class="w-4 h-4" /></button>
               </template>
             </div>

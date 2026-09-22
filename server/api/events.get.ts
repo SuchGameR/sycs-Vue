@@ -9,6 +9,7 @@ export default defineEventHandler(async (event) => {
   stream.push({ event: 'message', data: JSON.stringify({ type: 'connected' }) }).catch(() => {})
 
   const sub = {
+    userId: user.id,
     push: (data: string) => stream.push({ event: 'message', data }),
   }
   subscribeRealtime(sub)
