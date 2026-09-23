@@ -1,0 +1,1 @@
+import{a as e}from"./DVNY-iZa.js";function t(t){if(t)return t;let n=e().app.baseURL||`/`;return(n.endsWith(`/`)?n:n+`/`)+`default-avator.webp`}export{t};

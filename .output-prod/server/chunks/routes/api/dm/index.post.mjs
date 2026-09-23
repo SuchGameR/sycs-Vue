@@ -1,4 +1,4 @@
-import { d as defineEventHandler, r as requireAuth, j as readBody, h as createError, a as db, u as users, T as dmChannels, M as dmChannelMembers } from '../../../nitro/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, e as db, o as users, a3 as hasBlockEitherWay, W as dmChannels, V as dmChannelMembers } from '../../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const index_post = defineEventHandler(async (event) => {
   const user = await requireAuth(event);
@@ -32,6 +32,9 @@ const index_post = defineEventHandler(async (event) => {
     columns: { id: true }
   });
   if (!participant) throw createError({ statusCode: 404, message: "\u30E6\u30FC\u30B6\u30FC\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093" });
+  if (await hasBlockEitherWay(user.id, participantId)) {
+    throw createError({ statusCode: 403, message: "\u30D6\u30ED\u30C3\u30AF\u4E2D\u306E\u30E6\u30FC\u30B6\u30FC\u3068\u306FDM\u3092\u4F5C\u6210\u3067\u304D\u307E\u305B\u3093" });
+  }
   const pairKey = [user.id, participantId].sort().join(":");
   const existing = await db.query.dmChannels.findFirst({
     where: eq(dmChannels.pairKey, pairKey),

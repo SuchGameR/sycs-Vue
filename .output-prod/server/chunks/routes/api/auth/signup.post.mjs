@@ -1,4 +1,4 @@
-import { d as defineEventHandler, m as initDb, j as readBody, h as createError, a as db, u as users, C as hashPassword, o as createSession, q as setAuthCookie } from '../../../nitro/nitro.mjs';
+import { c as defineEventHandler, w as initDb, q as readBody, m as createError, e as db, o as users, J as hashPassword, y as createSession, z as setAuthCookie, A as setClientTokenCookie } from '../../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const signup_post = defineEventHandler(async (event) => {
   await initDb();
@@ -60,7 +60,8 @@ const signup_post = defineEventHandler(async (event) => {
   });
   const { token } = await createSession(userId, true);
   setAuthCookie(event, token, true);
-  return { user: { id: userId, email, username, displayName } };
+  setClientTokenCookie(event, token, true);
+  return { user: { id: userId, email, username, displayName }, token };
 });
 
 export { signup_post as default };

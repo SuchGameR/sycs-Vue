@@ -1,4 +1,4 @@
-import { d as defineEventHandler, i as getRouterParam, g as getQuery, x as getCurrentUser, a as db, u as users, a8 as follows, b as posts, z as enrichUsers, Q as publicUser, ac as postAttachments, l as likes, e as reposts, D as bookmarks } from '../../../../nitro/nitro.mjs';
+import { c as defineEventHandler, n as getRouterParam, g as getQuery, E as getCurrentUser, e as db, o as users, ak as follows, f as posts, j as reposts, G as enrichUsers, a0 as publicUser, h as serializePosts } from '../../../../_/nitro.mjs';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const posts_get = defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
@@ -50,51 +50,41 @@ const posts_get = defineEventHandler(async (event) => {
     offset,
     orderBy: [desc(posts.createdAt)]
   });
-  const userIds = [...new Set(posts$1.map((p) => p.userId))];
-  const users$1 = userIds.length ? await db.query.users.findMany({ where: inArray(users.id, userIds) }) : [];
-  const extras = await enrichUsers(users$1);
-  const userMap = Object.fromEntries(users$1.map((u) => [u.id, publicUser(u, extras[u.id])]));
-  const postIds = posts$1.map((p) => p.id);
-  const attachments = postIds.length ? await db.query.postAttachments.findMany({
-    where: inArray(postAttachments.postId, postIds),
-    orderBy: [postAttachments.position]
-  }) : [];
-  const attachMap = {};
-  for (const a of attachments) {
-    if (!attachMap[a.postId]) attachMap[a.postId] = [];
-    attachMap[a.postId].push(a);
-  }
-  let userLikes = /* @__PURE__ */ new Set();
-  let userReposts = /* @__PURE__ */ new Set();
-  let userBookmarks = /* @__PURE__ */ new Set();
-  if (currentUser && postIds.length) {
-    const likes$1 = await db.query.likes.findMany({
-      where: and(eq(likes.userId, currentUser.id), inArray(likes.postId, postIds))
-    });
-    likes$1.forEach((l) => userLikes.add(l.postId));
-    const repsts = await db.query.reposts.findMany({
-      where: and(eq(reposts.userId, currentUser.id), inArray(reposts.postId, postIds))
-    });
-    repsts.forEach((r) => userReposts.add(r.postId));
-    const bms = await db.query.bookmarks.findMany({
-      where: and(eq(bookmarks.userId, currentUser.id), inArray(bookmarks.postId, postIds))
-    });
-    bms.forEach((b) => userBookmarks.add(b.postId));
-  }
-  const result = posts$1.map((p) => {
-    var _a, _b;
-    return {
-      ...p,
-      likeCount: (_a = p.likeCount) != null ? _a : 0,
-      repostCount: (_b = p.repostCount) != null ? _b : 0,
-      user: userMap[p.userId] || null,
-      attachments: attachMap[p.id] || [],
-      liked: userLikes.has(p.id),
-      reposted: userReposts.has(p.id),
-      bookmarked: userBookmarks.has(p.id)
-    };
+  const reposts$1 = await db.query.reposts.findMany({
+    where: eq(reposts.userId, id),
+    limit,
+    offset,
+    orderBy: [desc(reposts.createdAt)]
   });
-  return { posts: result, nextOffset: offset + posts$1.length, hasMore: posts$1.length === limit };
+  const repostedIds = [...new Set(reposts$1.map((r) => r.postId))];
+  const repostedRows = repostedIds.length ? await db.query.posts.findMany({ where: inArray(posts.id, repostedIds) }) : [];
+  const repostedMap = new Map(repostedRows.map((p) => [p.id, p]));
+  const targetUser = await db.query.users.findFirst({ where: eq(users.id, id) });
+  const extras = targetUser ? await enrichUsers([targetUser]) : {};
+  const reposterPublic = targetUser ? publicUser(targetUser, extras[targetUser.id]) : null;
+  const postItems = posts$1.map((p) => ({ createdAt: p.createdAt, row: p }));
+  const boostItems = reposts$1.filter((r) => repostedMap.has(r.postId)).map((r) => ({
+    createdAt: r.createdAt,
+    row: {
+      ...repostedMap.get(r.postId),
+      boostedBy: { user: reposterPublic, repostedAt: r.createdAt }
+    }
+  }));
+  const merged = [];
+  let i = 0;
+  let j = 0;
+  while (i < postItems.length || j < boostItems.length) {
+    if (j >= boostItems.length || i < postItems.length && +postItems[i].createdAt >= +boostItems[j].createdAt) {
+      merged.push(postItems[i]);
+      i++;
+    } else {
+      merged.push(boostItems[j]);
+      j++;
+    }
+  }
+  const rows = merged.slice(0, limit);
+  const result = await serializePosts(rows.map((r) => r.row), currentUser);
+  return { posts: result, nextOffset: offset + rows.length, hasMore: rows.length === limit };
 });
 
 export { posts_get as default };

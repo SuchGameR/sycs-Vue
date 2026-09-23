@@ -1,4 +1,4 @@
-import { d as defineEventHandler, x as getCurrentUser, h as createError, y as renewAuthCookie, z as enrichUsers } from '../../../nitro/nitro.mjs';
+import { c as defineEventHandler, E as getCurrentUser, m as createError, F as renewAuthCookie, G as enrichUsers } from '../../../_/nitro.mjs';
 import 'crypto';
 import 'drizzle-orm';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const me_get = defineEventHandler(async (event) => {
   var _a, _b;
@@ -41,6 +41,7 @@ const me_get = defineEventHandler(async (event) => {
       bio: user.bio,
       settings: user.settings || "{}",
       isPrivate: !!user.isPrivate,
+      statusMessage: user.statusMessage || "",
       badges: ((_a = extras[user.id]) == null ? void 0 : _a.badges) || [],
       title: ((_b = extras[user.id]) == null ? void 0 : _b.title) || null,
       createdAt: user.createdAt

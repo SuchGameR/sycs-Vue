@@ -1,4 +1,4 @@
-import { d as defineEventHandler, r as requireAuth, _ as readMultipartFormData, h as createError, aq as validateFile, ar as saveFile } from '../../nitro/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, aa as readMultipartFormData, m as createError, aC as validateFile, aD as saveFile } from '../../_/nitro.mjs';
 import 'crypto';
 import 'drizzle-orm';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const upload_post = defineEventHandler(async (event) => {
   await requireAuth(event);
@@ -31,8 +31,8 @@ const upload_post = defineEventHandler(async (event) => {
   const results = [];
   for (const file of files) {
     validateFile(file.filename, file.type || "", file.data);
-    const { url, blurUrl } = await saveFile(file.data, file.filename);
-    results.push({ url, blurUrl, type: file.type, mime: file.type, name: file.filename });
+    const { url, blurUrl, originalUrl, originalName } = await saveFile(file.data, file.filename);
+    results.push({ url, blurUrl, originalUrl, originalName, type: file.type, mime: file.type, name: file.filename });
   }
   return { files: results };
 });

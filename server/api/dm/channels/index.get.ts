@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
   const lastRows = await db.execute(sql`
     SELECT DISTINCT ON (channel_id) channel_id, id, sender_id, content, created_at, edited
     FROM dm_messages
-    WHERE channel_id = ANY(${channelIds})
+    WHERE channel_id IN (${sql.join(channelIds.map((id) => sql`${id}`), ',')})
     ORDER BY channel_id, created_at DESC
   `)
   const lastMessageMap = new Map<string, { content: string; createdAt: Date; senderId: string; edited: boolean }>()

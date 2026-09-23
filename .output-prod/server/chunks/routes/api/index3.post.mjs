@@ -1,4 +1,4 @@
-import { d as defineEventHandler, r as requireAuth, j as readBody, h as createError, af as isServerMember, a as db, ah as serverChannels, b as posts, Z as urlToFilePath, ai as saveFileWithWatermark, ac as postAttachments, aj as emit } from '../../nitro/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, as as isServerMember, e as db, au as serverChannels, f as posts, a9 as urlToFilePath, av as saveFileWithWatermark, ao as postAttachments, ar as emit } from '../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { extname } from 'path';
@@ -12,22 +12,22 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const IMAGE_EXTENSIONS = [".png", ".jpeg", ".jpg", ".gif", ".webp"];
 const index_post = defineEventHandler(async (event) => {
   var _a, _b, _c;
   const user = await requireAuth(event);
   const body = await readBody(event);
-  if (!((_a = body.content) == null ? void 0 : _a.trim()) && !((_b = body.attachments) == null ? void 0 : _b.length)) {
+  if (!((_a = body.content) == null ? void 0 : _a.trim()) && !((_b = body.attachments) == null ? void 0 : _b.length) && !body.quotedPostId) {
     throw createError({ statusCode: 400, message: "\u672C\u6587\u307E\u305F\u306F\u30D5\u30A1\u30A4\u30EB\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044" });
   }
   const postId = randomUUID();
@@ -52,6 +52,7 @@ const index_post = defineEventHandler(async (event) => {
     imageUrl: body.imageUrl || null,
     visibility: body.visibility || "public",
     visibleTo: body.visibleTo ? JSON.stringify(body.visibleTo) : "[]",
+    quotedPostId: body.quotedPostId ? String(body.quotedPostId) : null,
     serverId,
     channelId
   }).returning();
@@ -61,16 +62,21 @@ const index_post = defineEventHandler(async (event) => {
       const ext = extname(a.url).toLowerCase();
       let url = a.url;
       let blurUrl = a.blur && a.blurUrl || null;
+      let originalUrl = a.originalUrl || null;
+      let originalName = a.originalName || null;
       if (a.watermark && IMAGE_EXTENSIONS.includes(ext)) {
         try {
-          const filePath = urlToFilePath(a.url);
+          const srcUrl = a.originalUrl && !a.originalUrl.endsWith("/uploads/") && a.originalUrl.startsWith("/uploads/") ? a.originalUrl : a.url;
+          const filePath = urlToFilePath(srcUrl);
           const buffer = await readFile(filePath);
           const { url: newUrl, blurUrl: newBlur } = await saveFileWithWatermark(
             buffer,
-            `wm_${a.url.replace("/uploads/", "")}`,
+            `wm_${srcUrl.replace("/uploads/", "")}`,
             user.username
           );
           url = newUrl;
+          originalUrl = null;
+          originalName = null;
           if (a.blur) {
             blurUrl = newBlur;
           }
@@ -83,6 +89,8 @@ const index_post = defineEventHandler(async (event) => {
         postId,
         url,
         blurUrl,
+        originalUrl,
+        originalName,
         type: a.type || "image",
         mime: a.mime || a.type || "image/png",
         position: i

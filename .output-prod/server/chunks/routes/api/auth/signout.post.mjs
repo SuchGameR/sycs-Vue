@@ -1,4 +1,4 @@
-import { d as defineEventHandler, B as clearAuthCookie } from '../../../nitro/nitro.mjs';
+import { c as defineEventHandler, I as clearAuthCookie } from '../../../_/nitro.mjs';
 import 'crypto';
 import 'drizzle-orm';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const signout_post = defineEventHandler(async (event) => {
   clearAuthCookie(event);

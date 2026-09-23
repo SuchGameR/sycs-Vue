@@ -1,4 +1,4 @@
-import { d as defineEventHandler, a as db, Y as customEmojis } from '../../nitro/nitro.mjs';
+import { c as defineEventHandler, e as db, a8 as customEmojis } from '../../_/nitro.mjs';
 import { desc } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
+import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
+import 'node:path';
 
 const index_get = defineEventHandler(async () => {
   const rows = await db.select().from(customEmojis).orderBy(desc(customEmojis.createdAt));
