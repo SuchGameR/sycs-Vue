@@ -29,7 +29,7 @@ const showServers = ref(false)
         <Icon v-if="item.to !== '/dm'" :name="item.icon" class="w-6 h-6" />
         <img
           v-else-if="dmLatest?.avatarUrl"
-          :src="dmLatest.avatarUrl"
+          :src="avatarSrc(dmLatest.avatarUrl)"
           class="w-6 h-6 rounded-full object-cover"
         />
         <Icon v-else :name="item.icon" class="w-6 h-6" />

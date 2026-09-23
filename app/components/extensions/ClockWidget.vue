@@ -31,7 +31,27 @@ onMounted(async () => {
   } catch { /* 未ログイン時はダークのまま */ }
   timer = setInterval(() => { now.value = new Date() }, 200)
 })
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+  if (ro) ro.disconnect()
+})
+
+const widgetRef = ref<HTMLElement | null>(null)
+const scaleFactor = ref(1.0)
+let ro: ResizeObserver | null = null
+
+onMounted(() => {
+  ro = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const { width, height } = entry.contentRect
+      if (width === 0 || height === 0) continue
+      const targetH = accentOpen.value ? 215 : (mode.value === 'analog' ? 195 : 100)
+      const s = Math.min(width / 155, height / targetH)
+      scaleFactor.value = Math.min(Math.max(s, 0.5), 3.0)
+    }
+  })
+  if (widgetRef.value) ro.observe(widgetRef.value)
+})
 
 function toggleMode() {
   mode.value = mode.value === 'digital' ? 'analog' : 'digital'
@@ -79,11 +99,12 @@ const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 
 
 <template>
   <div
+    ref="widgetRef"
     class="clock-widget h-full w-full flex items-center justify-center overflow-hidden"
     :class="theme"
-    :style="{ '--accent-color': accent }"
+    :style="{ '--accent-color': accent, '--scale-factor': scaleFactor }"
   >
-    <div class="scale-box flex flex-col items-center" :style="{ '--s-h': accentOpen ? '215px' : '195px' }">
+    <div class="scale-box flex flex-col items-center" :style="{ '--s-h': accentOpen ? '215' : (mode === 'analog' ? '195' : '100') }">
 
       <!-- デジタル時計 -->
       <div v-if="mode === 'digital'" class="clock-digital">
@@ -114,7 +135,8 @@ const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 
           />
 
           <!-- ロゴプレート -->
-          <span class="clock-logo">{{ 'SYCS' }}</span>
+          <!-- <span class="clock-logo">{{ 'SYCS' }}</span> -->
+          <span class="clock-logo"></span>
 
           <!-- サブダイヤル 左（24時間） -->
           <div class="sub-dial sub-9">
@@ -243,8 +265,14 @@ const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 
 
 /* ===== スケーリング（ウィンドウに常にフィット） ===== */
 .scale-box {
-  --s: min(calc(100cqw / 155px), calc(100cqh / var(--s-h, 195px)), 1.6);
+  --s: var(--scale-factor, 1);
   zoom: var(--s);
+}
+@supports not (zoom: 1) {
+  .scale-box {
+    transform: scale(var(--s));
+    transform-origin: center;
+  }
 }
 
 /* ===== デジタル ===== */
@@ -386,10 +414,10 @@ const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 
 
 .sub-label {
   position: absolute;
-  top: 54%;
+  top: 58%;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 6px;
+  font-size: 5px;
   font-weight: 700;
   color: color-mix(in srgb, var(--accent-color) 60%, transparent);
   pointer-events: none;
@@ -412,8 +440,8 @@ const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 
   letter-spacing: 0.5px;
 }
 
-.sub-indi1 { left: 13%; }
-.sub-indi2 { left: 87%; }
+.sub-indi1 { left: 17%; transform: translateY(-6.5px); }
+.sub-indi2 { right: 66%; transform: translateY(-6.5px);}
 
 .sub-center-dot {
   position: absolute;
@@ -438,6 +466,11 @@ const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 
   height: 18px;
   opacity: 0.8;
   background-color: var(--clock-logo-bg);
+  background-image: url(../../../public/svgLogoOutline.svg);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 35%;
+  
   border-radius: 4px;
   display: flex;
   justify-content: center;

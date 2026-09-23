@@ -24,6 +24,9 @@ const PC_CONFIG: RTCConfiguration = {
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
     { urls: 'stun:global.stun.twilio.com:3478' },
     { urls: 'stun:stun.services.mozilla.com:3478' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
   ],
   iceCandidatePoolSize: 4,
 }
@@ -714,7 +717,18 @@ function tryIncoming(msg: any) {
   const watched = watchedRooms.get(msg.roomKey)
   if (!watched || watched.kind !== 'dm') return
   const caller = (msg.members || []).find((m: any) => m.userId !== me.value?.userId)
-  if (caller) incoming.value = { room: watched, from: caller }
+  if (caller) {
+    incoming.value = { room: watched, from: caller }
+    if (import.meta.client && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification('着信', { body: `${caller.displayName || caller.username} さんから通話の着信です` })
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(p => {
+          if (p === 'granted') new Notification('着信', { body: `${caller.displayName || caller.username} さんから通話の着信です` })
+        })
+      }
+    }
+  }
 }
 
 let dmRefreshTimer: ReturnType<typeof setTimeout> | null = null

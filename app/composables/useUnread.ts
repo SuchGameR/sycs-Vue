@@ -62,6 +62,18 @@ function playChime() {
   } catch { /* autoplay restrictions */ }
 }
 
+function showNotification(title: string, body?: string, icon?: string | null) {
+  if (!import.meta.client || !('Notification' in window)) return
+  const iconUrl = icon ? avatarSrc(icon) : undefined
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, icon: iconUrl })
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') new Notification(title, { body, icon: iconUrl })
+    })
+  }
+}
+
 function addDmUnread(channelId: string) {
   dmUnreadChannels.value.add(channelId)
   dmUnread.value = dmUnreadChannels.value.size
@@ -129,18 +141,21 @@ async function init() {
     if (!mine || !forMe || isReadingActivity()) return
     activityUnread.value++
     playChime()
+    showNotification('新しいアクティビティ', p.activity?.type || '通知があります')
   })
 
   on('comment.new', (p: any) => {
     if (!myId || p.postOwnerId !== myId || p.comment?.user?.id === myId || isReadingActivity()) return
     activityUnread.value++
     playChime()
+    showNotification('新しいコメント', `${p.comment?.user?.displayName || p.comment?.user?.username || '誰か'} さんからコメントがありました`, p.comment?.user?.avatarUrl)
   })
 
   on('reaction.update', (p: any) => {
     if (!myId || p.postOwnerId !== myId || !p.active || p.userId === myId || isReadingActivity()) return
     activityUnread.value++
     playChime()
+    showNotification('リアクション', 'あなたの投稿にリアクションがありました')
   })
 
   on('dm.message', (p: any) => {
@@ -153,6 +168,7 @@ async function init() {
     }
     addDmUnread(p.channelId)
     playChime()
+    showNotification('新着メッセージ', `${p.message?.sender?.displayName || p.message?.sender?.username || '誰か'} さんからメッセージが届きました`, p.message?.sender?.avatarUrl)
   })
 }
 
