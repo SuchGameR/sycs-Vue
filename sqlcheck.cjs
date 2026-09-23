@@ -1,15 +1,18 @@
 const { sql } = require('drizzle-orm');
+const { PgDialect } = require('drizzle-orm/pg-core');
+const d = new PgDialect();
 const ids = ['11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222'];
 
-const j1 = sql.join(ids.map(id => sql`${id}`), ',');
-const q1 = sql`SELECT DISTINCT ON (channel_id) channel_id FROM dm_messages WHERE channel_id IN (${j1}) ORDER BY channel_id, created_at DESC`;
-console.log('CHUNKS toSQL:', JSON.stringify(q1.toSQL()));
+// A: param elements + raw separator
+const jA = sql.join(ids.map(id => sql.param(id)), sql.raw(','));
+const qA = sql`SELECT DISTINCT ON (channel_id) channel_id FROM dm_messages WHERE channel_id IN (${jA}) ORDER BY channel_id, created_at DESC`;
+console.log('A (param+raw sep):', JSON.stringify(d.sqlToQuery(qA)));
 
-const j2 = sql.join(ids, ',');
-const q2 = sql`SELECT DISTINCT ON (channel_id) channel_id FROM dm_messages WHERE channel_id IN (${j2}) ORDER BY channel_id, created_at DESC`;
-console.log('PRIM toSQL:', JSON.stringify(q2.toSQL()));
+// B: sql.array -> ANY(...)
+const qB = sql`SELECT DISTINCT ON (channel_id) channel_id FROM dm_messages WHERE channel_id = ANY(${sql.array(ids)}) ORDER BY channel_id, created_at DESC`;
+console.log('B (ANY array)     :', JSON.stringify(d.sqlToQuery(qB)));
 
-const q3 = sql`SELECT DISTINCT ON (channel_id) channel_id FROM dm_messages WHERE channel_id IN (${j1}) ORDER BY channel_id, created_at DESC`;
-console.log('CHUNKS inline:', JSON.stringify(q3.toSQL({ inlineParams: true })));
-const q4 = sql`SELECT DISTINCT ON (channel_id) channel_id FROM dm_messages WHERE channel_id IN (${j2}) ORDER BY channel_id, created_at DESC`;
-console.log('PRIM inline:', JSON.stringify(q4.toSQL({ inlineParams: true })));
+// C: raw ids interp (no params)
+const jC = sql.join(ids, sql.raw(','));
+const qC = sql`SELECT DISTINCT ON (channel_id) channel_id FROM dm_messages WHERE channel_id IN (${jC}) ORDER BY channel_id, created_at DESC`;
+console.log('C (raw interp)    :', JSON.stringify(d.sqlToQuery(qC)));

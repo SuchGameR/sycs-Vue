@@ -204,7 +204,7 @@ function reportPost(postId: string) { alert('報告しました') }
         新着 {{ pending.length }} 件
       </button>
 
-      <div class="bg-slate-800/50 rounded-xl p-4 mt-4">
+      <div class="bg-slate-800/50 rounded-xl p-4 mt-4 border border-slate-800 overflow-hidden">
         <PostComposer @submit="createPost" />
       </div>
 
