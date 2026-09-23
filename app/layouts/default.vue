@@ -30,7 +30,11 @@ const { on } = useRealtime()
 let offRealtime: (() => void)[] = []
 
 const customEmojis = useCustomEmojis()
-onMounted(() => customEmojis.ensure())
+onMounted(() => {
+  customEmojis.ensure()
+  const { captureStoredToken } = useAccounts()
+  captureStoredToken()
+})
 
 const offEmojiRealtime = [
   on('emoji.new', () => customEmojis.refresh()),
@@ -83,5 +87,6 @@ onUnmounted(() => {
     <WorkbenchFooter />
     <AddToPlaylistModal />
     <QuoteComposerModal />
+    <AccountSwitcher :open="switcherOpen" @close="closeSwitcher" />
   </div>
 </template>

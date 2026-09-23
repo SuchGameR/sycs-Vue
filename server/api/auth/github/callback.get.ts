@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { db, initDb } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { createSession, setAuthCookie } from '../../../utils/auth'
+import { createSession, setAuthCookie, setClientTokenCookie } from '../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   await initDb()
@@ -91,5 +91,6 @@ export default defineEventHandler(async (event) => {
 
   const { token } = await createSession(userId)
   setAuthCookie(event, token)
+  setClientTokenCookie(event, token)
   return sendRedirect(event, target)
 })
