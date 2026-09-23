@@ -6,6 +6,8 @@ const props = defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+const me = useState<any>('current-user', () => null)
+const { openSwitcher } = useAccounts()
 const isHomePage = computed(() => route.path === '/home')
 const isProfilePage = computed(() => route.path.startsWith('/profile/'))
 const profileHeader = useState<{displayName: string; username: string; avatarUrl: string | null; bannerUrl: string | null; badges?: any[]; title?: string | null} | null>('profile-header-state', () => null)
@@ -82,7 +84,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       </div>
 
       <!-- Right section: fixed width on desktop, home of the global search box -->
-      <div class="hidden min-[1024px]:flex items-center px-4 w-[280px] shrink-0 z-40" :class="isServerPage ? '' : 'shadow-[0px_0px_43px_50px_#0b0f19]'">
+      <div class="hidden min-[1024px]:flex items-center gap-2 px-4 w-[280px] shrink-0 z-40" :class="isServerPage ? '' : 'shadow-[0px_0px_43px_50px_#0b0f19]'">
         <button
           class="flex-1 flex items-center gap-2 bg-slate-900/70 border border-slate-800 rounded-full px-3 py-1.5 text-sm text-slate-500 hover:border-slate-600 focus-within:border-indigo-500 transition min-w-0"
           @click="router.push('/search')"
@@ -91,6 +93,21 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
           <Icon name="lucide:search" class="w-3.5 h-3.5 shrink-0" />
           <span class="truncate">検索</span>
           <span class="ml-auto text-[10px] text-slate-700 border border-slate-800 rounded px-1 shrink-0">Ctrl+K</span>
+        </button>
+
+        <button
+          v-if="me?.id"
+          @click="openSwitcher"
+          class="w-8 h-8 rounded-full overflow-hidden bg-indigo-600 ring-1 ring-slate-700/60 hover:ring-indigo-500 transition shrink-0 relative group"
+          title="アカウント切り替え"
+        >
+          <img v-if="me.avatarUrl" :src="me.avatarUrl" class="w-full h-full object-cover" />
+          <div v-else class="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+            {{ me.displayName?.charAt(0) || '?' }}
+          </div>
+          <span class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition">
+            <Icon name="lucide:repeat-2" class="w-3.5 h-3.5 text-white" />
+          </span>
         </button>
       </div>
     </div>

@@ -53,14 +53,34 @@ export function validateFile(filename: string, type: string, buffer: Buffer) {
   }
 }
 
-export async function saveFile(buffer: Buffer, filename: string): Promise<{ url: string; blurUrl: string | null }> {
+
+
+export async function saveFile(buffer: Buffer, filename: string): Promise<{ url: string; blurUrl: string | null; originalUrl: string; originalName: string }> {
   await ensureDir()
   const ext = extname(filename).toLowerCase()
   const name = `${randomUUID()}${ext}`
   const filePath = join(UPLOAD_DIR, name)
   await writeFile(filePath, buffer)
 
+  let url = `/uploads/${name}`
   let blurUrl: string | null = null
+
+  // Convert still images to webp (smaller, faster to download). Animated gifs
+  // and everything else keep the original untouched.
+  if (IMAGE_TYPES.includes(ext) && ext !== '.gif' && ext !== '.webp') {
+    try {
+      const webpName = `${randomUUID()}.webp`
+      const webpPath = join(UPLOAD_DIR, webpName)
+      await sharp(buffer)
+        .rotate()
+        .webp({ quality: 88, effort: 4 })
+        .toFile(webpPath)
+      url = `/uploads/${webpName}`
+    } catch (err) {
+      console.error('[Upload] webp conversion failed for', filename, ':', err)
+    }
+  }
+
   if (IMAGE_TYPES.includes(ext)) {
     try {
       const blurName = `${randomUUID()}-blur.jpg`
@@ -70,7 +90,7 @@ export async function saveFile(buffer: Buffer, filename: string): Promise<{ url:
     } catch {}
   }
 
-  return { url: `/uploads/${name}`, blurUrl }
+  return { url, blurUrl, originalUrl: `/uploads/${name}`, originalName: filename }
 }
 
 const EMOJI_EXT = ['.png', '.gif', '.webp', '.jpg', '.jpeg']

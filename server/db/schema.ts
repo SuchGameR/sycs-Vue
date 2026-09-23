@@ -228,6 +228,8 @@ export const postAttachments = pgTable('post_attachments', {
   url: text('url').notNull(),
   blurUrl: text('blur_url'),
   watermarkUrl: text('watermark_url'),
+  originalUrl: text('original_url'),
+  originalName: text('original_name'),
   type: text('type').notNull().default('image'),
   mime: text('mime').notNull().default('image/png'),
   position: integer('position').default(0),

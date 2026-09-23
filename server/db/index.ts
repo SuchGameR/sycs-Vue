@@ -272,6 +272,9 @@ async function initDbInternal() {
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0`)
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS quoted_post_id TEXT`)
     await client.query(`CREATE INDEX IF NOT EXISTS posts_quoted_post_idx ON posts(quoted_post_id)`)
+    // Original-file download: keep the untouched upload around for "download original"
+    await client.query(`ALTER TABLE post_attachments ADD COLUMN IF NOT EXISTS original_url TEXT`)
+    await client.query(`ALTER TABLE post_attachments ADD COLUMN IF NOT EXISTS original_name TEXT`)
     // Feed pagination indexes (keyset: created_at + id)
     await client.query(`CREATE INDEX IF NOT EXISTS posts_created_id_idx ON posts(created_at DESC, id DESC)`)
     await client.query(`CREATE INDEX IF NOT EXISTS posts_user_created_idx ON posts(user_id, created_at DESC)`)
@@ -385,16 +388,6 @@ async function initDbInternal() {
     await client.query(`CREATE INDEX IF NOT EXISTS users_display_name_trgm_idx ON users USING GIN (display_name gin_trgm_ops)`)
     await client.query(`CREATE INDEX IF NOT EXISTS posts_content_trgm_idx ON posts USING GIN (content gin_trgm_ops)`)
     await client.query(`CREATE INDEX IF NOT EXISTS servers_name_trgm_idx ON servers USING GIN (name gin_trgm_ops)`)
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        kind TEXT NOT NULL DEFAULT 'icon',
-        value TEXT NOT NULL,
-        label TEXT,
-        position INTEGER NOT NULL DEFAULT 0,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )
-    `)
-    await client.query(`CREATE INDEX IF NOT EXISTS user_badges_user_idx ON user_badges(user_id)`)
     // Per-call whiteboard auto-save (strokes JSON)
     await client.query(`
       CREATE TABLE IF NOT EXISTS whiteboard_states (

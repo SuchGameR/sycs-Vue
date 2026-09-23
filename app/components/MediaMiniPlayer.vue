@@ -40,6 +40,18 @@ function onPatch(postId: string, patch: any) {
   pane.updatePost({ ...selected.value, ...patch })
 }
 
+const currentFull = computed<any | null>(() => {
+  if (kind.value === 'video') return firstVideo.value || null
+  if (kind.value === 'audio') return firstAudio.value || null
+  if (kind.value === 'model') return firstModel.value || null
+  if (kind.value === 'image') return images.value[Math.min(mediaIndex.value, images.value.length - 1)] || null
+  return files.value[0] || null
+})
+const download = computed<{ href: string | null; name: string | undefined }>(() => ({
+  href: currentFull.value?.originalUrl || currentFull.value?.url || null,
+  name: currentFull.value?.originalName || undefined,
+}))
+
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime()
   const minutes = Math.floor(diff / 60000)
@@ -139,6 +151,9 @@ function onSheetUp() {
               <Icon :name="isSheet ? 'lucide:chevrons-down' : 'lucide:chevron-down'" class="w-5 h-5" />
             </button>
             <span class="text-sm font-bold text-white truncate flex-1">{{ selected.user?.displayName || 'メディア' }}</span>
+            <a v-if="download.href" :href="download.href" :download="download.name" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="元のファイルをダウンロード">
+              <Icon name="lucide:download" class="w-5 h-5" />
+            </a>
             <button class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" @click="pane.closeMobile()" title="閉じる">
               <Icon name="lucide:x" class="w-5 h-5" />
             </button>

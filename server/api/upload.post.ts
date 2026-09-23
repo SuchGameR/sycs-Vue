@@ -12,8 +12,8 @@ export default defineEventHandler(async (event) => {
   const results = []
   for (const file of files) {
     validateFile(file.filename!, file.type || '', file.data!)
-    const { url, blurUrl } = await saveFile(file.data!, file.filename!)
-    results.push({ url, blurUrl, type: file.type, mime: file.type, name: file.filename })
+    const { url, blurUrl, originalUrl, originalName } = await saveFile(file.data!, file.filename!)
+    results.push({ url, blurUrl, originalUrl, originalName, type: file.type, mime: file.type, name: file.filename })
   }
 
   return { files: results }

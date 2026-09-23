@@ -9,6 +9,8 @@ const servers = computed(() => serversData.value?.servers || [])
 
 const { data: userData } = useFetch('/api/auth/me', { key: 'sidebar-user' })
 
+const { openSwitcher } = useAccounts()
+
 async function handleSignout() {
   await $fetch('/api/auth/signout', { method: 'POST' })
   await navigateTo('/')
@@ -62,10 +64,14 @@ async function handleSignout() {
     <div v-if="userData?.user" class="group relative pt-4 border-t border-slate-800 mt-auto">
       <!-- Hover popup above -->
       <div class="absolute bottom-full left-0 right-0 mb-2 bg-slate-900 border border-slate-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-1 z-50">
-        <button class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50 transition">
+        <button @click="openSwitcher" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50 transition">
+          <Icon name="lucide:user-round-cog" class="w-4 h-4 shrink-0" />
+          アカウント切り替え
+        </button>
+        <NuxtLink to="/signin" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50 transition">
           <Icon name="lucide:user-plus" class="w-4 h-4 shrink-0" />
           アカウントを追加
-        </button>
+        </NuxtLink>
       </div>
 
       <!-- User bar -->

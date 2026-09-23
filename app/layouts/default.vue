@@ -29,6 +29,8 @@ watch(() => route.params.id, loadServerHeader)
 const { on } = useRealtime()
 let offRealtime: (() => void)[] = []
 
+const { switcherOpen, closeSwitcher } = useAccounts()
+
 const customEmojis = useCustomEmojis()
 onMounted(() => {
   customEmojis.ensure()
@@ -87,6 +89,6 @@ onUnmounted(() => {
     <WorkbenchFooter />
     <AddToPlaylistModal />
     <QuoteComposerModal />
-    <AccountSwitcher :open="switcherOpen" @close="closeSwitcher" />
+    <AccountSwitcher v-if="switcherOpen" @close="closeSwitcher" />
   </div>
 </template>

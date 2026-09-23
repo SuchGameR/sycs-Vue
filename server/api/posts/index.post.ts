@@ -54,17 +54,23 @@ export default defineEventHandler(async (event) => {
       const ext = extname(a.url).toLowerCase()
       let url = a.url
       let blurUrl = (a.blur && a.blurUrl) || null
+      let originalUrl = a.originalUrl || null
+      let originalName = a.originalName || null
 
       if (a.watermark && IMAGE_EXTENSIONS.includes(ext)) {
         try {
-          const filePath = urlToFilePath(a.url)
+          const srcUrl = a.originalUrl && !a.originalUrl.endsWith('/uploads/') && a.originalUrl.startsWith('/uploads/') ? a.originalUrl : a.url
+          const filePath = urlToFilePath(srcUrl)
           const buffer = await readFile(filePath)
           const { url: newUrl, blurUrl: newBlur } = await saveFileWithWatermark(
             buffer,
-            `wm_${a.url.replace('/uploads/', '')}`,
+            `wm_${srcUrl.replace('/uploads/', '')}`,
             user.username
           )
           url = newUrl
+          // Prevent bypassing the watermark by downloading the "original"
+          originalUrl = null
+          originalName = null
           if (a.blur) {
             blurUrl = newBlur
           }
@@ -74,7 +80,7 @@ export default defineEventHandler(async (event) => {
       }
 
       values.push({
-        id: randomUUID(), postId, url, blurUrl,
+        id: randomUUID(), postId, url, blurUrl, originalUrl, originalName,
         type: a.type || 'image', mime: a.mime || a.type || 'image/png',
         position: i,
       })

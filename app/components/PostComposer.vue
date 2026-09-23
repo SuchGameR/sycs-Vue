@@ -3,6 +3,14 @@ import ModelViewer from './media/ModelViewer.vue'
 
 const { map: customEmojiMap } = useCustomEmojis()
 const me = useState<any>('current-user', () => null)
+const { openSwitcher } = useAccounts()
+
+async function ensureMe() {
+  if (!me.value) {
+    try { me.value = (await $fetch('/api/auth/me')).user } catch { /* not signed in */ }
+  }
+}
+onMounted(ensureMe)
 
 const props = defineProps<{
   mediaKind?: 'any' | 'video' | 'image' | 'audio' | 'model' | 'file'
@@ -198,9 +206,20 @@ function fileIcon(mime: string) {
     @drop="onDrop"
     @paste="onPaste"
   >
-    <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
-      <Icon name="lucide:user" class="w-5 h-5" />
-    </div>
+    <button
+      type="button"
+      class="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-indigo-600 ring-1 ring-slate-700/60 hover:ring-indigo-500 transition relative group"
+      @click="openSwitcher"
+      title="アカウント切り替え"
+    >
+      <img v-if="me?.avatarUrl" :src="me.avatarUrl" class="w-full h-full object-cover" />
+      <div v-else class="w-full h-full flex items-center justify-center text-white">
+        <Icon name="lucide:user" class="w-5 h-5" />
+      </div>
+      <span class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition">
+        <Icon name="lucide:user-round-cog" class="w-4 h-4 text-white" />
+      </span>
+    </button>
     <div class="flex-1 space-y-2">
       <EmojiTextarea v-model="content" :rows="2" auto-resize
         textarea-class="w-full bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 resize-none text-sm leading-5"
