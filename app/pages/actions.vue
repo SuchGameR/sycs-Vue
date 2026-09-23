@@ -191,7 +191,7 @@ function timeAgo(date: string) {
             class="w-full flex items-start gap-3 px-4 py-3 border-b border-slate-800 last:border-b-0 text-left hover:bg-slate-800/30 transition"
           >
             <div class="relative shrink-0">
-              <img v-if="n.actor?.avatarUrl" :src="n.actor.avatarUrl" class="w-9 h-9 rounded-full object-cover" />
+              <img v-if="avatarSrc(n.actor.avatarUrl)" :src="avatarSrc(n.actor.avatarUrl)" class="w-9 h-9 rounded-full object-cover" />
               <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                 {{ n.actor?.displayName?.charAt(0) || '?' }}
               </div>

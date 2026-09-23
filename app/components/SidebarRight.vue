@@ -51,7 +51,7 @@ onUnmounted(stopTrendingPolling)
       <div class="space-y-2">
         <NuxtLink v-for="m in members" :key="m.userId" :to="`/profile/@${m.user?.username || m.userId}`"
           class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition">
-          <img v-if="m.user?.avatarUrl" :src="m.user.avatarUrl" class="w-6 h-6 rounded-full object-cover shrink-0" />
+          <img v-if="avatarSrc(m.user.avatarUrl)" :src="avatarSrc(m.user.avatarUrl)" class="w-6 h-6 rounded-full object-cover shrink-0" />
           <div v-else class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0">
             {{ m.user?.displayName?.charAt(0) || '?' }}
           </div>
@@ -62,7 +62,7 @@ onUnmounted(stopTrendingPolling)
 
     <template v-else-if="userData?.user">
       <NuxtLink :to="`/profile/@${userData.user.username}`" class="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl hover:bg-slate-800/50 transition">
-        <img v-if="userData.user.avatarUrl" :src="userData.user.avatarUrl" class="w-10 h-10 rounded-full object-cover shrink-0" />
+        <img v-if="avatarSrc(userData.user.avatarUrl)" :src="avatarSrc(userData.user.avatarUrl)" class="w-10 h-10 rounded-full object-cover shrink-0" />
         <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
           {{ userData.user.displayName?.charAt(0) || '?' }}
         </div>
@@ -92,7 +92,7 @@ onUnmounted(stopTrendingPolling)
             :class="i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-orange-400' : 'text-slate-600'">
             {{ i + 1 }}
           </span>
-          <img v-if="p.user?.avatarUrl" :src="p.user.avatarUrl" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" />
+          <img v-if="avatarSrc(p.user.avatarUrl)" :src="avatarSrc(p.user.avatarUrl)" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" />
           <div v-else class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
             {{ p.user?.displayName?.charAt(0) || '?' }}
           </div>

@@ -15,7 +15,7 @@ export interface VoiceRoomConfig {
 }
 
 interface SignalPayload {
-  type: 'offer' | 'answer' | 'ice' | 'decline' | 'reaction' | 'wb'
+  type: 'offer' | 'answer' | 'ice' | 'decline' | 'reaction' | 'wb' | 'screen'
   data?: any
 }
 
@@ -30,6 +30,10 @@ const PC_CONFIG: RTCConfiguration = {
 
 // A TURN server is required for reliable calls across strict NATs.
 // If TURN_URLS is configured via env, the client pulls credentials here.
+// RTCPeerConnection copies iceServers at construction time, so we await this
+// promise BEFORE any peer connection is created (a PC built too early would
+// silently run STUN-only and fail to cross strict NATs).
+let turnPromise: Promise<void> | null = null
 async function tryExtendTurnConfig() {
   try {
     const res = await $fetch<{ urls: string[]; username?: string; credential?: string }>('/api/voice/turn')
@@ -39,15 +43,14 @@ async function tryExtendTurnConfig() {
         PC_CONFIG.iceServers!.push(turn)
       }
     }
-  } catch { /* optional TURN config */ }
-}
-let turnLoaded = false
-function pcConfigWithTurn() {
-  if (!turnLoaded) {
-    turnLoaded = true
-    tryExtendTurnConfig()
+  } catch {
+    // Transient network failure: allow a later join to retry the fetch.
+    turnPromise = null
   }
-  return PC_CONFIG
+}
+function ensureTurn() {
+  if (!turnPromise) turnPromise = tryExtendTurnConfig()
+  return turnPromise
 }
 
 let initialized = false
@@ -87,6 +90,11 @@ const watchedRooms = new Map<string, VoiceRoomConfig>()
 const peers = new Map<string, RTCPeerConnection>()
 const pendingIce = new Map<string, any[]>()
 const lastIceRestart = new Map<string, number>()
+const lastOfferAt = new Map<string, number>()
+const everConnected = new Set<string>()
+const hardResets = new Map<string, number>()
+const processingOffer = new Set<string>()
+const remoteScreening = new Map<string, boolean>()
 
 let offs: (() => void)[] = []
 let watchdog: ReturnType<typeof setInterval> | null = null
@@ -220,6 +228,7 @@ function refreshTracksAcrossPeers() {
 
 function isScreenLike(e: any, uid: string) {
   if (e.track.kind !== 'video') return false
+  if (remoteScreening.get(uid)) return true
   if (e.track.contentHint === 'detail') return true
   const existing = remoteStreams.value[uid]
   if (existing && existing.getVideoTracks().length > 0) return true
@@ -319,6 +328,12 @@ async function toggleScreenShare() {
     screenStream.value = null
     screenSharing.value = false
   }
+  // Tell peers whether the next video track to arrive is a screen share, so it
+  // lands in the correct tile instead of being treated as a camera.
+  const room = activeRoom.value
+  if (room && status.value === 'active') {
+    for (const uid of [...peers.keys()]) signalTo(room, uid, { type: 'screen', data: screenSharing.value })
+  }
   refreshTracksAcrossPeers()
 }
 
@@ -330,8 +345,9 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
     attachLocalTracks(existing)
     return existing
   }
-  const pc = new RTCPeerConnection(pcConfigWithTurn())
+  const pc = new RTCPeerConnection(PC_CONFIG)
   peers.set(member.userId, pc)
+  lastOfferAt.set(member.userId, Date.now())
   attachLocalTracks(pc)
   pc.onicecandidate = (e) => {
     if (e.candidate) signalTo(room, member.userId, { type: 'ice', data: e.candidate })
@@ -339,45 +355,37 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
   pc.ontrack = (e) => {
     const uid = member.userId
     const ms = e.streams[0] || new MediaStream([e.track])
-    // Screen-share video (contentHint 'detail', or a second video track for the
-    // same peer) is kept separate so it can be shown in its own tile.
-    if (isScreenLike(e, uid)) {
-      remoteScreenStreams.value = { ...remoteScreenStreams.value, [uid]: ms }
-      const audioTracks = ms.getAudioTracks()
-      if (audioTracks.length) {
-        const cur = remoteStreams.value[uid]
-        if (cur) {
-          for (const a of audioTracks) { try { cur.addTrack(a) } catch { /* ignore */ } }
-          remoteStreams.value = { ...remoteStreams.value }
-        } else {
-          remoteStreams.value = { ...remoteStreams.value, [uid]: new MediaStream(audioTracks) }
-        }
+    // One stable aggregate stream per peer. It is never replaced wholesale so a
+    // later video track (camera) can never clobber the mic audio already inside.
+    const agg = remoteStreams.value[uid] || new MediaStream()
+    if (e.track.kind === 'audio') {
+      if (!agg.getAudioTracks().some(t => t.id === e.track.id)) {
+        try { agg.addTrack(e.track) } catch { /* already in stream */ }
       }
-      ms.addEventListener('removetrack', () => {
-        if (ms.getVideoTracks().length === 0) {
-          const next = { ...remoteScreenStreams.value }
-          delete next[uid]
-          remoteScreenStreams.value = next
-        }
-      })
-    } else if (e.track.kind === 'audio') {
-      // Audio track: add to existing stream so both mic + screen audio play
-      const existing = remoteStreams.value[uid]
-      if (existing) {
-        try { existing.addTrack(e.track) } catch { /* already in stream */ }
-        remoteStreams.value = { ...remoteStreams.value }
-      } else {
-        remoteStreams.value = { ...remoteStreams.value, [uid]: ms }
-      }
-      // Clean up when the track ends (e.g. screen sharing stops)
+      remoteStreams.value = { ...remoteStreams.value, [uid]: agg }
       e.track.addEventListener('ended', () => {
-        const cur = remoteStreams.value[uid]
-        if (cur) { try { cur.removeTrack(e.track) } catch {} }
+        try { agg.removeTrack(e.track) } catch {}
       })
-    } else {
-      // Video track (camera)
-      remoteStreams.value = { ...remoteStreams.value, [uid]: ms }
+      return
     }
+    if (isScreenLike(e, uid)) {
+      // Screen-share video lives on its own tile. Any audio it carries is always
+      // also delivered as its own audio track (see syncScreenAudioSender), so it
+      // is already merged into the aggregate stream above.
+      remoteScreenStreams.value = { ...remoteScreenStreams.value, [uid]: ms }
+      e.track.addEventListener('ended', () => {
+        const next = { ...remoteScreenStreams.value }
+        delete next[uid]
+        remoteScreenStreams.value = next
+        remoteScreening.delete(uid)
+      })
+      return
+    }
+    // Camera video: merge into the aggregate stream (audio + video in one place).
+    if (!agg.getVideoTracks().some(t => t.id === e.track.id)) {
+      try { agg.addTrack(e.track) } catch { /* ignore */ }
+    }
+    remoteStreams.value = { ...remoteStreams.value, [uid]: agg }
   }
   // Polite/impolite negotiation: both sides may offer (needed for camera/screen
   // tracks to be added by either side); glare is resolved by polite (lower id) rolling back.
@@ -404,6 +412,8 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'connected') {
       connectionState.value = 'connected'
+      everConnected.add(member.userId)
+      hardResets.delete(member.userId)
       if (whiteboardStrokes.value.length) wbSyncTo(member.userId)
     } else if (pc.connectionState === 'closed') {
       closePeer(member.userId)
@@ -415,17 +425,24 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
 
 function markConnection() {
   if (!peers.size) return
-  const anyConnected = [...peers.values()].some(p => p.connectionState === 'connected')
-  if (anyConnected) {
+  const states = [...peers.values()].map(p => p.connectionState)
+  if (states.some(s => s === 'connected')) {
     connectionState.value = 'connected'
-  } else if ([...peers.values()].every(p => ['failed', 'closed', 'new'].includes(p.connectionState))) {
+  } else if (states.every(s => s === 'failed' || s === 'closed')) {
     connectionState.value = 'failed'
+  } else {
+    // 'new' means negotiation/ICE is still in progress, not a failure
+    connectionState.value = 'connecting'
   }
 }
 
 function closePeer(userId: string) {
   pendingIce.delete(userId)
   lastIceRestart.delete(userId)
+  lastOfferAt.delete(userId)
+  everConnected.delete(userId)
+  processingOffer.delete(userId)
+  remoteScreening.delete(userId)
   const pc = peers.get(userId)
   if (pc) {
     pc.onicecandidate = null
@@ -441,6 +458,77 @@ function closePeer(userId: string) {
     delete next[userId]
     remoteStreams.value = next
   }
+  if (remoteScreenStreams.value[userId]) {
+    const next = { ...remoteScreenStreams.value }
+    delete next[userId]
+    remoteScreenStreams.value = next
+  }
+}
+
+// Recovers a peer whose offer/answer/ICE was lost in transit (SSE gap, failed
+// HTTP POST beyond the retries, etc.). Without this, a single lost message
+// leaves the peer stuck at "connecting..." forever.
+function recoverPeers(room: VoiceRoomConfig) {
+  if (!me.value) return
+  const now = Date.now()
+  for (const [uid, pc] of peers) {
+    if (processingOffer.has(uid)) continue
+    if (everConnected.has(uid) && pc.connectionState === 'connected') continue
+    const last = lastOfferAt.get(uid) || 0
+
+    // Failed connection: rebuild the connection from scratch (bounded).
+    if (pc.connectionState === 'failed' || pc.iceConnectionState === 'failed') {
+      if (now - last < 8000) continue
+      const resets = hardResets.get(uid) || 0
+      if (resets >= 5) continue
+      hardResets.set(uid, resets + 1)
+      lastOfferAt.set(uid, now)
+      const member = members.value.find(m => m.userId === uid)
+      closePeer(uid)
+      if (member) ensurePeer(room, member)
+      continue
+    }
+
+    // Stuck mid-negotiation: re-send whatever we already produced. Re-sending
+    // the current offer/answer is idempotent on the peer side where possible and
+    // lets either side recover a dropped SDP without a full rebuild.
+    switch (pc.signalingState) {
+      case 'have-local-offer':
+        if (now - last < 4000) break
+        lastOfferAt.set(uid, now)
+        if (pc.localDescription) signalTo(room, uid, { type: 'offer', data: pc.localDescription })
+        break
+      case 'have-local-answer':
+        if (now - last < 4000) break
+        lastOfferAt.set(uid, now)
+        if (pc.localDescription) signalTo(room, uid, { type: 'answer', data: pc.localDescription })
+        break
+      case 'have-remote-offer':
+        if (now - last < 4000) break
+        lastOfferAt.set(uid, now)
+        ;(async () => {
+          try {
+            const answer = await pc.createAnswer()
+            await pc.setLocalDescription(answer)
+            signalTo(room, uid, { type: 'answer', data: pc.localDescription })
+          } catch { /* ignore */ }
+        })()
+        break
+      case 'stable':
+        // Signaling settled but no session ever formed and ICE never started:
+        // the polite side kicks a fresh offer (should rarely trigger).
+        if (everConnected.has(uid)) break
+        if (pc.remoteDescription != null && pc.iceConnectionState !== 'new') break
+        if (now - last < 10000) break
+        if (me.value.userId >= uid) break
+        lastOfferAt.set(uid, now)
+        pc.createOffer()
+          .then(o => pc.setLocalDescription(o))
+          .then(() => signalTo(room, uid, { type: 'offer', data: pc.localDescription! }))
+          .catch(() => {})
+        break
+    }
+  }
 }
 
 function startWatchdog() {
@@ -453,6 +541,7 @@ function startWatchdog() {
       return
     }
     tick++
+    recoverPeers(room)
     // Periodically re-join to refresh the member list and detect new participants
     if (tick % 10 === 0) {
       $fetch(room.joinPath, { method: 'POST' })
@@ -495,27 +584,38 @@ async function handleSignal(msg: any) {
   const signal = msg.signal as SignalPayload
   const isPolite = me.value ? me.value.userId < from.userId : true
 
+  if (signal.type === 'screen') {
+    remoteScreening.set(from.userId, !!signal.data)
+    return
+  }
+
   if (signal.type === 'offer') {
-    if (!localStream.value) { try { await ensureLocalStream() } catch { /* audio optional until join */ } }
-    const pc = getPeer(room, from)
-    try {
-      if (pc.signalingState === 'have-local-offer') {
-        if (isPolite) {
-          await pc.setLocalDescription({ type: 'rollback' as any })
-        } else {
-          // impolite side keeps its own offer; ignore the incoming one
-          return
-        }
+    if (processingOffer.has(from.userId)) return
+    const b = from.userId
+    async function applyOffer() {
+      if (!localStream.value) { try { await ensureLocalStream() } catch { /* audio optional until join */ } }
+      await ensureTurn()
+      const pc = getPeer(room, from)
+      // Already handling an offer, or an offer for a state we cannot accept.
+      if (pc.signalingState === 'have-remote-offer' || pc.signalingState === 'have-local-answer') return
+      if (pc.signalingState !== 'stable') {
+        if (!isPolite) return // impolite keeps its own offer
+        await pc.setLocalDescription({ type: 'rollback' as any })
       }
       await pc.setRemoteDescription(new RTCSessionDescription(signal.data))
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
-      signalTo(room, from.userId, { type: 'answer', data: pc.localDescription })
-      flushIce(from.userId)
-    } catch (err) { console.error('Error handling offer:', err) }
+      signalTo(room, b, { type: 'answer', data: pc.localDescription })
+      flushIce(b)
+    }
+    processingOffer.add(b)
+    applyOffer()
+      .catch((err) => console.error('Error handling offer:', err))
+      .finally(() => processingOffer.delete(b))
+    return
   } else if (signal.type === 'answer') {
     const pc = peers.get(from.userId)
-    if (pc && pc.signalingState !== 'stable') {
+    if (pc && pc.signalingState === 'have-local-offer') {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(signal.data))
         flushIce(from.userId)
@@ -537,7 +637,6 @@ async function handleSignal(msg: any) {
 }
 
 function handleUpdate(msg: any) {
-  const callerIdx = (msg.members || []).findIndex((m: any) => m.userId !== me.value?.userId)
   if (!msg.roomKey) return
   const count = (msg.members || []).length
   presence.value = { ...presence.value, [msg.roomKey]: count }
@@ -558,17 +657,28 @@ function handleUpdate(msg: any) {
     return
   }
 
+  // If the incoming caller cancels (or their presence expires), stop ringing.
+  if (incoming.value && msg.roomKey === incoming.value.roomKey) {
+    const stillCalling = (msg.members || []).some((m: any) => m.userId === incoming.value?.from.userId)
+    if (!stillCalling) incoming.value = null
+  }
+
   // Incoming ring for watched rooms
   if (!watchedRooms.has(msg.roomKey) && typeof msg.roomKey === 'string' && msg.roomKey.startsWith('dm:')) {
+    pendingVoiceUpdates.set(msg.roomKey, msg)
     scheduleDmWatchRefresh()
   }
-  if (status.value === 'idle' && !incoming.value) {
-    const watched = watchedRooms.get(msg.roomKey)
-    if (watched && watched.kind === 'dm') {
-      const caller = (msg.members || []).find((m: any) => m.userId !== me.value.userId)
-      if (caller) incoming.value = { room: watched, from: caller }
-    }
-  }
+  tryIncoming(msg)
+}
+
+const pendingVoiceUpdates = new Map<string, any>()
+
+function tryIncoming(msg: any) {
+  if (status.value !== 'idle' || incoming.value) return
+  const watched = watchedRooms.get(msg.roomKey)
+  if (!watched || watched.kind !== 'dm') return
+  const caller = (msg.members || []).find((m: any) => m.userId !== me.value?.userId)
+  if (caller) incoming.value = { room: watched, from: caller }
 }
 
 let dmRefreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -588,11 +698,40 @@ function init() {
   offs = [
     on('voice.update', handleUpdate),
     on('voice.signal', handleSignal),
+    on('realtime.reconnect', handleRealtimeReconnect),
   ]
+  ensureTurn()
   ensureMe().then(watchAllDmRooms).catch(() => {})
   if (import.meta.client) {
     window.addEventListener('pagehide', () => { if (status.value === 'active') saveWbNow() })
   }
+}
+
+// The SSE stream was dropped and has come back. Everything broadcast while it
+// was down is lost, so re-sync membership and re-send any signaling that the
+// peer never received.
+async function handleRealtimeReconnect() {
+  const room = activeRoom.value
+  if (!room || (status.value !== 'active' && status.value !== 'connecting')) return
+  $fetch(room.joinPath, { method: 'POST' })
+    .then((res: any) => {
+      if (res?.members) {
+        members.value = res.members || []
+        for (const m of members.value) {
+          if (m.userId !== me.value?.userId) ensurePeer(room, m)
+        }
+      }
+    })
+    .catch(() => {})
+  for (const [uid, pc] of peers) {
+    if (pc.connectionState === 'connected') continue
+    lastOfferAt.set(uid, 0)
+    // Restart ICE so candidates are gathered and relayed over the fresh stream.
+    if (pc.signalingState === 'stable' || pc.iceConnectionState === 'failed') {
+      try { if (typeof pc.restartIce === 'function') pc.restartIce() } catch {}
+    }
+  }
+  recoverPeers(room)
 }
 
 async function watchAllDmRooms() {
@@ -620,6 +759,10 @@ async function refreshDmRooms() {
   }
   await ensureMe().catch(() => {})
   await watchAllDmRooms()
+  // Re-evaluate updates that arrived while the room list was not loaded yet,
+  // otherwise an incoming call could be missed until the caller's next broadcast.
+  for (const msg of [...pendingVoiceUpdates.values()]) tryIncoming(msg)
+  pendingVoiceUpdates.clear()
 }
 
 function watchRoom(cfg: VoiceRoomConfig) {
@@ -634,9 +777,33 @@ function unwatchRoom(roomKey: string) {
   }
 }
 
-async function join(cfg?: VoiceRoomConfig) {
+let joinSeq = 0
 
+async function join(cfg?: VoiceRoomConfig) {
   init()
+  const seq = ++joinSeq
+
+  // Switching rooms (e.g. another voice channel) must fully tear down the old
+  // room: peers are keyed by userId and capture the room they were created in,
+  // so keeping them around would relay signaling down the old room's path and
+  // the new room would never connect.
+  if (cfg && activeRoom.value && activeRoom.value.roomKey !== cfg.roomKey) {
+    saveWbNow()
+    const prev = activeRoom.value
+    activeRoom.value = null
+    status.value = 'idle'
+    connectionState.value = 'new'
+    members.value = []
+    incoming.value = null
+    stopWatchdog()
+    for (const id of [...peers.keys()]) closePeer(id)
+    remoteStreams.value = {}
+    remoteScreenStreams.value = {}
+    hardResets.clear()
+    everConnected.clear()
+    $fetch(prev.leavePath, { method: 'POST' }).catch(() => {})
+  }
+
   if (cfg) activeRoom.value = cfg
   const room = activeRoom.value
   if (!room) return
@@ -644,9 +811,13 @@ async function join(cfg?: VoiceRoomConfig) {
   connectionState.value = 'connecting'
   errorMsg.value = null
   try {
+    await ensureTurn()
     await ensureMe()
+    if (seq !== joinSeq) return
     await ensureLocalStream()
+    if (seq !== joinSeq) return
     const res = await $fetch<{ members: VoiceMember[] }>(room.joinPath, { method: 'POST' })
+    if (seq !== joinSeq) return
     members.value = res.members || []
     status.value = 'active'
     startWatchdog()
@@ -656,14 +827,16 @@ async function join(cfg?: VoiceRoomConfig) {
     loadWbForRoom(room.roomKey)
   } catch (e: any) {
     errorMsg.value = e?.data?.message || e?.message || '通話に参加できませんでした'
-    status.value = 'idle'
-    connectionState.value = 'new'
-    startWatchdog()
+    if (seq === joinSeq) {
+      activeRoom.value = null
+      status.value = 'idle'
+      connectionState.value = 'new'
+    }
   }
 }
 
 async function leave() {
-
+  joinSeq++
   const room = activeRoom.value
   saveWbNow()
   activeRoom.value = null
@@ -683,6 +856,8 @@ async function leave() {
   screenSharing.value = false
   remoteStreams.value = {}
   remoteScreenStreams.value = {}
+  hardResets.clear()
+  everConnected.clear()
   if (room) {
     $fetch(room.leavePath, { method: 'POST' }).catch(() => {})
   }

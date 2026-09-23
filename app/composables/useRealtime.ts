@@ -2,10 +2,36 @@ type RealtimeHandler = (payload: any) => void
 
 const handlers: Record<string, Set<RealtimeHandler>> = {}
 let es: EventSource | null = null
+let everOpened = false
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+let retryDelay = 1000
+
+function emit(type: string, payload?: any) {
+  const set = handlers[type]
+  if (set) {
+    for (const fn of [...set]) {
+      try { fn(payload) } catch { /* ignore */ }
+    }
+  }
+  if (type && type !== 'realtime.reconnect') {
+    for (const key of Object.keys(handlers)) {
+      if (!key.endsWith('*')) continue
+      const prefix = key.slice(0, -1)
+      for (const fn of [...handlers[key]]) {
+        try { fn(payload) } catch { /* ignore */ }
+      }
+    }
+  }
+}
 
 function connectRealtime() {
   if (es || !import.meta.client) return
   es = new EventSource('/api/events')
+  es.onopen = () => {
+    retryDelay = 1000
+    if (everOpened) emit('realtime.reconnect')
+    everOpened = true
+  }
   es.addEventListener('message', (ev) => {
     let payload: any
     try {
@@ -13,23 +39,21 @@ function connectRealtime() {
     } catch {
       return
     }
-    const set = handlers[payload?.type]
-    if (set) {
-      for (const fn of [...set]) {
-        try { fn(payload) } catch { /* ignore */ }
-      }
-    }
-    const type = `${payload?.type ?? ''}`
-    for (const key of Object.keys(handlers)) {
-      if (key.endsWith('*') && type.startsWith(key.slice(0, -1))) {
-        for (const fn of [...handlers[key]]) {
-          try { fn(payload) } catch { /* ignore */ }
-        }
-      }
-    }
+    emit(payload?.type, payload)
   })
   es.onerror = () => {
-    // EventSource reconnects automatically
+    // Reconnect only explicitly when the stream has permanently closed so
+    // signaling is not lost forever (e.g. after an auth/proxy failure).
+    if (es && es.readyState === EventSource.CLOSED) {
+      es.close()
+      es = null
+      if (retryTimer) clearTimeout(retryTimer)
+      retryTimer = setTimeout(() => {
+        retryTimer = null
+        connectRealtime()
+      }, retryDelay)
+      retryDelay = Math.min(30000, retryDelay * 2)
+    }
   }
 }
 

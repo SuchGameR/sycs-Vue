@@ -52,7 +52,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
               SYCS<span class="text-indigo-500">.</span>
             </NuxtLink>
             <div v-else-if="isProfilePage && profileHeader" key="profile" class="flex items-center gap-3 shrink-0 mx-auto pr-4">
-              <img v-if="profileHeader.avatarUrl" :src="profileHeader.avatarUrl" class="w-8 h-8 rounded-full object-cover shrink-0" />
+              <img v-if="avatarSrc(profileHeader.avatarUrl)" :src="avatarSrc(profileHeader.avatarUrl)" class="w-8 h-8 rounded-full object-cover shrink-0" />
               <div v-else class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">{{ profileHeader.displayName?.charAt(0) || '?' }}</div>
               <div class="min-w-0">
                 <p class="text-sm font-bold text-white truncate leading-tight flex items-center gap-1">{{ profileHeader.displayName }}<UserBadges :badges="profileHeader.badges" /></p>
@@ -101,7 +101,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
           class="w-8 h-8 rounded-full overflow-hidden bg-indigo-600 ring-1 ring-slate-700/60 hover:ring-indigo-500 transition shrink-0 relative group"
           title="アカウント切り替え"
         >
-          <img v-if="me.avatarUrl" :src="me.avatarUrl" class="w-full h-full object-cover" />
+          <img v-if="avatarSrc(me.avatarUrl)" :src="avatarSrc(me.avatarUrl)" class="w-full h-full object-cover" />
           <div v-else class="w-full h-full flex items-center justify-center text-white text-xs font-bold">
             {{ me.displayName?.charAt(0) || '?' }}
           </div>

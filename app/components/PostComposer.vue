@@ -212,7 +212,7 @@ function fileIcon(mime: string) {
       @click="openSwitcher"
       title="アカウント切り替え"
     >
-      <img v-if="me?.avatarUrl" :src="me.avatarUrl" class="w-full h-full object-cover" />
+      <img v-if="avatarSrc(me.avatarUrl)" :src="avatarSrc(me.avatarUrl)" class="w-full h-full object-cover" />
       <div v-else class="w-full h-full flex items-center justify-center text-white">
         <Icon name="lucide:user" class="w-5 h-5" />
       </div>
@@ -233,7 +233,7 @@ function fileIcon(mime: string) {
           <Icon name="lucide:eye" class="w-3 h-3" /> プレビュー
         </p>
         <div class="flex gap-3">
-          <img v-if="me?.avatarUrl" :src="me.avatarUrl" class="w-9 h-9 rounded-full object-cover shrink-0" />
+          <img v-if="avatarSrc(me.avatarUrl)" :src="avatarSrc(me.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
           <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
             <Icon name="lucide:user" class="w-4 h-4" />
           </div>

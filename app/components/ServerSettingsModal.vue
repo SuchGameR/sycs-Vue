@@ -657,7 +657,7 @@ const btnGhost = 'px-4 py-2 rounded-lg border border-slate-700 text-sm text-slat
                 <div v-for="member in members" :key="member.userId" class="bg-slate-800/40 border border-slate-800 rounded-xl p-3">
                   <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
-                      <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-full h-full object-cover" />
+                      <img v-if="avatarSrc(member.user.avatarUrl)" :src="avatarSrc(member.user.avatarUrl)" class="w-full h-full object-cover" />
                       <template v-else>{{ member.user?.displayName?.charAt(0) || '?' }}</template>
                     </div>
                     <div class="flex-1 min-w-0">

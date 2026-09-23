@@ -200,7 +200,7 @@ function formatDateTime(date: string) {
     <div class="flex items-center justify-between mb-4 shrink-0">
       <div class="flex items-center gap-2.5 min-w-0">
         <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
-          <img v-if="otherMember?.avatarUrl" :src="otherMember.avatarUrl" class="w-full h-full object-cover" />
+          <img v-if="avatarSrc(otherMember.avatarUrl)" :src="avatarSrc(otherMember.avatarUrl)" class="w-full h-full object-cover" />
           <template v-else>{{ otherMember?.displayName?.charAt(0) || '?' }}</template>
         </div>
         <div class="min-w-0">
@@ -225,7 +225,7 @@ function formatDateTime(date: string) {
       </div>
       <div v-for="msg in messages" :key="msg.id" class="flex gap-3 group">
         <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0 mt-0.5 overflow-hidden">
-          <img v-if="msg.sender?.avatarUrl" :src="msg.sender.avatarUrl" class="w-full h-full object-cover" />
+          <img v-if="avatarSrc(msg.sender.avatarUrl)" :src="avatarSrc(msg.sender.avatarUrl)" class="w-full h-full object-cover" />
           <template v-else>{{ msg.sender?.displayName?.charAt(0) || '?' }}</template>
         </div>
         <div class="flex-1 min-w-0">

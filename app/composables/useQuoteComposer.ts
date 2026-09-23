@@ -10,8 +10,8 @@ export function useQuoteComposer() {
   }
 
   function closeQuote() {
-    if (busy.value) return
     target.value = null
+    busy.value = false
     _error.value = null
   }
 

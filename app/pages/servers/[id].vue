@@ -406,7 +406,7 @@ onUnmounted(() => {
           </div>
           <div class="flex-1 overflow-y-auto p-3 space-y-1">
             <div v-for="member in members" :key="member.id" class="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-slate-800/50 transition">
-              <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-8 h-8 rounded-full object-cover" />
+              <img v-if="avatarSrc(member.user.avatarUrl)" :src="avatarSrc(member.user.avatarUrl)" class="w-8 h-8 rounded-full object-cover" />
               <div v-else class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xs">
                 {{ memberName(member).charAt(0) }}
               </div>

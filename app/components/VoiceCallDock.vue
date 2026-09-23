@@ -450,7 +450,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
       <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] w-72 bg-[#151a24]/95 border border-slate-700 rounded-2xl p-4 shadow-2xl backdrop-blur">
         <div class="flex items-center gap-3">
           <div class="relative">
-            <img v-if="incoming.from.avatarUrl" :src="incoming.from.avatarUrl" class="w-11 h-11 rounded-full object-cover" />
+            <img v-if="avatarSrc(incoming.from.avatarUrl)" :src="avatarSrc(incoming.from.avatarUrl)" class="w-11 h-11 rounded-full object-cover" />
             <div v-else class="w-11 h-11 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
               {{ incoming.from.displayName?.charAt(0) || '?' }}
             </div>
@@ -501,7 +501,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
             <div v-for="s in screenTiles" :key="'sc-' + s.userId"
               class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
               @click="expandedScreen = s.userId">
-              <video :srcObject.prop="remoteScreenStreams[s.userId]" :muted="speakerMuted" autoplay playsinline webkit-playsinline
+              <video :srcObject.prop="remoteScreenStreams[s.userId]" muted autoplay playsinline webkit-playsinline
                 class="absolute inset-0 w-full h-full object-contain bg-black" />
               <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-[10px] text-white flex items-center gap-1">
                 <Icon name="lucide:monitor-up" class="w-3 h-3" /> {{ s.name }}の画面
@@ -514,12 +514,12 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
             <!-- member camera/avatar tiles -->
             <div v-for="t in tiles" :key="t.userId" class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 min-h-[180px] flex flex-col items-center justify-center">
               <div v-if="!t.isSelf && hasVideo[t.userId]" class="absolute inset-0 w-full h-full">
-                <video :srcObject.prop="remoteStreams[t.userId]" :muted="speakerMuted" autoplay playsinline webkit-playsinline
+                <video :srcObject.prop="remoteStreams[t.userId]" muted autoplay playsinline webkit-playsinline
                   class="absolute inset-0 w-full h-full object-cover" />
               </div>
               <div v-else class="absolute inset-0 flex flex-col items-center justify-center">
                 <div :style="avatarPop(t.userId, t.isSelf)" :class="['relative w-28 h-28 rounded-full', speakingGlow(t.userId, t.isSelf)]">
-                  <img v-if="t.avatarUrl" :src="t.avatarUrl" class="w-full h-full rounded-full object-cover" />
+                  <img v-if="avatarSrc(t.avatarUrl)" :src="avatarSrc(t.avatarUrl)" class="w-full h-full rounded-full object-cover" />
                   <div v-else class="w-full h-full rounded-full bg-indigo-600 flex items-center justify-center text-white text-4xl font-bold">
                     {{ t.name.charAt(0) }}
                   </div>
@@ -613,7 +613,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
           </div>
           <div class="flex-1 min-h-0 flex items-center justify-center">
             <video v-if="expandedScreen === 'self'" :srcObject="screenStream" muted autoplay playsinline webkit-playsinline class="max-w-full max-h-full object-contain rounded-lg bg-slate-950" />
-            <video v-else :srcObject="remoteScreenStreams[expandedScreen]" :muted="speakerMuted" autoplay playsinline webkit-playsinline class="max-w-full max-h-full object-contain rounded-lg bg-slate-950" />
+            <video v-else :srcObject="remoteScreenStreams[expandedScreen]" muted autoplay playsinline webkit-playsinline class="max-w-full max-h-full object-contain rounded-lg bg-slate-950" />
           </div>
         </div>
 

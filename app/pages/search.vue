@@ -115,7 +115,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
         <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">投稿</div>
         <button v-for="p in results.posts" :key="p.id" @click="openMedia(p)"
           class="w-full text-left px-3 py-3 flex gap-3 hover:bg-slate-800/30 transition">
-          <img v-if="p.user?.avatarUrl" :src="p.user.avatarUrl" class="w-9 h-9 rounded-full object-cover shrink-0" />
+          <img v-if="avatarSrc(p.user.avatarUrl)" :src="avatarSrc(p.user.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
           <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">{{ p.user?.displayName?.charAt(0) || '?' }}</div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
@@ -142,7 +142,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
         <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-t border-slate-800">ユーザー</div>
         <NuxtLink v-for="u in results.users" :key="u.id" :to="`/profile/@${u.username}`"
           class="w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-800/30 transition">
-          <img v-if="u.avatarUrl" :src="u.avatarUrl" class="w-9 h-9 rounded-full object-cover shrink-0" />
+          <img v-if="avatarSrc(u.avatarUrl)" :src="avatarSrc(u.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
           <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">{{ u.displayName?.charAt(0) || '?' }}</div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-bold text-white truncate flex items-center gap-1">{{ u.displayName }}<UserBadges :badges="u.badges" /><UserTitle :title="u.title" /></p>

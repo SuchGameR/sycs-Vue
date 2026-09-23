@@ -31,7 +31,7 @@ const previewAtts = computed(() => (props.post?.attachments || []).slice(0, 4))
     <div v-if="post.deleted" class="text-sm text-slate-500 py-2 text-center">このポストは削除されました</div>
     <template v-else>
       <div class="flex items-center gap-2 min-w-0">
-        <img v-if="post.user?.avatarUrl" :src="post.user.avatarUrl" class="w-5 h-5 rounded-full object-cover shrink-0" />
+        <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" class="w-5 h-5 rounded-full object-cover shrink-0" />
         <div v-else class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0">
           {{ (post.user?.displayName || '?').charAt(0) }}
         </div>

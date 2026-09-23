@@ -66,7 +66,7 @@ function onRemove(id: string) {
             class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-left"
             :class="acc.id === currentUserId ? 'bg-indigo-600/15 ring-1 ring-indigo-500/50' : 'hover:bg-slate-800/50'"
           >
-            <img v-if="acc.avatarUrl" :src="acc.avatarUrl" class="w-9 h-9 rounded-full object-cover shrink-0" />
+            <img v-if="avatarSrc(acc.avatarUrl)" :src="avatarSrc(acc.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
             <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">
               {{ acc.displayName?.charAt(0) || '?' }}
             </div>

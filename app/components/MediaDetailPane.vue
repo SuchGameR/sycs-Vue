@@ -150,7 +150,7 @@ function timeAgo(date: string) {
           <!-- Author -->
           <div class="px-4 py-3 flex items-center gap-3">
             <NuxtLink :to="`/profile/@${selected.user?.username}`" class="shrink-0">
-              <img v-if="selected.user?.avatarUrl" :src="selected.user.avatarUrl" class="w-9 h-9 rounded-full object-cover" />
+              <img v-if="avatarSrc(selected.user.avatarUrl)" :src="avatarSrc(selected.user.avatarUrl)" class="w-9 h-9 rounded-full object-cover" />
               <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                 {{ selected.user?.displayName?.charAt(0) || '?' }}
               </div>

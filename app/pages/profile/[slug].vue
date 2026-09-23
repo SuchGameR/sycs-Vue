@@ -245,7 +245,7 @@ async function toggleBookmark(postId: string) {
           :style="profile.user.bannerUrl ? `background-image: url(${profile.user.bannerUrl}); background-size: cover; background-position: center;` : ''" />
         <div class="px-5 pb-5">
           <div class="flex items-end -mt-12 mb-3">
-            <img v-if="profile.user.avatarUrl" :src="profile.user.avatarUrl"
+            <img v-if="avatarSrc(profile.user.avatarUrl)" :src="avatarSrc(profile.user.avatarUrl)"
               class="w-20 h-20 rounded-full border-4 border-[#0b0f19] object-cover" />
             <div v-else class="w-20 h-20 rounded-full border-4 border-[#0b0f19] bg-indigo-600 flex items-center justify-center text-2xl font-bold text-white">
               {{ profile.user.displayName?.charAt(0) || '?' }}
@@ -340,7 +340,7 @@ async function toggleBookmark(postId: string) {
           <div v-for="post in filteredPosts" :key="post.id" class="p-4 bg-slate-800/30 border border-slate-800 rounded-xl">
             <div class="flex gap-3">
               <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
-                <img v-if="post.user.avatarUrl" :src="post.user.avatarUrl" class="w-10 h-10 rounded-full object-cover" />
+                <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" class="w-10 h-10 rounded-full object-cover" />
                 <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">{{ post.user.displayName.charAt(0) }}</div>
               </NuxtLink>
               <div class="flex-1 min-w-0">
