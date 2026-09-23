@@ -55,6 +55,33 @@ function ensureTurn() {
 
 let initialized = false
 
+// Identifies this tab/session. One account can only hold one call: joining
+// from a second tab displaces (auto-hangs-up) the previous session.
+const TAB_SESSION = import.meta.client
+  ? (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  : 'server-session'
+
+// Suppress re-ringing a room this tab just left/declined, to avoid a
+// "call rings again after hanging up" echo loop.
+const RING_RECALL_COOLDOWN_MS = 2500
+const RING_CLAIM_FRESH_MS = 3000
+const RING_CLAIM_REFRESH_MS = 1500
+
+function readLS(key: string): any {
+  if (!import.meta.client) return null
+  try { return JSON.parse(localStorage.getItem(key) || 'null') } catch { return null }
+}
+function writeLS(key: string, v: any) {
+  if (!import.meta.client) return
+  try { localStorage.setItem(key, JSON.stringify(v)) } catch { /* ignore */ }
+}
+function rmLS(key: string) {
+  if (!import.meta.client) return
+  try { localStorage.removeItem(key) } catch { /* ignore */ }
+}
+function ringClaimKey(roomKey: string) { return `sgr:voice:ring:${roomKey}` }
+function recentRingKey(roomKey: string) { return `sgr:voice:recent:${roomKey}` }
+
 type StatusLabel = 'idle' | 'connecting' | 'active' | 'connected' | 'reconnecting'
 
 const me = ref<VoiceMember | null>(null)

@@ -16,7 +16,10 @@ export default defineEventHandler(async (event) => {
   })
   if (!membership) throw createError({ statusCode: 403, message: 'このチャンネルにアクセスできません' })
 
-  leaveRoom(`dm:${channelId}`, user.id)
+  const body = await readBody(event).catch(() => ({}))
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : undefined
+
+  leaveRoom(`dm:${channelId}`, user.id, sessionId)
 
   return { success: true }
 })

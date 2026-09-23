@@ -16,12 +16,15 @@ export default defineEventHandler(async (event) => {
   })
   if (!membership) throw createError({ statusCode: 403, message: 'このチャンネルにアクセスできません' })
 
+  const body = await readBody(event).catch(() => ({}))
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : undefined
+
   const existing = joinRoom(`dm:${channelId}`, {
     userId: user.id,
     username: user.username,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
-  })
+  }, sessionId)
 
   return { roomKey: `dm:${channelId}`, members: existing }
 })

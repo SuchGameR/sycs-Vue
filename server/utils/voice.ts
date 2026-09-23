@@ -7,16 +7,26 @@ export interface VoiceMember {
   avatarUrl: string | null
 }
 
-const rooms = new Map<string, Map<string, VoiceMember>>()
+interface VoiceEntry {
+  member: VoiceMember
+  sessionId: string
+}
+
+interface VoiceRoom {
+  members: Map<string, VoiceEntry>
+  callerId: string | null
+}
+
+const rooms = new Map<string, VoiceRoom>()
 const expiry = new Map<string, Map<string, ReturnType<typeof setTimeout>>>()
-const PRESENCE_TTL_MS = 90_000
+const PRESENCE_TTL_MS = 45_000
 
 export function getRoomMembers(roomKey: string): VoiceMember[] {
-  return [...(rooms.get(roomKey)?.values() || [])]
+  return [...(rooms.get(roomKey)?.members.values() || [])].map(e => e.member)
 }
 
 export function isInRoom(roomKey: string, userId: string): boolean {
-  return !!rooms.get(roomKey)?.has(userId)
+  return !!rooms.get(roomKey)?.members.has(userId)
 }
 
 function scheduleExpiry(roomKey: string, userId: string) {
@@ -34,32 +44,59 @@ function clearExpiry(roomKey: string, userId: string) {
   if (t) clearTimeout(t)
 }
 
-export function joinRoom(roomKey: string, member: VoiceMember): VoiceMember[] {
-  const room = rooms.get(roomKey) || new Map<string, VoiceMember>()
-  const existing = [...room.values()]
-  room.set(member.userId, member)
-  rooms.set(roomKey, room)
-  scheduleExpiry(roomKey, member.userId)
-  broadcast({ type: 'voice.update', roomKey, members: getRoomMembers(roomKey) })
-  return existing
+function broadcastUpdate(roomKey: string, room?: VoiceRoom) {
+  const r = room || rooms.get(roomKey)
+  broadcast({ type: 'voice.update', roomKey, members: getRoomMembers(roomKey), callerId: r?.callerId ?? null })
 }
 
-export function leaveRoom(roomKey: string, userId: string) {
-  leaveRoomInternal(roomKey, userId, false)
-}
-
-function leaveRoomInternal(roomKey: string, userId: string, quiet: boolean) {
-  clearExpiry(roomKey, userId)
-  const room = rooms.get(roomKey)
-  if (!room?.has(userId)) return
-  room.delete(userId)
-  if (room.size === 0) {
-    rooms.delete(roomKey)
-    expiry.delete(roomKey)
-  } else {
+// Joins (or confirms) a call. `sessionId` identifies a single tab/session so
+// that only ONE tab of an account can hold a call at a time: if the same user
+// joins from a different session, the previous session is told to hang up.
+export function joinRoom(roomKey: string, member: VoiceMember, sessionId = 'default'): VoiceMember[] {
+  let room = rooms.get(roomKey)
+  if (!room) {
+    room = { members: new Map(), callerId: null }
     rooms.set(roomKey, room)
   }
-  broadcast({ type: 'voice.update', roomKey, members: getRoomMembers(roomKey) })
+
+  const prev = room.members.get(member.userId)
+  if (prev && prev.sessionId !== sessionId) {
+    broadcastToUsers({ type: 'voice.displaced', roomKey, sessionId: prev.sessionId }, [member.userId])
+  }
+
+  room.members.set(member.userId, { member, sessionId })
+  if (!room.callerId || !room.members.has(room.callerId)) room.callerId = member.userId
+
+  scheduleExpiry(roomKey, member.userId)
+  broadcastUpdate(roomKey, room)
+
+  const others = [...room.members.values() as IterableIterator<VoiceEntry>]
+    .filter(e => e.member.userId !== member.userId)
+    .map(e => e.member)
+  return others
+}
+
+export function leaveRoom(roomKey: string, userId: string, sessionId?: string) {
+  leaveRoomInternal(roomKey, userId, false, sessionId)
+}
+
+function leaveRoomInternal(roomKey: string, userId: string, quiet: boolean, sessionId?: string) {
+  const room = rooms.get(roomKey)
+  const entry = room?.members.get(userId)
+  if (!entry || !room) return
+  // A stale tab (whose session was already displaced) must never kill the
+  // newer session of the same account.
+  if (sessionId && entry.sessionId !== sessionId) return
+
+  clearExpiry(roomKey, userId)
+  room.members.delete(userId)
+  if (room.callerId === userId) room.callerId = null
+
+  if (room.members.size === 0) {
+    rooms.delete(roomKey)
+    expiry.delete(roomKey)
+  }
+  broadcastUpdate(roomKey, room)
 }
 
 export function relaySignal(roomKey: string, from: VoiceMember, to: string, signal: any) {

@@ -6,7 +6,10 @@ export default defineEventHandler(async (event) => {
   const channelId = getRouterParam(event, 'channelId')
   const ctx = await requireServerMember(event, serverId)
 
-  leaveRoom(`server:${serverId}:${channelId}`, ctx.user.id)
+  const body = await readBody(event).catch(() => ({}))
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : undefined
+
+  leaveRoom(`server:${serverId}:${channelId}`, ctx.user.id, sessionId)
 
   return { success: true }
 })

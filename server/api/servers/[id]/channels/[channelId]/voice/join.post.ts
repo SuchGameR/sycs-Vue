@@ -18,12 +18,15 @@ export default defineEventHandler(async (event) => {
   if (!channel) throw createError({ statusCode: 404, message: 'チャンネルが見つかりません' })
   if (channel.type !== 'voice') throw createError({ statusCode: 400, message: 'このチャンネルは音声チャンネルではありません' })
 
+  const body = await readBody(event).catch(() => ({}))
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : undefined
+
   const existing = joinRoom(`server:${serverId}:${channelId}`, {
     userId: ctx.user.id,
     username: ctx.user.username,
     displayName: ctx.user.displayName,
     avatarUrl: ctx.user.avatarUrl,
-  })
+  }, sessionId)
 
   return { roomKey: `server:${serverId}:${channelId}`, members: existing }
 })
