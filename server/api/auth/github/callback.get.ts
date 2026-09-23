@@ -46,6 +46,7 @@ export default defineEventHandler(async (event) => {
   if (existingAccount) {
     const { token } = await createSession(existingAccount.userId)
     setAuthCookie(event, token)
+    setClientTokenCookie(event, token)
     return sendRedirect(event, target)
   }
 

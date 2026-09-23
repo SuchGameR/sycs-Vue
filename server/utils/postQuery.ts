@@ -1,6 +1,6 @@
 import { db } from '../db'
 import * as schema from '../db/schema'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, count, eq, inArray } from 'drizzle-orm'
 import { enrichUsers, publicUser } from './userExtras'
 
 export interface ReactionSummary {
@@ -49,15 +49,17 @@ export async function serializePosts(posts: any[], currentUser: any | null, reso
     bms.forEach(b => userBookmarks.add(b.postId))
   }
 
-  const comments = await db.query.postComments.findMany({
-    where: inArray(schema.postComments.postId, postIds),
-    columns: { postId: true },
-  })
   const commentCount = new Map<string, number>()
-  for (const c of comments) commentCount.set(c.postId, (commentCount.get(c.postId) || 0) + 1)
+  const commentRows = await db
+    .select({ postId: schema.postComments.postId, n: count() })
+    .from(schema.postComments)
+    .where(inArray(schema.postComments.postId, postIds))
+    .groupBy(schema.postComments.postId)
+  for (const r of commentRows) commentCount.set(r.postId, r.n)
 
   const reactions = await db.query.postReactions.findMany({
     where: inArray(schema.postReactions.postId, postIds),
+    columns: { postId: true, emoji: true, userId: true },
   })
   const reactionUserIds = [...new Set(reactions.map(r => r.userId))]
   const reactionUsers = reactionUserIds.length

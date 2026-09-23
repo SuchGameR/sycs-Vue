@@ -31,12 +31,13 @@ async function loadPosts(reset = true) {
   }
   if (!postHasMore.value) return { hasMore: false }
   try {
+    const pageSize = reset ? FEED_PAGE_SIZE : 5
     const data = await $fetch(`/api/users/${resolvedId.value}/posts`, {
-      params: { limit: FEED_PAGE_SIZE, offset: postOffset.value },
+      params: { limit: pageSize, offset: postOffset.value },
     })
     const incoming = data.posts || []
     postOffset.value = data.nextOffset ?? (postOffset.value + incoming.length)
-    postHasMore.value = data.hasMore ?? incoming.length === FEED_PAGE_SIZE
+    postHasMore.value = data.hasMore ?? incoming.length === pageSize
     if (reset) {
       userPosts.value = incoming
     } else {

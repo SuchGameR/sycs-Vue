@@ -32,13 +32,14 @@ async function loadPosts(reset = true, silent = false) {
   }
   if (!hasMore.value) return { hasMore: false }
   try {
+    const pageSize = reset ? FEED_PAGE_SIZE : 5
     const data = await $fetch('/api/posts', {
-      params: { ...timelines.buildQuery(), limit: FEED_PAGE_SIZE, offset: offset.value, cursor: cursor.value },
+      params: { ...timelines.buildQuery(), limit: pageSize, offset: offset.value, cursor: cursor.value },
     })
     const incoming = data.posts || []
     offset.value = data.nextOffset ?? (offset.value + incoming.length)
     if (typeof data.nextCursor === 'string' && data.nextCursor) cursor.value = data.nextCursor
-    hasMore.value = data.hasMore ?? incoming.length === FEED_PAGE_SIZE
+    hasMore.value = data.hasMore ?? incoming.length === pageSize
     if (reset) {
       posts.value = incoming
     } else {

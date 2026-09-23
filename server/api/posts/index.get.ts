@@ -1,6 +1,6 @@
 import { db } from '../../db'
 import * as schema from '../../db/schema'
-import { desc, asc, inArray, eq, and, notInArray, or, lt } from 'drizzle-orm'
+import { desc, asc, inArray, eq, and, or, lt, sql } from 'drizzle-orm'
 import { getCurrentUser } from '../../utils/auth'
 import { isServerMember } from '../../utils/serverAuth'
 import { serializePosts } from '../../utils/postQuery'
@@ -15,15 +15,27 @@ function decodeCursor(raw?: string | string[]): Cursor | null {
   if (!id || !Number.isFinite(n)) return null
   return { createdAt: n, id }
 }
-function encodeCursor(c: Cursor | null): string {
-  return c ? `${c.createdAt}|${c.id}` : ''
+interface CursorPair { posts: Cursor | null; boosts: Cursor | null }
+function decodeCursorPair(raw?: string | string[]): CursorPair {
+  const s = Array.isArray(raw) ? raw[0] : raw
+  if (!s) return { posts: null, boosts: null }
+  try {
+    const o = JSON.parse(Buffer.from(String(s), 'base64url').toString('utf8'))
+    return {
+      posts: o && Array.isArray(o.p) && o.p.length === 2 ? { createdAt: Number(o.p[0]), id: String(o.p[1]) } : null,
+      boosts: o && Array.isArray(o.b) && o.b.length === 2 ? { createdAt: Number(o.b[0]), id: String(o.b[1]) } : null,
+    }
+  } catch {
+    const legacy = decodeCursor(s)
+    return { posts: legacy, boosts: legacy }
+  }
 }
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50)
   const offset = Number(query.offset) || 0
-  const initialCursor = decodeCursor(query.cursor)
+  const initialCursor = decodeCursorPair(query.cursor)
 
   let scope = String(query.scope || '')
   const legacy = String(query.timeline || '')
@@ -113,21 +125,11 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Media type filtering
+  // Media type filtering (EXISTS subqueries so we never scan the whole attachments table)
   if (mediaType === 'text') {
-    const withAttachments = await db.query.postAttachments.findMany({
-      columns: { postId: true },
-    })
-    const ids = [...new Set(withAttachments.map(a => a.postId))]
-    if (ids.length) conditions.push(notInArray(schema.posts.id, ids))
+    conditions.push(sql`NOT EXISTS (SELECT 1 FROM post_attachments pa WHERE pa.post_id = posts.id)`)
   } else if (mediaType) {
-    const matching = await db.query.postAttachments.findMany({
-      where: eq(schema.postAttachments.type, mediaType),
-      columns: { postId: true },
-    })
-    const ids = [...new Set(matching.map(a => a.postId))]
-    if (!ids.length) return { posts: [] }
-    conditions.push(inArray(schema.posts.id, ids))
+    conditions.push(sql`EXISTS (SELECT 1 FROM post_attachments pa WHERE pa.post_id = posts.id AND pa.type = ${mediaType})`)
   }
 
   const where = conditions.length ? and(...conditions) : undefined
@@ -256,8 +258,8 @@ export default defineEventHandler(async (event) => {
   const collected: any[] = []
   const boostShown = new Set<string>()
   let cursor = offset
-  let postCursor: Cursor | null = initialCursor
-  let boostCursor: Cursor | null = initialCursor
+  let postCursor: Cursor | null = initialCursor.posts
+  let boostCursor: Cursor | null = initialCursor.boosts
   let postExhausted = false
   let boostExhausted = false
   const boostActive = includeBoosts && !!boostWhere && !!boostPool?.length

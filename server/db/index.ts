@@ -280,6 +280,8 @@ async function initDbInternal() {
     await client.query(`CREATE INDEX IF NOT EXISTS posts_user_created_idx ON posts(user_id, created_at DESC)`)
     await client.query(`CREATE INDEX IF NOT EXISTS reposts_created_id_idx ON reposts(created_at DESC, id DESC)`)
     await client.query(`CREATE INDEX IF NOT EXISTS reposts_user_created_idx ON reposts(user_id, created_at DESC)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS post_attachments_post_idx ON post_attachments(post_id)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS post_reactions_post_idx ON post_reactions(post_id)`)
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS settings TEXT DEFAULT '{}'`)
     await client.query(`
       CREATE TABLE IF NOT EXISTS bookmarks (
