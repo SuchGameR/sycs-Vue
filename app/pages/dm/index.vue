@@ -15,17 +15,31 @@ async function loadChannels() {
 }
 
 const { on } = useRealtime()
+const unread = useUnread()
 let offRealtime: (() => void)[] = []
+
+function patchChannel(p: any) {
+  if (!p.channelId || !p.message?.id) return
+  const i = channels.value.findIndex((c: any) => c.id === p.channelId)
+  if (i < 0) return
+  channels.value[i] = { ...channels.value[i], lastMessage: p.message, updatedAt: p.message.createdAt }
+}
+
+function handleNewMessage(p: any) {
+  if (!p.channelId) return
+  // Only refetch channels on the first load; live updates patch the row in place.
+  if (channels.value.length) {
+    patchChannel(p)
+  } else {
+    loadChannels()
+  }
+}
 
 onMounted(() => {
   loadChannels()
-  useUnread().markDmRead('all')
   offRealtime = [
-    on('dm.message', () => {
-      loadChannels()
-      useUnread().markDmRead('all')
-    }),
-    on('dm.message.edited', loadChannels),
+    on('dm.message', handleNewMessage),
+    on('dm.message.edited', handleNewMessage),
   ]
 })
 
@@ -67,7 +81,7 @@ const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
         class="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl hover:bg-slate-800/50 transition"
       >
         <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
-          <img v-if="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" :src="avatarSrc(otherMembers(ch)[0].avatarUrl)" class="w-full h-full object-cover" />
+          <img v-if="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" :src="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" class="w-full h-full object-cover" />
           <template v-else>{{ otherMembers(ch)[0]?.displayName?.charAt(0) || '?' }}</template>
         </div>
         <div class="min-w-0 flex-1">
@@ -75,10 +89,13 @@ const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
             <p class="text-sm font-bold text-white truncate">{{ otherMembers(ch).map((m: any) => m.displayName).join(', ') || '不明' }}
               <span class="text-xs font-normal text-slate-500">@{{ otherMembers(ch).map((m: any) => m.username).join(', @') || '?' }}</span>
             </p>
-            <span v-if="ch.lastMessage?.createdAt" class="text-[11px] text-slate-600 shrink-0">{{ timeAgo(ch.lastMessage.createdAt) }}</span>
+            <span class="flex items-center gap-1.5 shrink-0">
+              <span v-if="unread.hasDmUnread(ch.id)" class="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
+              <span v-if="ch.lastMessage?.createdAt" class="text-[11px] text-slate-600">{{ timeAgo(ch.lastMessage.createdAt) }}</span>
+            </span>
           </div>
           <p v-if="ch.lastMessage" class="text-xs text-slate-400 truncate">
-            <span class="text-slate-300">{{ ch.lastMessage.sender?.displayName }}<span v-if="ch.lastMessage.edited" class="text-slate-500">（編集済み）</span>: </span>{{ ch.lastMessage.content }}
+            <span :class="unread.hasDmUnread(ch.id) ? 'text-slate-200' : 'text-slate-300'">{{ ch.lastMessage.sender?.displayName }}<span v-if="ch.lastMessage.edited" class="text-slate-500">（編集済み）</span>: </span>{{ ch.lastMessage.content }}
           </p>
           <p v-else class="text-xs text-slate-500">DMを開く</p>
         </div>

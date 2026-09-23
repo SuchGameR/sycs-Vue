@@ -46,17 +46,23 @@ export async function createSession(userId: string, rememberMe = false): Promise
   return { token }
 }
 
-function cookieSecure(): boolean {
+// Derive Secure from the actual request: a statically-built production bundle
+// bakes process.env.NODE_ENV in as 'production', which used to force Secure on
+// plain-HTTP deployments and made every authed API call 401 (cookie never sent).
+function cookieSecure(event: any): boolean {
   const override = process.env.SYCS_COOKIE_SECURE
   if (override === 'true') return true
   if (override === 'false') return false
-  return process.env.NODE_ENV === 'production'
+  const header = String(event?.node?.req?.headers?.['x-forwarded-proto'] || '')
+  const proto = header.split(',')[0].trim()
+  if (proto) return proto === 'https'
+  return !!(event?.node?.req?.socket as any)?.encrypted
 }
 
 export function setAuthCookie(event: any, token: string, rememberMe = false) {
   setCookie(event, 'sycs_token', token, {
     httpOnly: true,
-    secure: cookieSecure(),
+    secure: cookieSecure(event),
     sameSite: 'lax',
     path: '/',
     maxAge: rememberMe ? LONG_SESSION_SECONDS : SHORT_SESSION_SECONDS,
@@ -70,7 +76,7 @@ export function setAuthCookie(event: any, token: string, rememberMe = false) {
 export function setClientTokenCookie(event: any, token: string, rememberMe = false) {
   setCookie(event, 'sycs_client_token', token, {
     httpOnly: false,
-    secure: cookieSecure(),
+    secure: cookieSecure(event),
     sameSite: 'lax',
     path: '/',
     maxAge: Math.min(LONG_SESSION_SECONDS, 60 * 60), // 1 hour: plenty to capture

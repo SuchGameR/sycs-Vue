@@ -39,7 +39,7 @@ export const EXTENSION_CATALOG: ExtensionDef[] = [
     description: '現在の時刻と日付を表示します',
     icon: 'lucide:clock',
     accent: 'from-sky-500/20 to-indigo-500/10',
-    size: { w: 240, h: 160 },
+    size: { w: 240, h: 240 },
   },
   {
     id: 'notes',

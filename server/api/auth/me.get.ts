@@ -19,6 +19,7 @@ export default defineEventHandler(async (event) => {
       bio: user.bio,
       settings: user.settings || '{}',
       isPrivate: !!user.isPrivate,
+      statusMessage: user.statusMessage || '',
       badges: extras[user.id]?.badges || [],
       title: extras[user.id]?.title || null,
       createdAt: user.createdAt,

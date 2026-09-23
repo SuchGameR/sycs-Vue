@@ -1,6 +1,7 @@
 import { db } from '../../../db'
 import * as schema from '../../../db/schema'
-import { eq, inArray, desc } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
 import { publicUser } from '../../../utils/userExtras'
 
@@ -31,16 +32,25 @@ export default defineEventHandler(async (event) => {
     orderBy: (c, { desc }) => [desc(c.updatedAt)],
   })
 
-  const lastMessages = await db.query.dmMessages.findMany({
-    where: inArray(schema.dmMessages.channelId, channelIds),
-    orderBy: [desc(schema.dmMessages.createdAt)],
-    limit: 500,
-  })
+  // Last message per channel in a single DISTINCT ON query. The previous
+  // implementation fetched a big recent slice of every channel and deduped in
+  // JS, which slowed the DM list down as histories grew.
+  const lastRows = await db.execute(sql`
+    SELECT DISTINCT ON (channel_id) channel_id, id, sender_id, content, created_at, edited
+    FROM dm_messages
+    WHERE channel_id = ANY(${channelIds})
+    ORDER BY channel_id, created_at DESC
+  `)
   const lastMessageMap = new Map<string, { content: string; createdAt: Date; senderId: string; edited: boolean }>()
-  for (const m of lastMessages) {
-    if (!lastMessageMap.has(m.channelId)) lastMessageMap.set(m.channelId, { content: m.content, createdAt: m.createdAt, senderId: m.senderId, edited: !!m.edited })
+  for (const r of lastRows.rows) {
+    lastMessageMap.set(r.channel_id, {
+      content: r.content,
+      createdAt: r.created_at,
+      senderId: r.sender_id,
+      edited: !!r.edited,
+    })
   }
-  const lastSenders = [...new Set(lastMessages.map(m => m.senderId))]
+  const lastSenders = [...lastMessageMap.values()].map(m => m.senderId)
   const lastSenderUsers = lastSenders.length
     ? await db.query.users.findMany({ where: inArray(schema.users.id, lastSenders) })
     : []

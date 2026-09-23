@@ -3,6 +3,7 @@ import { db } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
+import { hasBlockEitherWay } from '../../../utils/blocks'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -15,6 +16,10 @@ export default defineEventHandler(async (event) => {
     columns: { id: true },
   })
   if (!participant) throw createError({ statusCode: 404, message: 'ユーザーが見つかりません' })
+
+  if (await hasBlockEitherWay(user.id, participantId)) {
+    throw createError({ statusCode: 403, message: 'ブロック中のユーザーとはDMを作成できません' })
+  }
 
   const pairKey = [user.id, participantId].sort().join(':')
 

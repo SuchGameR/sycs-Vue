@@ -11,9 +11,19 @@ export const users = pgTable('users', {
   bio: text('bio').default(''),
   settings: text('settings').default('{}'),
   isPrivate: boolean('is_private').default(false),
+  statusMessage: text('status_message').default(''),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
+
+export const userBlocks = pgTable('user_blocks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  blockedId: text('blocked_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  userBlockedIdx: uniqueIndex('user_blocks_user_blocked_idx').on(t.userId, t.blockedId),
+}))
 
 export const accounts = pgTable('accounts', {
   id: text('id').primaryKey(),

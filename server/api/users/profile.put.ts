@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
   if (body.avatarUrl !== undefined) updates.avatarUrl = body.avatarUrl
   if (body.bannerUrl !== undefined) updates.bannerUrl = body.bannerUrl
   if (body.isPrivate !== undefined) updates.isPrivate = !!body.isPrivate
+  if (body.statusMessage !== undefined) updates.statusMessage = body.statusMessage
   updates.updatedAt = new Date()
 
   const [updated] = await db.update(schema.users)

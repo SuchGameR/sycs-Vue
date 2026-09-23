@@ -371,6 +371,16 @@ async function initDbInternal() {
     await client.query(`CREATE INDEX IF NOT EXISTS playlists_user_idx ON playlists(user_id)`)
     // Badges & private accounts
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status_message TEXT DEFAULT ''`)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_blocks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        blocked_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS user_blocks_user_blocked_idx ON user_blocks(user_id, blocked_id)`)
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_badges (
         id TEXT PRIMARY KEY,

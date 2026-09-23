@@ -33,11 +33,12 @@ function isReadingActivity() {
   const p = window.location.pathname
   return p.startsWith('/actions') || p.startsWith('/notifications')
 }
-function isReadingDm(channelId?: string | null) {
-  const p = window.location.pathname
-  if (p === '/dm') return true
-  if (channelId && p === `/dm/${channelId}`) return true
-  return false
+function isChannelOpen(channelId?: string | null) {
+  if (!channelId) return false
+  return window.location.pathname === `/dm/${channelId}`
+}
+function onDmIndex() {
+  return window.location.pathname === '/dm'
 }
 
 function playChime() {
@@ -97,7 +98,7 @@ function seed() {
         if (!lm) continue
         const ts = new Date(lm.createdAt).getTime()
         const lastRead = Number(dmLast[ch.id] || 0)
-        if (lm.sender?.id && lm.sender.id !== myId && ts > lastRead && !isReadingDm(ch.id)) unread.add(ch.id)
+        if (lm.sender?.id && lm.sender.id !== myId && ts > lastRead && !isChannelOpen(ch.id)) unread.add(ch.id)
         if (!best || ts > best.ts) best = { ts, sender: lm.sender }
       }
       dmUnreadChannels.value = unread
@@ -145,7 +146,11 @@ async function init() {
   on('dm.message', (p: any) => {
     if (!myId || p.message?.sender?.id === myId) return
     setLatest(p.message.sender)
-    if (isReadingDm(p.channelId)) return
+    if (isChannelOpen(p.channelId)) {
+      // The conversation is on screen, treat it as read immediately.
+      markDmRead(p.channelId)
+      return
+    }
     addDmUnread(p.channelId)
     playChime()
   })
@@ -165,6 +170,11 @@ function markDmRead(ids: string | string[]) {
   const dmLast = readDmLast()
   const now = Date.now()
   for (const id of list) {
+    if (id === 'all') {
+      for (const key of Object.keys(dmLast)) dmLast[key] = String(now)
+      dmUnreadChannels.value.clear()
+      continue
+    }
     dmLast[id] = String(now)
     dmUnreadChannels.value.delete(id)
   }
@@ -172,6 +182,13 @@ function markDmRead(ids: string | string[]) {
   dmUnread.value = dmUnreadChannels.value.size
 }
 
+function hasDmUnread(channelId: string): boolean {
+  return !!dmUnreadChannels.value.has(channelId)
+}
+
 export function useUnread() {
-  return { init, activityUnread, dmUnread, dmLatest, markActivityRead, markDmRead }
+  return {
+    init, activityUnread, dmUnread, dmLatest, dmUnreadChannels, hasDmUnread,
+    markActivityRead, markDmRead,
+  }
 }

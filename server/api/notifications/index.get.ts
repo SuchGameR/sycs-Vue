@@ -64,9 +64,6 @@ export default defineEventHandler(async (event) => {
       limit: cap,
     }),
   ])
-  followRows.push(...fls)
-  friendRows.push(...frs)
-
   for (const r of repostRows) items.push({ id: 'repost-' + r.id, type: 'repost', actorId: r.userId, postId: r.postId, createdAt: r.createdAt })
   for (const r of commentRows) items.push({ id: 'comment-' + r.id, type: 'comment', actorId: r.userId, postId: r.postId, content: r.content, createdAt: r.createdAt })
   for (const r of reactionRows) items.push({ id: 'reaction-' + r.id, type: 'reaction', actorId: r.userId, postId: r.postId, emoji: r.emoji, createdAt: r.createdAt })
