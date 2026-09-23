@@ -82,5 +82,6 @@ onUnmounted(() => {
     <VoiceCallDock />
     <WorkbenchFooter />
     <AddToPlaylistModal />
+    <QuoteComposerModal />
   </div>
 </template>

@@ -43,6 +43,7 @@ export const posts = pgTable('posts', {
   visibleTo: text('visible_to').default('[]'),
   serverId: text('server_id'),
   channelId: text('channel_id'),
+  quotedPostId: text('quoted_post_id'),
   likeCount: integer('like_count').default(0),
   repostCount: integer('repost_count').default(0),
   viewCount: integer('view_count').default(0),

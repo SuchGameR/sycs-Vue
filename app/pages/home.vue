@@ -148,10 +148,8 @@ function createFromSheet(content: string, attachments?: Array<any>, visibility?:
 }
 
 function openMedia(post: any) {
-  const isMobile = import.meta.client && window.innerWidth < 1024
   const label = timelines.activeTab.value.label
-  if (isMobile) mediaPane.openMobileFull(post, label)
-  else mediaPane.openPost(post, label)
+  mediaPane.openSmart(post, label)
 }
 
 async function toggleRepost(postId: string) {

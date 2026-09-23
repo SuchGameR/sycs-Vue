@@ -378,6 +378,7 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
       // Video track (camera)
       remoteStreams.value = { ...remoteStreams.value, [uid]: ms }
     }
+  }
   // Polite/impolite negotiation: both sides may offer (needed for camera/screen
   // tracks to be added by either side); glare is resolved by polite (lower id) rolling back.
   pc.onnegotiationneeded = () => {

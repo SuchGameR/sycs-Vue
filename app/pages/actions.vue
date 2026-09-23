@@ -96,9 +96,7 @@ onUnmounted(() => offs.forEach(off => off()))
 /* Open thread / media */
 function openPost(post: any) {
   if (!post) return
-  const isMobile = import.meta.client && window.innerWidth < 1024
-  if (isMobile) mediaPane.openMobileFull(post, 'アクティビティ')
-  else mediaPane.openPost(post, 'アクティビティ')
+  mediaPane.openSmart(post, 'アクティビティ')
 }
 
 function openNotification(n: any) {

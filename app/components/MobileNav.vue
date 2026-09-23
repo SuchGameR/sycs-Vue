@@ -28,6 +28,12 @@ const showServers = ref(false)
       <span class="text-[10px] font-bold">{{ item.label }}</span>
     </NuxtLink>
 
+    <NuxtLink to="/search" class="flex flex-col items-center gap-1 text-slate-500 px-2"
+      :class="route.path === '/search' ? 'text-indigo-400' : ''">
+      <Icon name="lucide:search" class="w-6 h-6" />
+      <span class="text-[10px] font-bold">検索</span>
+    </NuxtLink>
+
     <button @click="showServers = true" class="flex flex-col items-center gap-1 text-slate-500 px-2">
       <Icon name="lucide:server" class="w-6 h-6" />
       <span class="text-[10px] font-bold">サーバー</span>

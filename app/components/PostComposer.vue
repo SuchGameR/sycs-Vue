@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import ModelViewer from './media/ModelViewer.vue'
 
+const { map: customEmojiMap } = useCustomEmojis()
+const me = useState<any>('current-user', () => null)
+
 const props = defineProps<{
   mediaKind?: 'any' | 'video' | 'image' | 'audio' | 'model' | 'file'
   placeholder?: string
+  quotedPost?: any
 }>()
 
 const emit = defineEmits<{
-  submit: [content: string, attachments?: Array<any>, visibility?: string, visibleTo?: string[]]
+  submit: [content: string, attachments?: Array<any>, visibility?: string, visibleTo?: string[], quotedPost?: any]
 }>()
 
 const content = ref('')
@@ -144,7 +148,7 @@ function removeFile(index: number) {
 }
 
 async function handleSubmit() {
-  if (!content.value.trim() && !pendingFiles.value.length) return
+  if (!content.value.trim() && !pendingFiles.value.length && !props.quotedPost) return
   uploading.value = true
   try {
     let attachments: Array<any> | undefined
@@ -161,7 +165,7 @@ async function handleSubmit() {
         mime: pendingFiles.value[i]?.mime || f.type || 'image/png',
       }))
     }
-    emit('submit', content.value, attachments, visibility.value, visibleTo.value.length ? visibleTo.value : undefined)
+    emit('submit', content.value, attachments, visibility.value, visibleTo.value.length ? visibleTo.value : undefined, props.quotedPost)
     content.value = ''
     for (const f of pendingFiles.value) { if (f.preview) URL.revokeObjectURL(f.preview) }
     pendingFiles.value = []
@@ -169,6 +173,8 @@ async function handleSubmit() {
     visibleTo.value = []
   } finally { uploading.value = false }
 }
+
+const previewVisible = computed(() => !!content.value.trim() || pendingFiles.value.length > 0)
 
 function activeFile() {
   return activePreview.value !== null ? pendingFiles.value[activePreview.value] : null
@@ -199,6 +205,38 @@ function fileIcon(mime: string) {
       <EmojiTextarea v-model="content" :rows="2" auto-resize
         textarea-class="w-full bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 resize-none text-sm leading-5"
         :placeholder="placeholder || 'なにかあった？'" />
+
+      <QuotedPostCard v-if="quotedPost" :post="quotedPost" class="mt-1" />
+
+      <!-- Live post preview while composing -->
+      <div v-if="previewVisible" class="mt-2 rounded-xl border border-dashed border-slate-700 bg-slate-900/40 p-3">
+        <p class="text-[11px] text-slate-500 mb-2 flex items-center gap-1">
+          <Icon name="lucide:eye" class="w-3 h-3" /> プレビュー
+        </p>
+        <div class="flex gap-3">
+          <img v-if="me?.avatarUrl" :src="me.avatarUrl" class="w-9 h-9 rounded-full object-cover shrink-0" />
+          <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+            <Icon name="lucide:user" class="w-4 h-4" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white text-sm truncate">{{ me?.displayName || 'あなた' }}</span>
+              <span class="text-slate-500 text-xs shrink-0">@{{ me?.username || '' }} · たった今</span>
+            </div>
+            <p v-if="content.trim()" class="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap break-words"
+              v-html="renderRichText(content, { custom: customEmojiMap })" />
+            <div v-if="pendingFiles.length" class="flex flex-wrap gap-1.5 mt-1">
+              <img v-for="f in pendingFiles.filter((x: any) => x.type === 'image')" :key="f.preview"
+                :src="f.preview" class="w-16 h-16 rounded-lg object-cover" />
+              <span v-if="pendingFiles.some((x: any) => x.type !== 'image')" class="flex items-center gap-1 text-xs text-slate-500 px-2 py-1 rounded-lg bg-slate-800/60">
+                <Icon :name="fileIcon(pendingFiles.find((x: any) => x.type !== 'image')!.mime)" class="w-3.5 h-3.5" />
+                {{ pendingFiles.filter((x: any) => x.type !== 'image').length }} ファイル
+              </span>
+            </div>
+            <QuotedPostCard v-if="quotedPost" :post="quotedPost" class="mt-1" />
+          </div>
+        </div>
+      </div>
 
       <!-- File previews (clickable) -->
       <div v-if="pendingFiles.length" class="flex flex-wrap gap-2">
@@ -291,7 +329,7 @@ function fileIcon(mime: string) {
         </div>
 
         <button @click="handleSubmit"
-          :disabled="(!content.trim() && !pendingFiles.length) || uploading"
+          :disabled="(!content.trim() && !pendingFiles.length && !quotedPost) || uploading"
           class="px-5 py-1.5 rounded-full bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
           <Icon v-if="uploading" name="lucide:loader-2" class="w-3.5 h-3.5 animate-spin" />
           {{ uploading ? 'アップロード中...' : 'ポストする' }}

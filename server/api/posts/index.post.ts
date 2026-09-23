@@ -14,7 +14,7 @@ const IMAGE_EXTENSIONS = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
   const body = await readBody(event)
-  if (!body.content?.trim() && !body.attachments?.length) {
+  if (!body.content?.trim() && !body.attachments?.length && !body.quotedPostId) {
     throw createError({ statusCode: 400, message: '本文またはファイルを入力してください' })
   }
 
@@ -42,6 +42,7 @@ export default defineEventHandler(async (event) => {
     imageUrl: body.imageUrl || null,
     visibility: body.visibility || 'public',
     visibleTo: body.visibleTo ? JSON.stringify(body.visibleTo) : '[]',
+    quotedPostId: body.quotedPostId ? String(body.quotedPostId) : null,
     serverId,
     channelId,
   }).returning()

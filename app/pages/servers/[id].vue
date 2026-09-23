@@ -173,11 +173,14 @@ async function submitPost(content: string, attachments?: any[], visibility?: str
 }
 
 function openMedia(post: any) {
-  const isMobile = import.meta.client && window.innerWidth < 1024
-  if (isMobile && mediaKindOf(post) !== 'text') {
-    mediaPane.openMobileFull(post, activeChannel.value?.name ? `#${activeChannel.value.name}` : server.value?.name)
+  const label = activeChannel.value?.name ? `#${activeChannel.value.name}` : server.value?.name
+  if (import.meta.client && window.innerWidth < 1024 && mediaKindOf(post) !== 'text') {
+    mediaPane.openMobileFull(post, label)
+  } else if (import.meta.client && window.innerWidth >= 1024) {
+    mediaPane.openPost(post, label)
   } else {
-    mediaPane.openPost(post, activeChannel.value?.name ? `#${activeChannel.value.name}` : server.value?.name)
+    // Mobile plain-text thread: keep the fullscreen sheet for comments.
+    mediaPane.openSmart(post, label)
   }
 }
 

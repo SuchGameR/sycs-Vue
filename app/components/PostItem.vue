@@ -15,6 +15,16 @@ const props = defineProps<{
     bookmarked?: boolean
     attachments?: Array<any>
     reactions?: Array<{ emoji: string; count: number; mine: boolean; users?: any[] }>
+    boostedBy?: {
+      user: {
+        id: string
+        username: string
+        displayName: string
+        avatarUrl?: string
+      } | null
+      repostedAt?: string
+    }
+    quotedPost?: any
     user: {
       id: string
       username: string
@@ -29,12 +39,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggleRepost: [postId: string]
   toggleBookmark: [postId: string]
+  quotePost: [post: any]
   delete: [postId: string]
   report: [postId: string]
   openMedia: [post: any]
 }>()
 
 const showMenu = ref(false)
+const showRepostMenu = ref(false)
 const rootEl = ref<HTMLElement | null>(null)
 const { observe, unobserve } = useViewTracker()
 const { openAdd: openAddToPlaylist } = usePlaylists()
@@ -43,6 +55,7 @@ onMounted(() => observe(rootEl.value, props.post.id, (count) => { props.post.vie
 onUnmounted(() => unobserve(rootEl.value))
 
 const me = useState<any>('current-user', () => null)
+const quote = useQuoteComposer()
 const myId = computed(() => props.currentUserId || me.value?.id)
 
 async function ensureMe() {
@@ -118,6 +131,18 @@ onMounted(ensureMe)
     class="py-4 px-3 border-b border-slate-800 last:border-b-0 hover:bg-slate-800/30 transition"
     @click.self="openThread"
   >
+    <div v-if="post.boostedBy" class="flex items-center gap-1.5 mb-1 text-sm text-green-400">
+      <Icon name="lucide:repeat-2" class="w-3.5 h-3.5" />
+      <NuxtLink :to="`/profile/@${post.boostedBy.user?.username || ''}`" class="hover:underline truncate">
+        <span v-if="post.boostedBy.user" class="flex items-center gap-1">
+          <img v-if="post.boostedBy.user.avatarUrl" :src="post.boostedBy.user.avatarUrl"
+            class="w-4 h-4 rounded-full object-cover" />
+          <span class="font-bold">{{ post.boostedBy.user.displayName }}</span>
+        </span>
+      </NuxtLink>
+      <span class="text-slate-500 text-xs">がリポスト · {{ timeAgo(post.boostedBy.repostedAt || post.createdAt) }}</span>
+    </div>
+
     <div class="flex gap-3" @click.self="openThread">
       <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
         <img v-if="post.user.avatarUrl" :src="post.user.avatarUrl" class="w-10 h-10 rounded-full object-cover" />
@@ -173,13 +198,34 @@ onMounted(ensureMe)
         <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" :post-id="post.id"
           interactive image-lightbox @open="openMedia" />
 
+        <QuotedPostCard v-if="post.quotedPost" :post="post.quotedPost" class="mt-2" @open="emit('openMedia', post.quotedPost)" />
+
         <div class="flex items-center gap-4 mt-3 text-slate-500">
-          <button @click.stop="emit('toggleRepost', post.id)"
-            class="flex items-center gap-1.5 transition text-sm"
-            :class="post.reposted ? 'text-green-400' : 'hover:text-green-400'">
-            <Icon name="lucide:repeat-2" class="w-4 h-4" />
-            <span>{{ post.repostCount || 0 }}</span>
-          </button>
+          <div class="relative">
+            <button @click.stop="showRepostMenu = !showRepostMenu"
+              class="flex items-center gap-1.5 transition text-sm"
+              :class="post.reposted ? 'text-green-400' : 'hover:text-green-400'">
+              <Icon name="lucide:repeat-2" class="w-4 h-4" />
+              <span>{{ post.repostCount || 0 }}</span>
+            </button>
+            <div v-if="showRepostMenu" class="fixed inset-0 z-40" @click="showRepostMenu = false" />
+            <Transition name="menu-pop">
+              <div v-if="showRepostMenu"
+                class="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-44">
+                <button @click.stop="emit('toggleRepost', post.id); showRepostMenu = false"
+                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition"
+                  :class="post.reposted ? 'text-green-400' : 'text-slate-300 hover:text-white hover:bg-slate-800/30'">
+                  <Icon name="lucide:repeat-2" class="w-4 h-4" />
+                  {{ post.reposted ? 'リポストを取り消し' : 'リポスト' }}
+                </button>
+                <button @click.stop="quote.openQuote(post); showRepostMenu = false"
+                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/30 transition">
+                  <Icon name="lucide:message-square-quote" class="w-4 h-4" />
+                  引用リポスト
+                </button>
+              </div>
+            </Transition>
+          </div>
 
           <button @click.stop="openThread" class="flex items-center gap-1.5 transition text-sm hover:text-indigo-400">
             <Icon name="lucide:message-circle" class="w-4 h-4" />

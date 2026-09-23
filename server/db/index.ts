@@ -270,6 +270,13 @@ async function initDbInternal() {
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'public'`)
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS visible_to TEXT DEFAULT '[]'`)
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0`)
+    await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS quoted_post_id TEXT`)
+    await client.query(`CREATE INDEX IF NOT EXISTS posts_quoted_post_idx ON posts(quoted_post_id)`)
+    // Feed pagination indexes (keyset: created_at + id)
+    await client.query(`CREATE INDEX IF NOT EXISTS posts_created_id_idx ON posts(created_at DESC, id DESC)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS posts_user_created_idx ON posts(user_id, created_at DESC)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS reposts_created_id_idx ON reposts(created_at DESC, id DESC)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS reposts_user_created_idx ON reposts(user_id, created_at DESC)`)
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS settings TEXT DEFAULT '{}'`)
     await client.query(`
       CREATE TABLE IF NOT EXISTS bookmarks (
@@ -361,6 +368,23 @@ async function initDbInternal() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE`)
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_badges (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL DEFAULT 'icon',
+        value TEXT NOT NULL,
+        label TEXT,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS user_badges_user_idx ON user_badges(user_id)`)
+    // Full-text search indexes (pg_trgm): fast substring/prefix matching on
+    // usernames, display names, post content and server names.
+    await client.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`)
+    await client.query(`CREATE INDEX IF NOT EXISTS users_username_trgm_idx ON users USING GIN (username gin_trgm_ops)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS users_display_name_trgm_idx ON users USING GIN (display_name gin_trgm_ops)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS posts_content_trgm_idx ON posts USING GIN (content gin_trgm_ops)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS servers_name_trgm_idx ON servers USING GIN (name gin_trgm_ops)`)
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         kind TEXT NOT NULL DEFAULT 'icon',

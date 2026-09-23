@@ -10,7 +10,7 @@ export interface ReactionSummary {
   users: Array<{ id: string; username: string; displayName: string }>
 }
 
-export async function serializePosts(posts: any[], currentUser: any | null) {
+export async function serializePosts(posts: any[], currentUser: any | null, resolving = new Set<string>()) {
   const postIds = posts.map(p => p.id)
   if (!postIds.length) return []
 
@@ -80,7 +80,7 @@ export async function serializePosts(posts: any[], currentUser: any | null) {
     group.set(r.emoji, existing)
   }
 
-  return posts.map(p => ({
+  const serialized = posts.map(p => ({
     ...p,
     user: postUserMap[p.userId] || null,
     attachments: attachMap[p.id] || [],
@@ -89,5 +89,22 @@ export async function serializePosts(posts: any[], currentUser: any | null) {
     bookmarked: userBookmarks.has(p.id),
     commentCount: commentCount.get(p.id) || 0,
     reactions: reactionMap[p.id] ? [...reactionMap[p.id].values()] : [],
+  }))
+
+  // Resolve quote posts recursively (attach `quotedPost` to the serialized post).
+  const seen = new Set<string>([...resolving, ...postIds])
+  const quoteIds = [...new Set(posts.map(p => p.quotedPostId).filter((id): id is string => !!id && !seen.has(id)))]
+  const quotedMap = new Map<string, any>()
+  if (quoteIds.length) {
+    const quotedRows = await db.query.posts.findMany({ where: inArray(schema.posts.id, quoteIds) })
+    if (quotedRows.length) {
+      const quotedSerialized = await serializePosts(quotedRows, currentUser, seen)
+      for (const q of quotedSerialized) quotedMap.set(q.id, q)
+    }
+  }
+
+  return serialized.map(p => ({
+    ...p,
+    quotedPost: p.quotedPostId ? (quotedMap.get(p.quotedPostId) || null) : null,
   }))
 }

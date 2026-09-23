@@ -27,9 +27,7 @@ async function load() {
 onMounted(load)
 
 function open(post: any) {
-  const isMobile = import.meta.client && window.innerWidth < 1024
-  if (isMobile) mediaPane.openMobileFull(post, playlist.value?.name || 'プレイリスト')
-  else mediaPane.openPost(post, playlist.value?.name || 'プレイリスト')
+  mediaPane.openSmart(post, playlist.value?.name || 'プレイリスト')
 }
 
 function coverOf(post: any) {

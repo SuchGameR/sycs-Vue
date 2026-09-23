@@ -121,7 +121,11 @@ function timeAgo(date: string) {
       >
         <!-- header -->
         <div class="h-12 px-4 flex items-center gap-2 border-b border-slate-800 shrink-0">
-          <Icon :name="kindIcon" class="w-4 h-4 text-indigo-400 shrink-0" />
+          <button @click="pane.close()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1 text-xs" title="戻る">
+            <Icon name="lucide:chevron-left" class="w-4 h-4" />
+            <span class="hidden min-[1300px]:inline">戻る</span>
+          </button>
+          <Icon :name="kindIcon" class="w-4 h-4 text-indigo-400 shrink-0 ml-1" />
           <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ kindLabel }}</span>
           <span v-if="sourceLabel" class="text-[11px] text-slate-600 truncate">· {{ sourceLabel }}</span>
           <button @click="pane.close()" class="ml-auto p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition" title="閉じる">

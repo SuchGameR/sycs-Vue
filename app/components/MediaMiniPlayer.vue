@@ -55,6 +55,39 @@ watch(mobileFull, (v) => {
   if (import.meta.client) document.body.style.overflow = v ? 'hidden' : ''
 })
 onUnmounted(() => { if (import.meta.client) document.body.style.overflow = '' })
+
+const { mediaOpenMode } = useAppPreferences()
+const isSheet = computed(() => mediaOpenMode.value === 'sheet')
+
+// Drag-to-close on the sheet handle
+const dragY = ref(0)
+const dragStartY = ref(0)
+const dragging = ref(false)
+const sheetStyle = computed(() => {
+  if (!dragging.value || dragY.value <= 0) return {}
+  return { transform: `translateY(${dragY.value}px)`, transition: 'none' }
+})
+function onSheetDown(e: PointerEvent) {
+  if (!isSheet.value) return
+  dragging.value = true
+  dragStartY.value = e.clientY
+  dragY.value = 0
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+}
+function onSheetMove(e: PointerEvent) {
+  if (!dragging.value) return
+  dragY.value = Math.max(0, e.clientY - dragStartY.value)
+}
+function onSheetUp() {
+  if (!dragging.value) return
+  dragging.value = false
+  if (dragY.value > 90) {
+    dragY.value = 0
+    pane.minimizeMobile()
+  } else {
+    dragY.value = 0
+  }
+}
 </script>
 
 <template>
@@ -81,18 +114,35 @@ onUnmounted(() => { if (import.meta.client) document.body.style.overflow = '' })
       </div>
     </Transition>
 
-    <!-- Fullscreen detail -->
+    <!-- Fullscreen / action sheet detail -->
     <Transition name="sheet">
-      <div v-if="selected && mobileFull" class="fixed inset-0 z-[120] bg-[#0b0f19] flex flex-col">
-        <div class="h-12 px-2 flex items-center gap-2 border-b border-slate-800 shrink-0">
-          <button class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" @click="pane.minimizeMobile()" title="戻る">
-            <Icon name="lucide:chevron-down" class="w-5 h-5" />
-          </button>
-          <span class="text-sm font-bold text-white truncate flex-1">{{ selected.user?.displayName || 'メディア' }}</span>
-          <button class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" @click="pane.closeMobile()" title="閉じる">
-            <Icon name="lucide:x" class="w-5 h-5" />
-          </button>
-        </div>
+      <div v-if="selected && mobileFull" class="fixed inset-0 z-[120] flex flex-col justify-end">
+        <div v-if="isSheet" class="absolute inset-0 bg-black/60" @click="pane.minimizeMobile()" />
+
+        <div
+          class="relative flex flex-col bg-[#0b0f19] overflow-hidden"
+          :class="isSheet ? 'rounded-t-3xl border-t border-slate-700 shadow-2xl max-h-[92vh]' : 'inset-0 h-full'"
+          :style="isSheet ? { height: '92vh', ...sheetStyle } : {}"
+        >
+          <!-- Grab handle (action sheet) -->
+          <div
+            v-if="isSheet"
+            class="shrink-0 flex flex-col items-center pt-2 pb-1 cursor-grab active:cursor-grabbing select-none touch-none"
+            @pointerdown="onSheetDown" @pointermove="onSheetMove" @pointerup="onSheetUp" @pointercancel="onSheetUp"
+          >
+            <div class="w-10 h-1 rounded-full bg-slate-700" />
+            <span class="text-[10px] text-slate-600 mt-1">下にドラッグして戻る</span>
+          </div>
+
+          <div class="h-12 px-2 flex items-center gap-2 border-b border-slate-800 shrink-0">
+            <button class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" @click="pane.minimizeMobile()" title="戻る">
+              <Icon :name="isSheet ? 'lucide:chevrons-down' : 'lucide:chevron-down'" class="w-5 h-5" />
+            </button>
+            <span class="text-sm font-bold text-white truncate flex-1">{{ selected.user?.displayName || 'メディア' }}</span>
+            <button class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" @click="pane.closeMobile()" title="閉じる">
+              <Icon name="lucide:x" class="w-5 h-5" />
+            </button>
+          </div>
 
         <div class="flex-1 overflow-y-auto min-h-0">
           <div class="px-3 pt-3">

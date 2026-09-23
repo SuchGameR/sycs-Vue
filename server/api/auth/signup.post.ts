@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { db, initDb } from '../../db'
 import * as schema from '../../db/schema'
 import { eq } from 'drizzle-orm'
-import { hashPassword, createSession, setAuthCookie } from '../../utils/auth'
+import { hashPassword, createSession, setAuthCookie, setClientTokenCookie } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   await initDb()

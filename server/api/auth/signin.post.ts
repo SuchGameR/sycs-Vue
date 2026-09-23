@@ -1,7 +1,7 @@
 import { db, initDb } from '../../db'
 import * as schema from '../../db/schema'
 import { eq, or } from 'drizzle-orm'
-import { verifyPassword, createSession, setAuthCookie } from '../../utils/auth'
+import { verifyPassword, createSession, setAuthCookie, setClientTokenCookie } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   await initDb()
@@ -31,6 +31,7 @@ export default defineEventHandler(async (event) => {
 
   const { token } = await createSession(user.id, rememberMe)
   setAuthCookie(event, token, rememberMe)
+  setClientTokenCookie(event, token, rememberMe)
 
   return {
     user: {
@@ -41,5 +42,6 @@ export default defineEventHandler(async (event) => {
       avatarUrl: user.avatarUrl,
       bio: user.bio,
     },
+    token,
   }
 })

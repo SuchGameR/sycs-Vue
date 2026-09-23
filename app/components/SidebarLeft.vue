@@ -32,6 +32,11 @@ async function handleSignout() {
       <Icon name="lucide:bell" class="w-5 h-5 shrink-0" />
       <span class="text-sm truncate">アクティビティ</span>
     </NuxtLink>
+    <NuxtLink to="/search" class="px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100"
+      :class="route.path === '/search' ? 'bg-slate-800/50 text-white font-medium' : ''">
+      <Icon name="lucide:search" class="w-5 h-5 shrink-0" />
+      <span class="text-sm truncate">検索</span>
+    </NuxtLink>
 
     <div v-if="servers.length" class="mt-6">
       <div class="px-2 mb-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">サーバー</div>

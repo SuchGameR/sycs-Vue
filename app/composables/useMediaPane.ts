@@ -52,6 +52,30 @@ export function useMediaPane() {
     mobileMinimized.value = false
   }
 
+  /**
+   * Device-aware open. Desktop always uses the side pane; on mobile the
+   * configured presentation (action sheet / full page / mini player) decides.
+   */
+  function openSmart(post: any, label = '') {
+    if (!post) return
+    const isMobile = import.meta.client && window.innerWidth < 1024
+    if (!isMobile) {
+      openPost(post, label)
+      return
+    }
+    const { mediaOpenMode } = useAppPreferences()
+    if (mediaOpenMode.value === 'mini') {
+      // Dock only: keep it compact, don't auto-expand.
+      if (selected.value?.id === post.id) { minimizeMobile(); return }
+      selected.value = post
+      sourceLabel.value = label
+      mobileFull.value = false
+      mobileMinimized.value = false
+      return
+    }
+    openMobileFull(post, label)
+  }
+
   function togglePost(post: any, label = '') {
     openPost(post, label)
   }
@@ -96,7 +120,7 @@ export function useMediaPane() {
   return {
     selected, sourceLabel, width, mobileFull, mobileMinimized,
     isOpen, kind,
-    openPost, togglePost, close, setWidth,
+    openPost, openSmart, togglePost, close, setWidth,
     openMobileFull, minimizeMobile, closeMobile, updatePost,
   }
 }

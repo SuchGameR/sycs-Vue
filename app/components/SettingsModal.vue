@@ -33,6 +33,7 @@ const categories = [
   { key: "links", label: "リンク", icon: "lucide:link" },
   { key: "posts", label: "投稿設定", icon: "lucide:edit-3" },
   { key: "timeline", label: "タイムライン", icon: "lucide:layout" },
+  { key: "media", label: "メディア表示", icon: "lucide:monitor-play" },
   { key: "appearance", label: "外観", icon: "lucide:palette" },
   { key: "privacy", label: "プライバシー", icon: "lucide:shield" },
   { key: "notifications", label: "通知", icon: "lucide:bell" },
@@ -43,6 +44,8 @@ const buttonOrder = ref<string[]>(
 );
 const showViewCount = ref(s.value.showViewCount ?? true);
 const refreshMode = ref(s.value.refreshMode || "auto");
+const mediaOpenMode = ref(s.value.mediaOpenMode || "sheet");
+const { setMediaOpenMode } = useAppPreferences();
 
 const allButtons = [
   { key: "like", label: "いいね", icon: "lucide:heart" },
@@ -222,6 +225,7 @@ async function save() {
         postButtonOrder: buttonOrder.value,
         showViewCount: showViewCount.value,
         refreshMode: refreshMode.value,
+        mediaOpenMode: mediaOpenMode.value,
         birthday: birthday.value,
         birthplace: birthplace.value,
         theme: theme.value,
@@ -231,6 +235,7 @@ async function save() {
         website: website.value,
       },
     });
+    setMediaOpenMode(mediaOpenMode.value);
     message.value = "保存しました";
     await refreshUser();
     await refreshNuxtData();
@@ -526,6 +531,76 @@ async function save() {
                   <p class="text-xs text-slate-500">更新ボタンを押したときのみ更新</p>
                 </div>
               </label>
+            </div>
+          </div>
+
+          <div v-if="activeCategory === 'media'" class="space-y-4">
+            <div>
+              <label class="block text-sm text-slate-400 mb-2">スマホでの投稿の開き方</label>
+              <p class="text-xs text-slate-600 mb-3">
+                投稿や動画・画像をタップしたときの表示方法
+              </p>
+              <div class="space-y-2">
+                <label
+                  class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition"
+                  :class="
+                    mediaOpenMode === 'sheet'
+                      ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
+                      : 'bg-slate-800/30 hover:bg-slate-800/50'
+                  "
+                >
+                  <input type="radio" v-model="mediaOpenMode" value="sheet" class="sr-only" />
+                  <Icon
+                    name="lucide:panel-bottom-open"
+                    class="w-5 h-5 shrink-0"
+                    :class="mediaOpenMode === 'sheet' ? 'text-indigo-400' : 'text-slate-600'"
+                  />
+                  <div>
+                    <p class="text-sm font-medium text-white">アクションシート</p>
+                    <p class="text-xs text-slate-500">
+                      下から開き、ドラッグで戻れる使いやすいシート
+                    </p>
+                  </div>
+                </label>
+                <label
+                  class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition"
+                  :class="
+                    mediaOpenMode === 'page'
+                      ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
+                      : 'bg-slate-800/30 hover:bg-slate-800/50'
+                  "
+                >
+                  <input type="radio" v-model="mediaOpenMode" value="page" class="sr-only" />
+                  <Icon
+                    name="lucide:maximize-2"
+                    class="w-5 h-5 shrink-0"
+                    :class="mediaOpenMode === 'page' ? 'text-indigo-400' : 'text-slate-600'"
+                  />
+                  <div>
+                    <p class="text-sm font-medium text-white">ページ切り替え</p>
+                    <p class="text-xs text-slate-500">全画面で表示</p>
+                  </div>
+                </label>
+                <label
+                  class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition"
+                  :class="
+                    mediaOpenMode === 'mini'
+                      ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
+                      : 'bg-slate-800/30 hover:bg-slate-800/50'
+                  "
+                >
+                  <input type="radio" v-model="mediaOpenMode" value="mini" class="sr-only" />
+                  <Icon
+                    name="lucide:minimize-2"
+                    class="w-5 h-5 shrink-0"
+                    :class="mediaOpenMode === 'mini' ? 'text-indigo-400' : 'text-slate-600'"
+                  />
+                  <div>
+                    <p class="text-sm font-medium text-white">ミニプレイヤー</p>
+                    <p class="text-xs text-slate-500">下の小さなバーにのみ表示</p>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
 

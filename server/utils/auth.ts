@@ -63,6 +63,24 @@ export function setAuthCookie(event: any, token: string, rememberMe = false) {
   })
 }
 
+/**
+ * Mirror of the httpOnly token in a cookie that client JS can read, used only
+ * to capture new logins for the account switcher. Short-lived & non-httpOnly.
+ */
+export function setClientTokenCookie(event: any, token: string, rememberMe = false) {
+  setCookie(event, 'sycs_client_token', token, {
+    httpOnly: false,
+    secure: cookieSecure(),
+    sameSite: 'lax',
+    path: '/',
+    maxAge: Math.min(LONG_SESSION_SECONDS, 60 * 60), // 1 hour: plenty to capture
+  })
+}
+
+export function clearClientTokenCookie(event: any) {
+  deleteCookie(event, 'sycs_client_token')
+}
+
 export function renewAuthCookie(event: any) {
   const token = getCookie(event, 'sycs_token')
   if (!token) return

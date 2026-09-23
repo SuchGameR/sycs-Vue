@@ -2,6 +2,7 @@ import { db } from '../../../db'
 import * as schema from '../../../db/schema'
 import { eq, desc, inArray, and } from 'drizzle-orm'
 import { getCurrentUser } from '../../../utils/auth'
+import { serializePosts } from '../../../utils/postQuery'
 import { enrichUsers, publicUser } from '../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
@@ -30,60 +31,52 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Merge the user's own posts with their simple reposts (rendered as boosts)
+  // so the profile shows both, ordered newest-first.
   const posts = await db.query.posts.findMany({
     where: eq(schema.posts.userId, id),
     limit, offset,
     orderBy: [desc(schema.posts.createdAt)],
   })
+  const reposts = await db.query.reposts.findMany({
+    where: eq(schema.reposts.userId, id),
+    limit, offset,
+    orderBy: [desc(schema.reposts.createdAt)],
+  })
 
-  const userIds = [...new Set(posts.map(p => p.userId))]
-  const users = userIds.length
-    ? await db.query.users.findMany({ where: inArray(schema.users.id, userIds) })
+  const repostedIds = [...new Set(reposts.map(r => r.postId))]
+  const repostedRows = repostedIds.length
+    ? await db.query.posts.findMany({ where: inArray(schema.posts.id, repostedIds) })
     : []
-  const extras = await enrichUsers(users)
-  const userMap = Object.fromEntries(users.map(u => [u.id, publicUser(u, extras[u.id])]))
+  const repostedMap = new Map(repostedRows.map(p => [p.id, p]))
 
-  const postIds = posts.map(p => p.id)
-  const attachments = postIds.length
-    ? await db.query.postAttachments.findMany({
-        where: inArray(schema.postAttachments.postId, postIds),
-        orderBy: [schema.postAttachments.position],
-      })
-    : []
-  const attachMap: Record<string, any[]> = {}
-  for (const a of attachments) {
-    if (!attachMap[a.postId]) attachMap[a.postId] = []
-    attachMap[a.postId].push(a)
+  const targetUser = await db.query.users.findFirst({ where: eq(schema.users.id, id!) })
+  const extras = targetUser ? await enrichUsers([targetUser]) : {}
+  const reposterPublic = targetUser ? publicUser(targetUser, extras[targetUser.id]) : null
+
+  const postItems = posts.map(p => ({ createdAt: p.createdAt, row: p }))
+  const boostItems = reposts
+    .filter(r => repostedMap.has(r.postId))
+    .map(r => ({
+      createdAt: r.createdAt,
+      row: {
+        ...repostedMap.get(r.postId)!,
+        boostedBy: { user: reposterPublic, repostedAt: r.createdAt },
+      },
+    }))
+
+  const merged: any[] = []
+  let i = 0
+  let j = 0
+  while (i < postItems.length || j < boostItems.length) {
+    if (j >= boostItems.length || (i < postItems.length && +postItems[i].createdAt >= +boostItems[j].createdAt)) {
+      merged.push(postItems[i]); i++
+    } else {
+      merged.push(boostItems[j]); j++
+    }
   }
+  const rows = merged.slice(0, limit)
 
-  let userLikes = new Set<string>()
-  let userReposts = new Set<string>()
-  let userBookmarks = new Set<string>()
-  if (currentUser && postIds.length) {
-    const likes = await db.query.likes.findMany({
-      where: and(eq(schema.likes.userId, currentUser.id), inArray(schema.likes.postId, postIds)),
-    })
-    likes.forEach(l => userLikes.add(l.postId))
-    const repsts = await db.query.reposts.findMany({
-      where: and(eq(schema.reposts.userId, currentUser.id), inArray(schema.reposts.postId, postIds)),
-    })
-    repsts.forEach(r => userReposts.add(r.postId))
-    const bms = await db.query.bookmarks.findMany({
-      where: and(eq(schema.bookmarks.userId, currentUser.id), inArray(schema.bookmarks.postId, postIds)),
-    })
-    bms.forEach(b => userBookmarks.add(b.postId))
-  }
-
-  const result = posts.map(p => ({
-    ...p,
-    likeCount: p.likeCount ?? 0,
-    repostCount: p.repostCount ?? 0,
-    user: userMap[p.userId] || null,
-    attachments: attachMap[p.id] || [],
-    liked: userLikes.has(p.id),
-    reposted: userReposts.has(p.id),
-    bookmarked: userBookmarks.has(p.id),
-  }))
-
-  return { posts: result, nextOffset: offset + posts.length, hasMore: posts.length === limit }
+  const result = await serializePosts(rows.map(r => r.row), currentUser)
+  return { posts: result, nextOffset: offset + rows.length, hasMore: rows.length === limit }
 })
