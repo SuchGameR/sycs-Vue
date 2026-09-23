@@ -9,6 +9,7 @@ const s = computed(() => JSON.parse(user.value?.settings || "{}"));
 
 const displayName = ref(user.value?.displayName || "");
 const bio = ref(user.value?.bio || "");
+const statusMessage = ref(user.value?.statusMessage || "");
 const avatarUrl = ref(user.value?.avatarUrl || "");
 const bannerUrl = ref(user.value?.bannerUrl || "");
 const isPrivate = ref(user.value?.isPrivate || false);
@@ -214,6 +215,7 @@ async function save() {
       body: {
         displayName: displayName.value,
         bio: bio.value,
+        statusMessage: statusMessage.value,
         avatarUrl: avatarUrl.value || null,
         bannerUrl: bannerUrl.value || null,
         isPrivate: isPrivate.value,
@@ -321,6 +323,9 @@ async function save() {
                 <p class="font-bold text-white">{{ displayName || "表示名" }}</p>
                 <p class="text-xs text-slate-500">@{{ user?.username }}</p>
                 <p v-if="bio" class="text-xs text-slate-400 mt-1">{{ bio }}</p>
+                <p v-if="statusMessage" class="text-[11px] text-emerald-400 mt-0.5 flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>{{ statusMessage }}
+                </p>
               </div>
             </div>
 
@@ -368,6 +373,19 @@ async function save() {
                 rows="3"
                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
               />
+            </div>
+            <div>
+              <label class="block text-sm text-slate-400 mb-1">ステータスメッセージ</label>
+              <div class="relative">
+                <input
+                  v-model="statusMessage"
+                  type="text"
+                  maxlength="80"
+                  placeholder="今なにしてる？（例: 作業中、ゲーム中）"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 pr-14 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-600 tabular-nums">{{ statusMessage.length }}/80</span>
+              </div>
             </div>
             <div v-if="user?.badges?.length || user?.title" class="p-3 bg-slate-800/30 rounded-lg">
               <p class="text-sm font-medium text-white mb-2">バッジ・称号</p>

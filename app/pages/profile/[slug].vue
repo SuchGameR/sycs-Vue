@@ -99,6 +99,8 @@ async function loadProfile() {
     }
     profile.value = data
     friendStatus.value = data.friendStatus || 'none'
+    blocked.value = !!data.blocked
+    blockedBy.value = !!data.blockedBy
     clearTimeout(timeout)
     if (!data.locked) await loadPosts(true)
   } catch {
@@ -201,11 +203,35 @@ async function acceptFriendRequest() {
 
 const startingDM = ref(false)
 async function startDM() {
-  if (startingDM.value) return
+  if (startingDM.value || blocked.value || blockedBy.value) return
   startingDM.value = true
   try { const data = await $fetch('/api/dm/channels', { method: 'POST', body: { participantId: resolvedId.value } }); await navigateTo(`/dm/${data.channel.id}`) }
   catch { alert('DMを作成できませんでした') }
   finally { startingDM.value = false }
+}
+
+const blocked = ref(false)
+const blockedBy = ref(false)
+const blockingBusy = ref(false)
+async function toggleBlock() {
+  if (blockingBusy.value) return
+  if (!blocked.value) {
+    if (!confirm(`${profile.value?.user?.displayName} さんをブロックしますか？ブロックするとこのユーザーからのDM・投稿のやり取りが制限されます。`)) return
+  }
+  blockingBusy.value = true
+  try {
+    if (blocked.value) {
+      await $fetch(`/api/users/${resolvedId.value}/block`, { method: 'DELETE' })
+      blocked.value = false
+    } else {
+      await $fetch(`/api/users/${resolvedId.value}/block`, { method: 'POST' })
+      blocked.value = true
+    }
+  } catch (e: any) {
+    alert(e?.data?.message || '操作できませんでした')
+  } finally {
+    blockingBusy.value = false
+  }
 }
 
 function timeAgo(date: string) {
@@ -261,6 +287,9 @@ async function toggleBookmark(postId: string) {
               </div>
               <p class="text-slate-500">@{{ profile.user.username }}</p>
               <p v-if="profile.user.bio" class="mt-2 text-slate-300 text-sm">{{ profile.user.bio }}</p>
+              <p v-if="profile.user.statusMessage" class="mt-1.5 text-[11px] text-emerald-400/90 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 inline-block"></span>{{ profile.user.statusMessage }}
+              </p>
               <div v-if="settings.website || settings.github || settings.twitter" class="flex flex-wrap gap-3 mt-2">
                 <a v-if="settings.website" :href="settings.website" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-400 transition"><Icon name="lucide:globe" class="w-3.5 h-3.5" /> {{ settings.website.replace(/^https?:\/\//, '').replace(/\/$/, '') }}</a>
                 <a v-if="settings.github" :href="`https://github.com/${settings.github}`" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-400 transition"><Icon name="lucide:github" class="w-3.5 h-3.5" /> {{ settings.github }}</a>
@@ -292,7 +321,15 @@ async function toggleBookmark(postId: string) {
                   <Icon :name="friendStatus === 'sent' ? 'lucide:check-check' : 'lucide:user-plus'" class="w-4 h-4" />
                   <span v-if="friendStatus === 'sent'" class="ml-1">{{ sentCountdown }}</span>
                 </button>
-                <button @click="startDM" class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition" title="DMを送る"><Icon name="lucide:message-square" class="w-4 h-4" /></button>
+                <button @click="startDM" :disabled="blocked || blockedBy || startingDM" class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed" title="DMを送る"><Icon name="lucide:message-square" class="w-4 h-4" /></button>
+                <button @click="toggleBlock" :disabled="blockingBusy"
+                  class="px-3 py-1.5 rounded-lg border text-sm transition disabled:opacity-50"
+                  :class="blocked ? 'border-red-700/60 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-slate-700 text-slate-400 hover:bg-slate-800'"
+                  :title="blocked ? 'ブロックを解除' : 'ブロック'">
+                  <Icon v-if="blockingBusy" name="lucide:loader-2" class="w-4 h-4 animate-spin" />
+                  <Icon v-else :name="blocked ? 'lucide:shield-check' : 'lucide:ban'" class="w-4 h-4" />
+                </button>
+                <span v-if="blockedBy" class="px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-500" title="このユーザーにブロックされています">ブロックされています</span>
               </template>
             </div>
           </div>

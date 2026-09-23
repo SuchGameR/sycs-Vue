@@ -1,8 +1,8 @@
 import { db } from '../../../../db'
 import * as schema from '../../../../db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, inArray } from 'drizzle-orm'
 import { requireAuth } from '../../../../utils/auth'
-import { publicUser } from '../../../../utils/userExtras'
+import { pickPublicSummary } from '../../../../utils/userExtras'
 import { getBlockRelation } from '../../../../utils/blocks'
 
 export default defineEventHandler(async (event) => {
@@ -26,14 +26,10 @@ export default defineEventHandler(async (event) => {
   if (!channel) throw createError({ statusCode: 404, message: 'チャンネルが見つかりません' })
 
   const memberUserIds = members.map(m => m.userId)
-  const memberUsers = await db.query.users.findMany({ where: (schema.users as any).id.in?.(memberUserIds) || { in: memberUserIds } } as any)
-    .catch(async () => {
-      const { inArray } = await import('drizzle-orm')
-      return db.query.users.findMany({
-        where: inArray(schema.users.id, memberUserIds),
-      })
-    })
-  const memberUserMap = Object.fromEntries(memberUsers.map(u => [u.id, u]))
+  const memberUsers = memberUserIds.length
+    ? await db.query.users.findMany({ where: inArray(schema.users.id, memberUserIds) })
+    : []
+  const memberUserMap = Object.fromEntries(memberUsers.map(u => [u.id, pickPublicSummary(u)]))
 
   const otherUser = members
     .map(m => memberUserMap[m.userId])
@@ -48,7 +44,7 @@ export default defineEventHandler(async (event) => {
       content: lastMessage.content,
       createdAt: lastMessage.createdAt,
       edited: !!lastMessage.edited,
-      sender: publicUser(sender),
+      sender: pickPublicSummary(sender),
     }
   }
 
@@ -58,7 +54,7 @@ export default defineEventHandler(async (event) => {
       createdAt: channel.createdAt,
       updatedAt: channel.updatedAt,
       members: memberUserMap,
-      otherUser: otherUser ? publicUser(otherUser) : null,
+      otherUser: otherUser,
       lastMessage: last,
       blocked: block.blocked,
       blockedBy: block.blockedBy,

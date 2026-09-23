@@ -3,6 +3,7 @@ import * as schema from '../../../db/schema'
 import { eq, and, count, or } from 'drizzle-orm'
 import { getCurrentUser } from '../../../utils/auth'
 import { enrichUsers, publicUser } from '../../../utils/userExtras'
+import { getBlockRelation } from '../../../utils/blocks'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -40,6 +41,14 @@ export default defineEventHandler(async (event) => {
 
   const extras = await enrichUsers([user])
 
+  let blocked = false
+  let blockedBy = false
+  if (viewer && !isSelf) {
+    const rel = await getBlockRelation(viewer.id, id!)
+    blocked = rel.blocked
+    blockedBy = rel.blockedBy
+  }
+
   return {
     user: publicUser(user, extras[user.id]),
     stats: { followers: followers.count, following: following.count, posts: postsCount.count },
@@ -48,5 +57,7 @@ export default defineEventHandler(async (event) => {
     isFollowing,
     isSelf,
     friendStatus,
+    blocked,
+    blockedBy,
   }
 })

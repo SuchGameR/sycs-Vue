@@ -3,7 +3,7 @@ import * as schema from '../../../db/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/auth'
-import { publicUser } from '../../../utils/userExtras'
+import { publicUser, pickPublicSummary } from '../../../utils/userExtras'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -60,9 +60,9 @@ export default defineEventHandler(async (event) => {
     const last = lastMessageMap.get(ch.id)
     return {
       ...ch,
-      members: allMembers.filter(m => m.channelId === ch.id).map(m => memberUserMap[m.userId]).filter(Boolean).map(publicUser),
+      members: allMembers.filter(m => m.channelId === ch.id).map(m => memberUserMap[m.userId]).filter(Boolean).map(pickPublicSummary),
       lastMessage: last
-        ? { content: last.content, createdAt: last.createdAt, edited: last.edited, sender: publicUser(lastSenderMap[last.senderId]) }
+        ? { content: last.content, createdAt: last.createdAt, edited: last.edited, sender: pickPublicSummary(lastSenderMap[last.senderId]) }
         : null,
     }
   })

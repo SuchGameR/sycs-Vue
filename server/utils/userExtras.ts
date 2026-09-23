@@ -98,10 +98,17 @@ export async function enrichUsers(users: any[]): Promise<Record<string, UserExtr
 
 export function publicUser(u: any, extras?: UserExtras) {
   if (!u) return null
-  const { passwordHash, settings, ...rest } = u
+  const { passwordHash, email, settings, ...rest } = u
   return {
     ...rest,
     badges: extras?.badges || [],
     title: extras?.title || null,
   }
+}
+
+/** DM など相手が目にする場面向けに、email 等の機微情報を除いたユーザー概要。 */
+export function pickPublicSummary(u: any) {
+  if (!u) return null
+  const { id, username, displayName, avatarUrl, bannerUrl, bio, statusMessage, isPrivate, createdAt, updatedAt } = u
+  return { id, username, displayName, avatarUrl, bannerUrl, bio, statusMessage, isPrivate, createdAt, updatedAt }
 }

@@ -1,7 +1,7 @@
-import { db } from '../../db'
-import * as schema from '../../db/schema'
+import { db } from '../../../db'
+import * as schema from '../../../db/schema'
 import { and, eq } from 'drizzle-orm'
-import { requireAuth } from '../../utils/auth'
+import { requireAuth } from '../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)

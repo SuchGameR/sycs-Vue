@@ -98,6 +98,9 @@ const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
             <span :class="unread.hasDmUnread(ch.id) ? 'text-slate-200' : 'text-slate-300'">{{ ch.lastMessage.sender?.displayName }}<span v-if="ch.lastMessage.edited" class="text-slate-500">（編集済み）</span>: </span>{{ ch.lastMessage.content }}
           </p>
           <p v-else class="text-xs text-slate-500">DMを開く</p>
+          <p v-if="otherMembers(ch)[0]?.statusMessage" class="text-[11px] text-emerald-400/80 truncate flex items-center gap-1 mt-0.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 inline-block"></span>{{ otherMembers(ch)[0].statusMessage }}
+          </p>
         </div>
       </NuxtLink>
     </div>

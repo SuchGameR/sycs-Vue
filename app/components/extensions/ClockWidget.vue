@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const CLOCK_MODE_KEY = 'sycs:clock-mode'
+const clock_type_key = 'sycs_clock_type'
 const CLOCK_ACCENT_KEY = 'sycs:clock-accent'
 type ClockMode = 'digital' | 'analog'
 type Theme = 'dark' | 'light'
@@ -7,7 +7,7 @@ type Theme = 'dark' | 'light'
 const now = ref(new Date())
 let timer: ReturnType<typeof setInterval> | null = null
 
-const mode = ref<ClockMode>('digital')
+const mode = ref<ClockMode>('analog')
 const theme = ref<Theme>('dark')
 const accent = ref('#8b5cf6')
 const accentOpen = ref(false)
@@ -19,8 +19,8 @@ const ACCENTS = [
 
 onMounted(async () => {
   if (import.meta.client) {
-    const saved = localStorage.getItem(CLOCK_MODE_KEY)
-    if (saved === 'digital' || saved === 'analog') mode.value = saved
+    const savedType = localStorage.getItem(clock_type_key)
+    if (savedType === 'digital' || savedType === 'analog') mode.value = savedType
     const savedAccent = localStorage.getItem(CLOCK_ACCENT_KEY)
     if (savedAccent && /^#[0-9a-fA-F]{6}$/.test(savedAccent)) accent.value = savedAccent
   }
@@ -35,7 +35,8 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function toggleMode() {
   mode.value = mode.value === 'digital' ? 'analog' : 'digital'
-  if (import.meta.client) localStorage.setItem(CLOCK_MODE_KEY, mode.value)
+  if (!import.meta.client) return
+  localStorage.setItem(clock_type_key, mode.value === 'digital' ? 'digital' : 'analog')
 }
 
 function setAccent(color: string) {
@@ -52,53 +53,37 @@ const date = computed(() =>
 )
 const dayNumber = computed(() => now.value.getDate())
 
-const seconds = computed(() => now.value.getSeconds() + now.value.getMilliseconds() / 1000)
-const minutes = computed(() => now.value.getMinutes() + seconds.value / 60)
-const hours = computed(() => (now.value.getHours() % 12) + minutes.value / 60)
+const rawSeconds = computed(() => now.value.getSeconds() + now.value.getMilliseconds() / 1000)
+const rawMinutes = computed(() => now.value.getMinutes() + rawSeconds.value / 60)
+const rawHours = computed(() => now.value.getHours() + rawMinutes.value / 60)
 
-const hourAngle = computed(() => hours.value * 30)
-const minuteAngle = computed(() => minutes.value * 6)
-const secondAngle = computed(() => seconds.value * 6)
-const sub24Angle = computed(() => now.value.getHours() * 15)
+// 針
+const secDeg = computed(() => (Math.floor(rawSeconds.value * 5) / 5) * 6)
+const minDeg = computed(() => rawMinutes.value * 6)
+const hourDeg = computed(() => (rawHours.value % 12) * 30)
+// サブダイヤル 左（24時間）
+const sub9Deg = computed(() => (Math.floor(rawHours.value) / 24) * 360)
+// サブダイヤル 右（曜日）
+const sub3Deg = computed(() => (now.value.getDay() / 7) * 360)
+// サブダイヤル 下（秒）
+const sub6Deg = computed(() => Math.floor(rawSeconds.value) * 6)
 
-const hours12 = Array.from({ length: 12 }, (_, i) => i)
-const minutes60 = Array.from({ length: 60 }, (_, i) => i)
-const fifths300 = Array.from({ length: 300 }, (_, i) => i)
-const subTicks24 = Array.from({ length: 12 }, (_, i) => ({ i, major: true }))
-const subTicks60 = Array.from({ length: 60 }, (_, i) => ({ i, major: i % 5 === 0 }))
-
-// --- ウィンドウサイズに合わせて時計全体を拡大縮小 ---
-const rootRef = ref<HTMLElement | null>(null)
-const avail = ref({ w: 0, h: 0 })
-let ro: ResizeObserver | null = null
-
-const scale = computed(() => {
-  const BW = mode.value === 'analog' ? 150 : 170
-  const BH = mode.value === 'analog' ? 175 : 115
-  if (avail.value.w <= 0 || avail.value.h <= 0) return 1
-  return Math.min(avail.value.w / BW, avail.value.h / BH, 1.6)
-})
-
-onMounted(() => {
-  if (rootRef.value && import.meta.client) {
-    ro = new ResizeObserver((entries) => {
-      const r = entries[0].contentRect
-      avail.value = { w: r.width, h: r.height }
-    })
-    ro.observe(rootRef.value)
-  }
-})
-onUnmounted(() => { ro?.disconnect() })
+// 目盛り（参考実装どおり i は 1 始まり・5 の倍数はスキップ）
+const hourIndices = Array.from({ length: 12 }, (_, k) => k + 1)
+const minuteIndices = Array.from({ length: 60 }, (_, k) => k + 1).filter(k => k % 5 !== 0)
+const fifthIndices = Array.from({ length: 300 }, (_, k) => k + 1).filter(k => k % 5 !== 0)
+const sub9Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 6 === 0 }))
+const sub3Indices = Array.from({ length: 7 }, (_, i) => ({ i, major: true }))
+const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 0 }))
 </script>
 
 <template>
   <div
-    ref="rootRef"
     class="clock-widget h-full w-full flex items-center justify-center overflow-hidden"
     :class="theme"
     :style="{ '--accent-color': accent }"
   >
-    <div class="scale-box flex flex-col items-center" :style="{ transform: `scale(${scale})` }">
+    <div class="scale-box flex flex-col items-center" :style="{ '--s-h': accentOpen ? '215px' : '195px' }">
 
       <!-- デジタル時計 -->
       <div v-if="mode === 'digital'" class="clock-digital">
@@ -113,76 +98,71 @@ onUnmounted(() => { ro?.disconnect() })
         <div class="clock-face">
           <!-- 目盛り -->
           <span
-            v-for="i in hours12" :key="'h' + i"
+            v-for="v in hourIndices" :key="'h' + v"
             class="clock-index hour"
-            :style="{ '--i': i }"
+            :style="{ '--i': v }"
           />
           <span
-            v-for="i in minutes60" :key="'m' + i"
+            v-for="v in minuteIndices" :key="'m' + v"
             class="clock-index minute"
-            :style="{ '--i': i }"
+            :style="{ '--i': v }"
           />
           <span
-            v-for="i in fifths300" :key="'f' + i"
+            v-for="v in fifthIndices" :key="'f' + v"
             class="clock-index fifth"
-            :style="{ '--i': i }"
+            :style="{ '--i': v }"
           />
 
-          <!-- サブダイヤル 左（24時間 / AM・PM） -->
+          <!-- ロゴプレート -->
+          <span class="clock-logo">{{ 'SYCS' }}</span>
+
+          <!-- サブダイヤル 左（24時間） -->
           <div class="sub-dial sub-9">
-            <span class="sub9-caption cap-top">24</span>
-            <span class="sub9-caption cap-bottom">12</span>
-            <span class="sub9-caption cap-left">A</span>
-            <span class="sub9-caption cap-right">P</span>
             <span
-              v-for="t in subTicks24" :key="'t24' + t.i"
-              class="sub-index major"
-              :style="{ '--i': t.i, '--sa': '30deg' }"
+              v-for="t in sub9Indices" :key="'t24' + t.i"
+              class="sub-index" :class="{ major: t.major }"
+              :style="{ '--si': t.i, '--sa': '30deg' }"
             />
-            <span
-              class="sub-hand"
-              :style="{ '--sub-angle': `${sub24Angle}deg` }"
-            />
+            <span class="sub-hand" :style="{ '--sub-angle': `${sub9Deg}deg` }" />
             <span class="sub-center-dot" />
+            <span class="sub-label">24h</span>
           </div>
 
-          <!-- サブダイヤル 右（秒） -->
+          <!-- サブダイヤル 右（曜日） -->
           <div class="sub-dial sub-3">
             <span
-              v-for="t in subTicks60" :key="'t60' + t.i"
-              class="sub-index"
-              :class="{ major: t.major }"
-              :style="{ '--i': t.i, '--sa': '6deg' }"
+              v-for="t in sub3Indices" :key="'t7' + t.i"
+              class="sub-index major"
+              :style="{ '--si': t.i, '--sa': (360 / 7) + 'deg' }"
             />
-            <span
-              class="sub-hand"
-              :style="{ '--sub-angle': `${secondAngle}deg` }"
-            />
+            <span class="sub-hand" :style="{ '--sub-angle': `${sub3Deg}deg` }" />
             <span class="sub-center-dot" />
+            <span class="sub-label">日</span>
           </div>
 
-          <!-- サブダイヤル 下（分） -->
+          <!-- サブダイヤル 下（秒） -->
           <div class="sub-dial sub-6">
             <span
-              v-for="t in subTicks60" :key="'t6' + t.i"
-              class="sub-index"
-              :class="{ major: t.major }"
-              :style="{ '--i': t.i, '--sa': '6deg' }"
+              v-for="t in sub6Indices" :key="'t60' + t.i"
+              class="sub-index" :class="{ major: t.major }"
+              :style="{ '--si': t.i, '--sa': '30deg' }"
             />
-            <span
-              class="sub-hand"
-              :style="{ '--sub-angle': `${minuteAngle}deg` }"
-            />
+            <span class="sub-hand" :style="{ '--sub-angle': `${sub6Deg}deg` }" />
             <span class="sub-center-dot" />
+            <span class="sub-label">秒</span>
           </div>
+
+          <!-- AM / PM -->
+          <span class="sub-indi1">A</span>
+          <span class="sub-indi2">P</span>
 
           <!-- 日付窓 -->
           <div class="date-window"><span>{{ dayNumber }}</span></div>
 
           <!-- 針 -->
-          <span class="hand hour-hand" :style="{ transform: `rotate(${hourAngle}deg)` }" />
-          <span class="hand minute-hand" :style="{ transform: `rotate(${minuteAngle}deg)` }" />
-          <span class="hand second-hand" :style="{ transform: `rotate(${secondAngle}deg)` }" />
+          <span class="hand hour-hand" :style="{ transform: `rotate(${hourDeg}deg)` }" />
+          <span class="hand minute-hand" :style="{ transform: `rotate(${minDeg}deg)` }" />
+          <span class="hand second-hand" :style="{ transform: `rotate(${secDeg}deg)` }" />
           <span class="center-dot" />
         </div>
       </div>
@@ -223,6 +203,7 @@ onUnmounted(() => { ro?.disconnect() })
 <style scoped>
 /* ===== テーマ変数 ===== */
 .clock-widget {
+  container-type: size;
   --clock-bg: #0f1521;
   --clock-border: #26304a;
   --clock-index-color: #64748b;
@@ -237,7 +218,8 @@ onUnmounted(() => { ro?.disconnect() })
   --text-secondary: #94a3b8;
   --input-bg: #1e293b;
   --toggle-knob-bg: #e2e8f0;
-  font-family: inherit;
+  --clock-logo-bg: #1e293b;
+  --clock-logo-text: #8ba3c7;
 }
 
 .clock-widget.light {
@@ -255,6 +237,14 @@ onUnmounted(() => { ro?.disconnect() })
   --text-secondary: #64748b;
   --input-bg: #e2e8f0;
   --toggle-knob-bg: #ffffff;
+  --clock-logo-bg: #e2e9f2;
+  --clock-logo-text: #5b6b82;
+}
+
+/* ===== スケーリング（ウィンドウに常にフィット） ===== */
+.scale-box {
+  --s: min(calc(100cqw / 155px), calc(100cqh / var(--s-h, 195px)), 1.6);
+  zoom: var(--s);
 }
 
 /* ===== デジタル ===== */
@@ -313,7 +303,7 @@ onUnmounted(() => { ro?.disconnect() })
   position: absolute;
   left: 50%;
   top: 0;
-  transform-origin: 50% 70px;
+  transform-origin: 50% 64px;
   z-index: 2;
   border-radius: 2px;
 }
@@ -324,7 +314,7 @@ onUnmounted(() => { ro?.disconnect() })
   background: var(--accent-color);
   margin-left: -1.5px;
   transform: rotate(calc(var(--i) * 30deg));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-color) 85%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-color) 80%, transparent);
 }
 
 .clock-index.minute {
@@ -357,28 +347,27 @@ onUnmounted(() => { ro?.disconnect() })
   box-sizing: border-box !important;
 }
 
-.sub-9 { top: 50%; left: 24%; transform: translate(-50%, -50%); }
-.sub-3 { top: 50%; right: 24%; transform: translate(50%, -50%); }
-.sub-6 { top: 76%; left: 50%; transform: translate(-50%, -50%); }
+.sub-9 { top: 50%; left: 25%; transform: translate(-50%, -50%); }
+.sub-3 { top: 50%; right: 25%; transform: translate(50%, -50%); }
+.sub-6 { top: 75%; left: 50%; transform: translate(-50%, -50%); }
 
 .sub-index {
   position: absolute;
   left: calc(50% - 0.5px);
-  top: 4px;
+  top: 2px;
   width: 1px;
   height: 3px;
   background: var(--clock-sub-index-color);
-  transform-origin: 0.5px 13px;
-  transform: rotate(calc(var(--i) * var(--sa)));
+  transform-origin: 0.5px 14px;
+  transform: rotate(calc(var(--si) * var(--sa)));
 }
 
 .sub-index.major {
+  width: 1px;
   left: calc(50% - 0.75px);
-  top: 2px;
-  width: 1.5px;
   height: 5px;
   background: var(--accent-color);
-  transform-origin: 0.75px 15px;
+  transform-origin: 0.75px 14px;
 }
 
 .sub-hand {
@@ -392,8 +381,39 @@ onUnmounted(() => { ro?.disconnect() })
   transform: rotate(var(--sub-angle, 0deg));
   z-index: 5;
   border-radius: 1px;
-  box-shadow: 0 0 5px color-mix(in srgb, var(--accent-color) 45%, transparent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--accent-color) 40%, transparent);
 }
+
+.sub-label {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 6px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent-color) 60%, transparent);
+  pointer-events: none;
+  z-index: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sub-indi1,
+.sub-indi2 {
+  position: absolute;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  font-size: 6px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+  pointer-events: none;
+  z-index: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sub-indi1 { left: 13%; }
+.sub-indi2 { left: 87%; }
 
 .sub-center-dot {
   position: absolute;
@@ -408,21 +428,25 @@ onUnmounted(() => { ro?.disconnect() })
   z-index: 10;
 }
 
-.sub9-caption {
+/* ---- ロゴプレート ---- */
+.clock-logo {
   position: absolute;
-  font-size: 6px;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 18px;
+  opacity: 0.8;
+  background-color: var(--clock-logo-bg);
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 7px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--accent-color) 70%, transparent);
-  pointer-events: none;
-  z-index: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 2px;
+  color: var(--clock-logo-text);
 }
-
-.cap-top    { top: 1px; left: 50%; transform: translateX(-50%); }
-.cap-bottom { bottom: 1px; left: 50%; transform: translateX(-50%); }
-.cap-left   { left: -2px; top: 50%; transform: translateY(-50%); }
-.cap-right  { right: -2px; top: 50%; transform: translateY(-50%); }
 
 /* ---- 日付窓 ---- */
 .date-window {
@@ -478,17 +502,16 @@ onUnmounted(() => { ro?.disconnect() })
 .second-hand {
   width: 1.5px;
   height: 56px;
-  background: var(--accent-color);
+  background: var(--clock-hand-color);
   margin-left: -0.75px;
   z-index: 6;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-color) 80%, transparent);
 }
 
 .center-dot {
   width: 6px;
   height: 6px;
   background: var(--clock-bg);
-  border: 1.5px solid var(--accent-color);
+  border: 1.5px solid var(--clock-hand-color);
   border-radius: 50%;
   position: absolute;
   top: 50%;
@@ -510,7 +533,7 @@ onUnmounted(() => { ro?.disconnect() })
 .switch-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 11px;
   color: var(--text-secondary);
   cursor: pointer;
@@ -519,8 +542,8 @@ onUnmounted(() => { ro?.disconnect() })
 .switch {
   position: relative;
   display: inline-block;
-  width: 30px;
-  height: 18px;
+  width: 34px;
+  height: 20px;
 }
 
 .switch input {
@@ -541,8 +564,8 @@ onUnmounted(() => { ro?.disconnect() })
 .slider:before {
   position: absolute;
   content: "";
-  height: 12px;
-  width: 12px;
+  height: 14px;
+  width: 14px;
   left: 3px;
   bottom: 3px;
   background-color: var(--toggle-knob-bg);
@@ -555,7 +578,7 @@ input:checked + .slider {
 }
 
 input:checked + .slider:before {
-  transform: translateX(12px);
+  transform: translateX(14px);
 }
 
 /* ---- イメージカラーピッカー ---- */
@@ -576,12 +599,12 @@ input:checked + .slider:before {
 
 .accent-pop {
   position: absolute;
-  bottom: calc(100% + 8px);
-  right: -20px;
+  bottom: calc(100% + 6px);
+  right: -12px;
   z-index: 30;
   display: flex;
-  gap: 6px;
-  padding: 8px;
+  gap: 4px;
+  padding: 6px;
   border-radius: 12px;
   border: 1px solid var(--surface-border);
   background: var(--clock-bg);
@@ -598,5 +621,5 @@ input:checked + .slider:before {
 }
 
 .accent-opt:hover { transform: scale(1.25); }
-.accent-opt.active { border-color: var(--toggle-knob-bg); box-shadow: 0 0 0 2px var(--accent-color); }
+.accent-opt.active { border-color: var(--toggle-knob-bg); }
 </style>
