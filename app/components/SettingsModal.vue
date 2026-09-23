@@ -307,8 +307,8 @@ async function save() {
               <div class="px-4 pb-3">
                 <div class="flex items-end -mt-8 mb-2">
                   <img
-                    v-if="avatarUrl"
-                    :src="avatarUrl"
+                    v-if="avatarSrc(avatarUrl)"
+                    :src="avatarSrc(avatarUrl)"
                     class="w-14 h-14 rounded-full border-4 border-[#151a24] object-cover"
                   />
                   <div

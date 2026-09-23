@@ -586,6 +586,11 @@ async function handleSignal(msg: any) {
 
   if (signal.type === 'screen') {
     remoteScreening.set(from.userId, !!signal.data)
+    if (!signal.data && remoteScreenStreams.value[from.userId]) {
+      const next = { ...remoteScreenStreams.value }
+      delete next[from.userId]
+      remoteScreenStreams.value = next
+    }
     return
   }
 
