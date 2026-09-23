@@ -30,12 +30,14 @@ const showError = computed(() => !!errorMsg.value && status.value === 'idle')
 function dismissError() { errorMsg.value = null }
 
 const stateMeta = computed(() => {
-  switch (callState.value) {
-    case 'connected': return { label: '接続済み', cls: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10', dot: 'bg-emerald-400' }
-    case 'reconnecting': return { label: '再接続中...', cls: 'text-amber-400 border-amber-500/40 bg-amber-500/10', dot: 'bg-amber-400 animate-pulse' }
-    case 'failed': return { label: '接続失敗', cls: 'text-red-400 border-red-500/40 bg-red-500/10', dot: 'bg-red-400' }
-    default: return { label: '接続中...', cls: 'text-sky-400 border-sky-500/40 bg-sky-500/10', dot: 'bg-sky-400 animate-pulse' }
+  if (callState.value === 'connected') return { label: '通話中', cls: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10', dot: 'bg-emerald-400' }
+  if (callState.value === 'reconnecting') return { label: '再接続中...', cls: 'text-amber-400 border-amber-500/40 bg-amber-500/10', dot: 'bg-amber-400 animate-pulse' }
+  if (callState.value === 'failed') return { label: '接続失敗', cls: 'text-red-400 border-red-500/40 bg-red-500/10', dot: 'bg-red-400' }
+  
+  if (members.value.filter(m => m.userId !== me.value?.userId).length === 0) {
+    return { label: '待機中...', cls: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10', dot: 'bg-emerald-400' }
   }
+  return { label: '接続中...', cls: 'text-sky-400 border-sky-500/40 bg-sky-500/10', dot: 'bg-sky-400 animate-pulse' }
 })
 
 /* ---- ringtone ---- */
@@ -499,7 +501,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
             <div v-for="s in screenTiles" :key="'sc-' + s.userId"
               class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
               @click="expandedScreen = s.userId">
-              <video :srcObject="remoteScreenStreams[s.userId]" :muted="speakerMuted" autoplay playsinline webkit-playsinline
+              <video :srcObject.prop="remoteScreenStreams[s.userId]" :muted="speakerMuted" autoplay playsinline webkit-playsinline
                 class="absolute inset-0 w-full h-full object-contain bg-black" />
               <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-[10px] text-white flex items-center gap-1">
                 <Icon name="lucide:monitor-up" class="w-3 h-3" /> {{ s.name }}の画面
@@ -512,7 +514,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
             <!-- member camera/avatar tiles -->
             <div v-for="t in tiles" :key="t.userId" class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 min-h-[180px] flex flex-col items-center justify-center">
               <div v-if="!t.isSelf && hasVideo[t.userId]" class="absolute inset-0 w-full h-full">
-                <video :srcObject="remoteStreams[t.userId]" :muted="speakerMuted" autoplay playsinline webkit-playsinline
+                <video :srcObject.prop="remoteStreams[t.userId]" :muted="speakerMuted" autoplay playsinline webkit-playsinline
                   class="absolute inset-0 w-full h-full object-cover" />
               </div>
               <div v-else class="absolute inset-0 flex flex-col items-center justify-center">
@@ -542,8 +544,8 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
 
         <!-- self preview (mirrored) -->
         <div class="absolute bottom-24 right-4 w-44 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-2xl z-[2] cursor-pointer group" @click="screenSharing ? expandedScreen = 'self' : null">
-          <video v-if="screenSharing && screenStream" :srcObject="screenStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover" />
-          <video v-else-if="cameraEnabled && localVideoStream" :srcObject="localVideoStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover scale-x-[-1]" />
+          <video v-if="screenSharing && screenStream" :srcObject.prop="screenStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover" />
+          <video v-else-if="cameraEnabled && localVideoStream" :srcObject.prop="localVideoStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover scale-x-[-1]" />
           <div v-else class="aspect-video flex items-center justify-center text-slate-500">
             <Icon name="lucide:user" class="w-6 h-6" />
           </div>

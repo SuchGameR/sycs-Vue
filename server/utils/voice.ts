@@ -1,4 +1,4 @@
-import { broadcast } from './realtime'
+import { broadcast, broadcastToUsers } from './realtime'
 
 export interface VoiceMember {
   userId: string
@@ -63,5 +63,5 @@ function leaveRoomInternal(roomKey: string, userId: string, quiet: boolean) {
 }
 
 export function relaySignal(roomKey: string, from: VoiceMember, to: string, signal: any) {
-  broadcast({ type: 'voice.signal', roomKey, from, to, signal })
+  broadcastToUsers({ type: 'voice.signal', roomKey, from, to, signal }, [to])
 }

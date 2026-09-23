@@ -12,10 +12,6 @@ export default defineNuxtConfig({
   // Opt in with NUXT_DEVTOOLS=true when needed.
   devtools: { enabled: process.env.NUXT_DEVTOOLS === 'true' },
 
-<<<<<<< HEAD
-  // GitHub Pages（プロジェクトサイト）: リポジトリ名は sycs-Vue
-  // ローカル dev では baseURL は '/' のまま
-=======
   runtimeConfig: {
     phpApiBase: process.env.PHP_API_BASE || '',
     phpApiParam: process.env.PHP_API_PARAM || 'api',
@@ -23,11 +19,9 @@ export default defineNuxtConfig({
     phpStaticCookie: process.env.PHP_STATIC_COOKIE || '',
     phpForwardCookie: process.env.PHP_FORWARD_COOKIE !== 'false',
   },
-
-  // GitHub Pages（プロジェクトサイト）用
+  // GitHub Pages（プロジェクトサイト）: リポジトリ名は sycs-Vue
   // ユーザーサイトにする場合は baseURL: '/' に戻す
   // 設定をやめるときは baseURL の条件分岐と下記 nitro / routeRules を削除すればOK
->>>>>>> 8870eae (hmm)
   app: {
     baseURL: isStaticPages ? '/sycs-Vue/' : '/',
     head: {

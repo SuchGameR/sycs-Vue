@@ -87,7 +87,6 @@ const watchedRooms = new Map<string, VoiceRoomConfig>()
 const peers = new Map<string, RTCPeerConnection>()
 const pendingIce = new Map<string, any[]>()
 const lastIceRestart = new Map<string, number>()
-const lastOfferAt = new Map<string, number>()
 
 let offs: (() => void)[] = []
 let watchdog: ReturnType<typeof setInterval> | null = null
@@ -100,7 +99,7 @@ function queueOrAddIce(userId: string, candidate: any) {
     pendingIce.set(userId, q)
     return
   }
-  pc.addIceCandidate(candidate).catch(() => {})
+  pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) => console.error('Error adding ICE:', err))
 }
 
 function flushIce(userId: string) {
@@ -108,7 +107,7 @@ function flushIce(userId: string) {
   if (!pc || !pc.remoteDescription) return
   const q = pendingIce.get(userId) || []
   pendingIce.delete(userId)
-  for (const c of q) pc.addIceCandidate(c).catch(() => {})
+  for (const c of q) pc.addIceCandidate(new RTCIceCandidate(c)).catch((err) => console.error('Error flushing ICE:', err))
 }
 
 async function ensureMe() {
@@ -156,27 +155,50 @@ function videoSourceStream(): MediaStream | null {
 // silent/absent audio when the peer is created before the local stream is ready and
 // lets camera/screen tracks join an already-running call.
 function attachLocalTracks(pc: RTCPeerConnection) {
-  syncAudioSenders(pc)
+  syncMicSender(pc)
+  syncScreenAudioSender(pc)
   syncOptionalVideoSender(pc)
 }
 
-// While screen sharing captures audio, send the desktop audio instead of the mic so
-// the other side actually hears what is being shared; revert to the mic afterwards.
-function syncAudioSenders(pc: RTCPeerConnection) {
+// Track senders per-pc so mic and screen audio never collide
+const micSenders = new WeakMap<RTCPeerConnection, RTCRtpSender>()
+const screenAudioSenders = new WeakMap<RTCPeerConnection, RTCRtpSender>()
+
+// Mic is ALWAYS on its own sender — never replaced with screen audio.
+function syncMicSender(pc: RTCPeerConnection) {
   const l = localStream.value
-  const screenAudio = screenSharing.value ? screenStream.value?.getAudioTracks()[0] : null
   const mic = l?.getAudioTracks()[0] || null
-  const preferred = screenAudio || mic
-  const senders = pc.getSenders()
-  const audioSender = senders.find(s => s.track?.kind === 'audio')
-  if (preferred) {
-    if (!audioSender) {
-      pc.addTrack(preferred, screenAudio ? screenStream.value! : l!)
-    } else if (audioSender.track?.id !== preferred.id) {
-      audioSender.replaceTrack(preferred).catch(() => {})
+  let sender = micSenders.get(pc)
+  if (mic) {
+    if (!sender) {
+      try {
+        sender = pc.addTrack(mic, l!)
+        micSenders.set(pc, sender)
+      } catch (err) { console.error('Error adding mic track:', err) }
+    } else if (sender.track?.id !== mic.id) {
+      sender.replaceTrack(mic).catch((err) => console.error('Error replacing mic track:', err))
     }
-  } else if (audioSender) {
-    audioSender.replaceTrack(null).catch(() => {})
+  } else if (sender?.track) {
+    sender.replaceTrack(null).catch(() => {})
+  }
+}
+
+// Screen audio goes on a separate sender so both mic + desktop audio are heard.
+function syncScreenAudioSender(pc: RTCPeerConnection) {
+  const screenAudio = screenSharing.value ? screenStream.value?.getAudioTracks()[0] : null
+  let sender = screenAudioSenders.get(pc)
+  if (screenAudio) {
+    if (!sender) {
+      try {
+        sender = pc.addTrack(screenAudio, screenStream.value!)
+        screenAudioSenders.set(pc, sender)
+      } catch (err) { console.error('Error adding screen audio track:', err) }
+    } else if (sender.track?.id !== screenAudio.id) {
+      sender.replaceTrack(screenAudio).catch(() => {})
+    }
+  } else if (sender) {
+    try { pc.removeTrack(sender) } catch {}
+    screenAudioSenders.delete(pc)
   }
 }
 
@@ -336,17 +358,26 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
           const next = { ...remoteScreenStreams.value }
           delete next[uid]
           remoteScreenStreams.value = next
-          const remaining = ms.getAudioTracks()
-          if (remaining.length) {
-            const cur = remoteStreams.value[uid]
-            if (cur) { for (const a of remaining) { try { cur.addTrack(a) } catch { /* ignore */ } } }
-          }
         }
       })
+    } else if (e.track.kind === 'audio') {
+      // Audio track: add to existing stream so both mic + screen audio play
+      const existing = remoteStreams.value[uid]
+      if (existing) {
+        try { existing.addTrack(e.track) } catch { /* already in stream */ }
+        remoteStreams.value = { ...remoteStreams.value }
+      } else {
+        remoteStreams.value = { ...remoteStreams.value, [uid]: ms }
+      }
+      // Clean up when the track ends (e.g. screen sharing stops)
+      e.track.addEventListener('ended', () => {
+        const cur = remoteStreams.value[uid]
+        if (cur) { try { cur.removeTrack(e.track) } catch {} }
+      })
     } else {
+      // Video track (camera)
       remoteStreams.value = { ...remoteStreams.value, [uid]: ms }
     }
-  }
   // Polite/impolite negotiation: both sides may offer (needed for camera/screen
   // tracks to be added by either side); glare is resolved by polite (lower id) rolling back.
   pc.onnegotiationneeded = () => {
@@ -355,7 +386,7 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
     pc.createOffer()
       .then((offer) => pc.setLocalDescription(offer))
       .then(() => signalTo(room, member.userId, { type: 'offer', data: pc.localDescription! }))
-      .catch(() => {})
+      .catch((err) => console.error('Error in negotiation:', err))
   }
   pc.oniceconnectionstatechange = () => {
     const state = pc.iceConnectionState
@@ -363,7 +394,7 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
       const now = Date.now()
       if (now - (lastIceRestart.get(member.userId) || 0) > 6000) {
         lastIceRestart.set(member.userId, now)
-        if (typeof pc.restartIce === 'function') pc.restartIce().catch(() => {})
+        if (typeof pc.restartIce === 'function') { try { pc.restartIce() } catch {} }
       }
     }
     if (state === 'connected') connectionState.value = 'connected'
@@ -394,7 +425,6 @@ function markConnection() {
 function closePeer(userId: string) {
   pendingIce.delete(userId)
   lastIceRestart.delete(userId)
-  lastOfferAt.delete(userId)
   const pc = peers.get(userId)
   if (pc) {
     pc.onicecandidate = null
@@ -412,26 +442,6 @@ function closePeer(userId: string) {
   }
 }
 
-// Offer a peer if a connection has not formed. Rolled back and re-offered on a
-// throttle so that lost offers/answers eventually recover on either side.
-function renegotiateIfStuck(room: VoiceRoomConfig, userId: string) {
-  if (!me.value || me.value.userId >= userId) return
-  const pc = peers.get(userId)
-  if (!pc || pc.connectionState === 'connected') return
-  const now = Date.now()
-  if (now - (lastOfferAt.get(userId) || 0) < 3000) return
-  lastOfferAt.set(userId, now)
-  ;(async () => {
-    try {
-      if (pc.signalingState === 'have-local-offer') await pc.setLocalDescription({ type: 'rollback' as any })
-      if (pc.signalingState === 'stable') {
-        await pc.setLocalDescription(await pc.createOffer())
-        signalTo(room, userId, { type: 'offer', data: pc.localDescription! })
-      }
-    } catch { /* ignore */ }
-  })()
-}
-
 function startWatchdog() {
   if (watchdog) return
   let tick = 0
@@ -442,20 +452,18 @@ function startWatchdog() {
       return
     }
     tick++
-    for (const uid of [...peers.keys()]) {
-      renegotiateIfStuck(room, uid)
-      if (tick % 10 === 0) {
-        $fetch(room.joinPath, { method: 'POST' })
-          .then((res: any) => {
-            if (res?.members) {
-              members.value = res.members || []
-              for (const m of members.value) {
-                if (m.userId !== me.value?.userId) ensurePeer(room, m)
-              }
+    // Periodically re-join to refresh the member list and detect new participants
+    if (tick % 10 === 0) {
+      $fetch(room.joinPath, { method: 'POST' })
+        .then((res: any) => {
+          if (res?.members) {
+            members.value = res.members || []
+            for (const m of members.value) {
+              if (m.userId !== me.value?.userId) ensurePeer(room, m)
             }
-          })
-          .catch(() => {})
-      }
+          }
+        })
+        .catch(() => {})
     }
   }, 3000)
 }
@@ -498,19 +506,19 @@ async function handleSignal(msg: any) {
           return
         }
       }
-      await pc.setRemoteDescription(signal.data)
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.data))
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
       signalTo(room, from.userId, { type: 'answer', data: pc.localDescription })
       flushIce(from.userId)
-    } catch { /* ignore */ }
+    } catch (err) { console.error('Error handling offer:', err) }
   } else if (signal.type === 'answer') {
     const pc = peers.get(from.userId)
     if (pc && pc.signalingState !== 'stable') {
       try {
-        await pc.setRemoteDescription(signal.data)
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.data))
         flushIce(from.userId)
-      } catch { /* ignore */ }
+      } catch (err) { console.error('Error handling answer:', err) }
     }
   } else if (signal.type === 'ice') {
     queueOrAddIce(from.userId, signal.data)
