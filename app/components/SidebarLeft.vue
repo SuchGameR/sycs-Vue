@@ -4,6 +4,8 @@ const route = useRoute()
 const showServerList = ref(false)
 const showSettings = ref(false)
 
+const { activityUnread, dmUnread, dmLatest } = useUnread()
+
 const { data: serversData } = useFetch('/api/servers', { key: 'sidebar-servers' })
 const servers = computed(() => serversData.value?.servers || [])
 
@@ -24,14 +26,21 @@ async function handleSignout() {
       <Icon name="lucide:home" class="w-5 h-5 shrink-0" />
       <span class="text-sm truncate">ホーム</span>
     </NuxtLink>
-    <NuxtLink to="/dm" class="px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100"
+    <NuxtLink to="/dm" class="relative px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100"
       :class="route.path.startsWith('/dm') ? 'bg-slate-800/50 text-white font-medium' : ''">
-      <Icon name="lucide:message-square" class="w-5 h-5 shrink-0" />
+      <span class="relative shrink-0">
+        <img v-if="dmLatest?.avatarUrl" :src="dmLatest.avatarUrl" class="w-5 h-5 rounded-full object-cover" />
+        <Icon v-else name="lucide:message-square" class="w-5 h-5" />
+        <span v-if="dmUnread > 0" class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{{ dmUnread }}</span>
+      </span>
       <span class="text-sm truncate">DM</span>
     </NuxtLink>
-    <NuxtLink to="/actions" class="px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100"
+    <NuxtLink to="/actions" class="relative px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100"
       :class="route.path.startsWith('/actions') || route.path.startsWith('/notifications') ? 'bg-slate-800/50 text-white font-medium' : ''">
-      <Icon name="lucide:bell" class="w-5 h-5 shrink-0" />
+      <span class="relative shrink-0">
+        <Icon name="lucide:bell" class="w-5 h-5" />
+        <span v-if="activityUnread > 0" class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{{ activityUnread }}</span>
+      </span>
       <span class="text-sm truncate">アクティビティ</span>
     </NuxtLink>
     <NuxtLink to="/search" class="px-2 py-2 rounded-lg flex items-center gap-3 transition text-slate-400 hover:bg-slate-800/30 hover:text-slate-100"

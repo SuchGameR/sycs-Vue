@@ -424,7 +424,11 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
 }
 
 function markConnection() {
-  if (!peers.size) return
+  if (!peers.size) {
+    // No peers means waiting alone for someone to join, not "connected".
+    connectionState.value = 'new'
+    return
+  }
   const states = [...peers.values()].map(p => p.connectionState)
   if (states.some(s => s === 'connected')) {
     connectionState.value = 'connected'

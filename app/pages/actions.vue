@@ -49,6 +49,7 @@ async function load(resetPage = true) {
       incoming = data.items || []
       offset.value = data.nextOffset ?? (offset.value + incoming.length)
       hasMore.value = data.hasMore ?? incoming.length === FEED_PAGE_SIZE
+      useUnread().markActivityRead()
     } else {
       const data = await $fetch<any>(endpoints[activeTab.value], { params: { limit: FEED_PAGE_SIZE, offset: offset.value } })
       incoming = data.posts || []

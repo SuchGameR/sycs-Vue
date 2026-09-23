@@ -34,6 +34,7 @@ const { switcherOpen, closeSwitcher } = useAccounts()
 const customEmojis = useCustomEmojis()
 onMounted(() => {
   customEmojis.ensure()
+  useUnread().init()
   const { captureStoredToken } = useAccounts()
   captureStoredToken()
 })

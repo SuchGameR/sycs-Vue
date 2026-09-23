@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
     }, extras[user.id]),
   }
 
-  broadcast({ type: 'comment.new', postId, comment: commentWithUser })
+  broadcast({ type: 'comment.new', postId, postOwnerId: post.userId, comment: commentWithUser })
 
   return { comment: commentWithUser }
 })

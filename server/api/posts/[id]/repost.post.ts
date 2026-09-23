@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
 
   // Quote repost: creates a new post embedding the original one.
   const quote = body?.quote && typeof body.quote === 'string' ? body.quote.trim() : ''
+  const actor = { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl }
   if (quote || body?.quotePost) {
     if (!quote && !body?.quotePost) throw createError({ statusCode: 400, message: '引用の本文が必要です' })
     const [quotePost] = await db.insert(schema.posts).values({
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
     }).returning()
     const postWithUser = { ...quotePost, user, attachments: [], liked: false, reposted: false, bookmarked: false }
     emit('post:created', { post: postWithUser })
-    try { broadcast({ type: 'activity.new', kind: 'quote', actorId: user.id, postId }) } catch {}
+    try { broadcast({ type: 'activity.new', kind: 'quote', actorId: user.id, actor, postId, postOwnerId: target.userId }) } catch {}
     return { success: true, quote: { id: quotePost.id, post: postWithUser } }
   }
 
@@ -40,6 +41,6 @@ export default defineEventHandler(async (event) => {
   await db.insert(schema.reposts).values({ id: randomUUID(), userId: user.id, postId })
   await db.execute(sql`UPDATE posts SET repost_count = repost_count + 1 WHERE id = ${postId}`)
 
-  broadcast({ type: 'activity.new', kind: 'repost', actorId: user.id, postId })
+  broadcast({ type: 'activity.new', kind: 'repost', actorId: user.id, actor, postId, postOwnerId: target.userId })
   return { success: true }
 })

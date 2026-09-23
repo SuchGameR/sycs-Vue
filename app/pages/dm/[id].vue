@@ -166,6 +166,7 @@ function handleDmMessageEdited(p: any) {
 onMounted(async () => {
   await loadMessages()
   await loadChannelInfo()
+  useUnread().markDmRead(channelId.value)
   voice.watchRoom(dmVoiceConfig())
   offDm = [on('dm.message', handleDmMessage), on('dm.message.edited', handleDmMessageEdited)]
 })

@@ -181,8 +181,10 @@ export default defineEventHandler(async (event) => {
   // stay boost-free to keep sorting meaningful.
   const includeBoosts = sort === 'latest' && !mediaType && !related
 
-  const boostWhere = includeBoosts && boostPool?.length
-    ? and(inArray(schema.reposts.userId, boostPool))
+  // boostPool === null means "every reposter may appear" (e.g. global feed), so a
+  // boost never needs a user filter and still shows with the reposter's name.
+  const boostWhere = includeBoosts
+    ? (boostPool && boostPool.length ? and(inArray(schema.reposts.userId, boostPool)) : undefined)
     : undefined
 
   async function fetchBoosts(cursor: number) {
@@ -262,7 +264,7 @@ export default defineEventHandler(async (event) => {
   let boostCursor: Cursor | null = initialCursor.boosts
   let postExhausted = false
   let boostExhausted = false
-  const boostActive = includeBoosts && !!boostWhere && !!boostPool?.length
+  const boostActive = includeBoosts && (boostPool ? boostPool.length > 0 : true)
   let reachedEnd = false
   let pageFull = false
 

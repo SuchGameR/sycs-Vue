@@ -19,7 +19,14 @@ let offRealtime: (() => void)[] = []
 
 onMounted(() => {
   loadChannels()
-  offRealtime = [on('dm.message', loadChannels), on('dm.message.edited', loadChannels)]
+  useUnread().markDmRead('all')
+  offRealtime = [
+    on('dm.message', () => {
+      loadChannels()
+      useUnread().markDmRead('all')
+    }),
+    on('dm.message.edited', loadChannels),
+  ]
 })
 
 onUnmounted(() => {

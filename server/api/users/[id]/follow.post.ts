@@ -21,6 +21,12 @@ export default defineEventHandler(async (event) => {
 
   await db.insert(schema.follows).values({ id: randomUUID(), followerId: user.id, followingId })
 
-  broadcast({ type: 'activity.new', kind: 'follow', actorId: user.id })
+  broadcast({
+    type: 'activity.new',
+    kind: 'follow',
+    actorId: user.id,
+    actor: { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl },
+    targetUserId: followingId,
+  })
   return { success: true }
 })

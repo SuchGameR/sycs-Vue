@@ -43,6 +43,13 @@ export default defineEventHandler(async (event) => {
     emoji,
     userId: user.id,
     active,
+    postOwnerId: post.userId,
+    actor: {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+    },
   })
 
   return { active }
