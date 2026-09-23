@@ -70,8 +70,8 @@ export default defineEventHandler(async (event) => {
   for (const r of repostRows) items.push({ id: 'repost-' + r.id, type: 'repost', actorId: r.userId, postId: r.postId, createdAt: r.createdAt })
   for (const r of commentRows) items.push({ id: 'comment-' + r.id, type: 'comment', actorId: r.userId, postId: r.postId, content: r.content, createdAt: r.createdAt })
   for (const r of reactionRows) items.push({ id: 'reaction-' + r.id, type: 'reaction', actorId: r.userId, postId: r.postId, emoji: r.emoji, createdAt: r.createdAt })
-  for (const r of followRows) items.push({ id: 'follow-' + r.id, type: 'follow', actorId: r.followerId, createdAt: r.createdAt })
-  for (const r of friendRows) items.push({ id: 'friend-' + r.id, type: 'friend_request', actorId: r.userId, createdAt: r.createdAt })
+  for (const r of fls) items.push({ id: 'follow-' + r.id, type: 'follow', actorId: r.followerId, createdAt: r.createdAt })
+  for (const r of frs) items.push({ id: 'friend-' + r.id, type: 'friend_request', actorId: r.userId, createdAt: r.createdAt })
 
   items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const page = items.slice(offset, offset + limit)

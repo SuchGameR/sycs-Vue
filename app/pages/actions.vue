@@ -185,32 +185,55 @@ function timeAgo(date: string) {
       <div v-if="activeTab === 'notifications'">
         <div v-if="!items.length" class="text-center text-slate-500 py-8">通知はまだありません</div>
         <div v-else class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/20">
-          <button
+          <div
             v-for="n in items"
             :key="n.id"
+            class="w-full flex items-start gap-3 px-4 py-3 border-b border-slate-800 last:border-b-0 text-left cursor-pointer hover:bg-slate-800/30 transition"
             @click="openNotification(n)"
-            class="w-full flex items-start gap-3 px-4 py-3 border-b border-slate-800 last:border-b-0 text-left hover:bg-slate-800/30 transition"
           >
-            <div class="relative shrink-0">
-              <img v-if="avatarSrc(n.actor.avatarUrl)" :src="avatarSrc(n.actor.avatarUrl)" class="w-9 h-9 rounded-full object-cover" />
+            <NuxtLink
+              v-if="n.actor"
+              :to="`/profile/@${n.actor.username}`"
+              class="relative shrink-0 block"
+              title="プロフィールを開く"
+              @click.stop
+            >
+              <img v-if="avatarSrc(n.actor?.avatarUrl)" :src="avatarSrc(n.actor.avatarUrl)" class="w-9 h-9 rounded-full object-cover" />
               <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                 {{ n.actor?.displayName?.charAt(0) || '?' }}
               </div>
               <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
                 <Icon :name="notifMeta[n.type]?.icon || 'lucide:bell'" class="w-3 h-3" :class="notifMeta[n.type]?.color || 'text-slate-400'" />
               </span>
+            </NuxtLink>
+            <div v-else class="relative shrink-0">
+              <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">?</div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
+                <Icon :name="notifMeta[n.type]?.icon || 'lucide:bell'" class="w-3 h-3" :class="notifMeta[n.type]?.color || 'text-slate-400'" />
+              </span>
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-sm text-slate-300">
-                <span class="font-bold text-white">{{ n.actor?.displayName || '不明' }}</span>
+                <NuxtLink
+                  v-if="n.actor"
+                  :to="`/profile/@${n.actor.username}`"
+                  class="font-bold text-white hover:text-indigo-300 hover:underline transition"
+                  @click.stop
+                >{{ n.actor?.displayName || n.actor?.username }}</NuxtLink>
+                <span v-else class="font-bold text-white">不明</span>
                 {{ notifMeta[n.type]?.text || 'がアクティビティをしました' }}
                 <EmojiIcon v-if="n.type === 'reaction' && n.emoji" :emoji="n.emoji" size="sm" class="inline-block align-text-bottom" />
               </p>
               <p v-if="n.type === 'comment' && n.content" class="text-xs text-slate-500 truncate mt-0.5">{{ n.content }}</p>
-              <p v-else-if="n.post?.content" class="text-xs text-slate-500 truncate mt-0.5">{{ n.post.content }}</p>
+              <button
+                v-else-if="n.post?.content"
+                class="text-xs text-slate-400 hover:text-indigo-300 transition truncate mt-0.5 block max-w-full text-left"
+                title="投稿を開く"
+                @click.stop="openPost(n.post)"
+              >{{ n.post.content }}</button>
               <p class="text-[11px] text-slate-600 mt-0.5">{{ timeAgo(n.createdAt) }}</p>
             </div>
-          </button>
+          </div>
         </div>
       </div>
 

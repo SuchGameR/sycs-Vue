@@ -188,7 +188,7 @@ onUnmounted(() => {
     <div v-for="(att, i) in attachments" :key="att.id"
       class="relative group rounded-lg overflow-hidden bg-slate-900/50">
       <template v-if="isImage(att.mime)">
-        <img :src="displayUrl(att)"
+        <img :src="displayUrl(att)" loading="lazy"
           :class="['w-full object-cover cursor-pointer transition duration-300', imageClass(attachments.length)]"
           @click.stop="isBlurred(att) ? reveal(att.id) : ((props.interactive && !props.imageLightbox) ? emit('open', i) : openModal(i))"
           @dblclick="!props.interactive && openModal(i)" />

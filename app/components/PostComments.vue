@@ -249,7 +249,7 @@ function timeAgo(date: string) {
       <template v-else>
         <div v-for="c in comments" :key="c.id" class="flex gap-2.5">
           <NuxtLink :to="`/profile/@${c.user?.username || c.userId}`" class="shrink-0">
-            <img v-if="avatarSrc(c.user.avatarUrl)" :src="avatarSrc(c.user.avatarUrl)" class="w-7 h-7 rounded-full object-cover" />
+            <img v-if="avatarSrc(c.user?.avatarUrl)" :src="avatarSrc(c.user.avatarUrl)" class="w-7 h-7 rounded-full object-cover" />
             <div v-else class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold">
               {{ c.user?.displayName?.charAt(0) || '?' }}
             </div>

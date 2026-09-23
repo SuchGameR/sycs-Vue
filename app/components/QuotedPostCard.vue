@@ -31,7 +31,7 @@ const previewAtts = computed(() => (props.post?.attachments || []).slice(0, 4))
     <div v-if="post.deleted" class="text-sm text-slate-500 py-2 text-center">このポストは削除されました</div>
     <template v-else>
       <div class="flex items-center gap-2 min-w-0">
-        <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" class="w-5 h-5 rounded-full object-cover shrink-0" />
+        <img v-if="avatarSrc(post.user?.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" loading="lazy" class="w-5 h-5 rounded-full object-cover shrink-0" />
         <div v-else class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0">
           {{ (post.user?.displayName || '?').charAt(0) }}
         </div>
@@ -43,7 +43,7 @@ const previewAtts = computed(() => (props.post?.attachments || []).slice(0, 4))
         v-html="renderRichText(post.content, { custom: customEmojiMap })" />
 
       <div v-if="previewAtts.length" class="flex gap-1 flex-wrap">
-        <img v-for="a in previewAtts.filter((x: any) => String(x.mime || '').startsWith('image/'))" :key="a.id" :src="a.url" class="w-14 h-14 rounded-lg object-cover" />
+        <img v-for="a in previewAtts.filter((x: any) => String(x.mime || '').startsWith('image/'))" :key="a.id" :src="a.url" loading="lazy" class="w-14 h-14 rounded-lg object-cover" />
         <span v-if="previewAtts.some((a: any) => !String(a.mime || '').startsWith('image/'))" class="flex items-center gap-1 text-xs text-slate-500 px-2 py-1 rounded-lg bg-slate-800/60">
           <Icon name="lucide:paperclip" class="w-3.5 h-3.5" />
           {{ previewAtts.filter((a: any) => !String(a.mime || '').startsWith('image/')).length }} ファイル

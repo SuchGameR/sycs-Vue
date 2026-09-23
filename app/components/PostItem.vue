@@ -135,7 +135,7 @@ onMounted(ensureMe)
       <Icon name="lucide:repeat-2" class="w-3.5 h-3.5" />
       <NuxtLink :to="`/profile/@${post.boostedBy.user?.username || ''}`" class="hover:underline truncate">
         <span v-if="post.boostedBy.user" class="flex items-center gap-1">
-          <img v-if="avatarSrc(post.boostedBy.user.avatarUrl)" :src="avatarSrc(post.boostedBy.user.avatarUrl)"
+          <img v-if="avatarSrc(post.boostedBy.user.avatarUrl)" :src="avatarSrc(post.boostedBy.user.avatarUrl)" loading="lazy"
             class="w-4 h-4 rounded-full object-cover" />
           <span class="font-bold">{{ post.boostedBy.user.displayName }}</span>
         </span>
@@ -145,7 +145,7 @@ onMounted(ensureMe)
 
     <div class="flex gap-3" @click.self="openThread">
       <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
-        <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" class="w-10 h-10 rounded-full object-cover" />
+        <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" loading="lazy" class="w-10 h-10 rounded-full object-cover" />
         <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
           {{ post.user.displayName.charAt(0) }}
         </div>

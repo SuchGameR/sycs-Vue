@@ -51,7 +51,7 @@ onUnmounted(stopTrendingPolling)
       <div class="space-y-2">
         <NuxtLink v-for="m in members" :key="m.userId" :to="`/profile/@${m.user?.username || m.userId}`"
           class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition">
-          <img v-if="avatarSrc(m.user.avatarUrl)" :src="avatarSrc(m.user.avatarUrl)" class="w-6 h-6 rounded-full object-cover shrink-0" />
+          <img v-if="avatarSrc(m.user?.avatarUrl)" :src="avatarSrc(m.user.avatarUrl)" class="w-6 h-6 rounded-full object-cover shrink-0" />
           <div v-else class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0">
             {{ m.user?.displayName?.charAt(0) || '?' }}
           </div>
@@ -92,7 +92,7 @@ onUnmounted(stopTrendingPolling)
             :class="i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-orange-400' : 'text-slate-600'">
             {{ i + 1 }}
           </span>
-          <img v-if="avatarSrc(p.user.avatarUrl)" :src="avatarSrc(p.user.avatarUrl)" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" />
+          <img v-if="avatarSrc(p.user?.avatarUrl)" :src="avatarSrc(p.user.avatarUrl)" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" />
           <div v-else class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
             {{ p.user?.displayName?.charAt(0) || '?' }}
           </div>

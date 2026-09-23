@@ -17,6 +17,65 @@ watch(status, (s) => {
 
 onUnmounted(() => { if (timer) clearInterval(timer) })
 
+/* ---- mini floating icon (draggable) ---- */
+const minimized = ref(false)
+const miniEl = ref<HTMLElement | null>(null)
+const miniPos = reactive({ x: 0, y: 0 })
+const miniDrag = reactive({ active: false, moved: false, startX: 0, startY: 0, origX: 0, origY: 0 })
+
+function initMiniPos() {
+  if (!import.meta.client) return
+  miniPos.x = window.innerWidth - 88
+  miniPos.y = 88
+}
+if (import.meta.client) {
+  if (document.readyState === 'complete') initMiniPos()
+  else window.addEventListener('load', initMiniPos)
+}
+function onMiniResize() {
+  if (!import.meta.client) return
+  miniPos.x = Math.min(miniPos.x, window.innerWidth - 80)
+  miniPos.y = Math.min(miniPos.y, window.innerHeight - 88)
+}
+
+const miniPeer = computed(() => {
+  const other = members.value.find(m => m.userId !== me.value?.userId)
+  return other || me.value || null
+})
+
+function onMiniDown(e: PointerEvent) {
+  if (e.button !== 0) return
+  e.preventDefault()
+  miniDrag.active = true
+  miniDrag.moved = false
+  miniDrag.startX = e.clientX
+  miniDrag.startY = e.clientY
+  miniDrag.origX = miniPos.x
+  miniDrag.origY = miniPos.y
+  window.addEventListener('pointermove', onMiniMove)
+  window.addEventListener('pointerup', onMiniUp)
+}
+function onMiniMove(e: PointerEvent) {
+  if (!miniDrag.active) return
+  const dx = e.clientX - miniDrag.startX
+  const dy = e.clientY - miniDrag.startY
+  if (Math.abs(dx) + Math.abs(dy) > 3) miniDrag.moved = true
+  miniPos.x = Math.max(0, Math.min(window.innerWidth - 80, miniDrag.origX + dx))
+  miniPos.y = Math.max(72, Math.min(window.innerHeight - 88, miniDrag.origY + dy))
+}
+function onMiniUp() {
+  if (!miniDrag.active) return
+  miniDrag.active = false
+  window.removeEventListener('pointermove', onMiniMove)
+  window.removeEventListener('pointerup', onMiniUp)
+  const snapLeft = miniPos.x < window.innerWidth / 2
+  miniPos.x = snapLeft ? 8 : window.innerWidth - 88
+}
+function expandCall() {
+  if (miniDrag.moved) { miniDrag.moved = false; return }
+  minimized.value = false
+}
+
 const callTime = computed(() => {
   const m = Math.floor(elapsed.value / 60)
   const s = elapsed.value % 60
@@ -88,6 +147,7 @@ onUnmounted(stopRing)
 
 async function accept() {
   stopRing()
+  minimized.value = false
   await voice.acceptCall()
   const room = voice.activeRoom.value
   if (room?.kind === 'dm' && room.roomKey.startsWith('dm:')) {
@@ -428,8 +488,8 @@ function wbToggleTool() { wbPanMode.value = !wbPanMode.value }
 function wbClear() { voice.sendWhiteboard({ clear: true }) }
 function wbUndo() { voice.sendWhiteboard({ sync: [...whiteboardStrokes.value.slice(0, -1)] }) }
 
-onMounted(() => { window.addEventListener('resize', wbResize) })
-onUnmounted(() => { window.removeEventListener('resize', wbResize) })
+onMounted(() => { window.addEventListener('resize', wbResize); window.addEventListener('resize', onMiniResize) })
+onUnmounted(() => { window.removeEventListener('resize', wbResize); window.removeEventListener('resize', onMiniResize) })
 </script>
 
 <template>
@@ -477,7 +537,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
 
     <!-- fullscreen call view -->
     <Transition name="fade">
-      <div v-if="callOpen" data-vc-aud-root class="fixed inset-0 z-[85] bg-[#0b0f19] flex flex-col">
+      <div v-if="callOpen && !minimized" data-vc-aud-root class="fixed inset-0 z-[85] bg-[#0b0f19] flex flex-col">
         <!-- top bar -->
         <div class="flex items-center justify-between px-5 py-3 shrink-0 border-b border-slate-800/60">
           <div class="flex items-center gap-2.5 min-w-0">
@@ -491,6 +551,9 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
             </span>
             <span v-if="status === 'active'" class="text-xs text-slate-400 tabular-nums">{{ callTime }}</span>
             <span class="text-xs text-slate-500">{{ tiles.length + screenTiles.length }}名</span>
+            <button @click="minimized = true" class="w-8 h-8 rounded-full bg-slate-800/60 hover:bg-slate-700 transition flex items-center justify-center" title="最小化（ドラッグできる通話アイコンに）">
+              <Icon name="lucide:minus" class="w-4 h-4 text-slate-300" />
+            </button>
           </div>
         </div>
 
@@ -672,6 +735,33 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
       </div>
     </Transition>
 
+    <!-- mini floating call icon (draggable, ~80px, on top of everything) -->
+    <Transition name="mini-pop">
+      <div
+        v-if="callOpen && minimized"
+        ref="miniEl"
+        class="fixed z-[98] w-20 h-20 rounded-2xl bg-[#151a24]/95 border border-slate-700 shadow-2xl backdrop-blur flex flex-col items-center justify-center gap-1 cursor-grab active:cursor-grabbing select-none touch-none"
+        :style="{ left: miniPos.x + 'px', top: miniPos.y + 'px' }"
+        @pointerdown="onMiniDown"
+        @click="expandCall"
+      >
+        <div class="relative">
+          <div v-if="miniPeer" :class="['relative w-11 h-11 rounded-full overflow-hidden', speakingGlow(miniPeer.userId, miniPeer.userId === me?.userId)]">
+            <img v-if="avatarSrc(miniPeer.avatarUrl)" :src="avatarSrc(miniPeer.avatarUrl)" class="w-full h-full object-cover" />
+            <div v-else class="w-full h-full bg-indigo-600 flex items-center justify-center text-white text-lg font-bold">
+              {{ (miniPeer.displayName || miniPeer.username || '?').charAt(0) }}
+            </div>
+          </div>
+          <span class="absolute -bottom-0.5 -right-0.5 flex w-3 h-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+            <span class="relative inline-flex rounded-full w-3 h-3 bg-emerald-500" />
+          </span>
+        </div>
+        <span v-if="status === 'active'" class="text-[10px] text-slate-300 tabular-nums">{{ callTime }}</span>
+        <Icon name="lucide:phone" class="w-3 h-3 text-emerald-400" />
+      </div>
+    </Transition>
+
     <!-- hidden audio outputs (playsinline + not display:none for mobile) -->
     <template v-if="callOpen">
       <audio v-for="(stream, uid) in remoteStreams" :key="'aud-' + uid" :srcObject="stream" :muted="speakerMuted"
@@ -685,6 +775,8 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize) })
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(12px); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+.mini-pop-enter-active, .mini-pop-leave-active { transition: all 0.2s ease; }
+.mini-pop-enter-from, .mini-pop-leave-to { opacity: 0; transform: scale(0.6); }
 
 .vc-aud-absolute {
   position: absolute;

@@ -67,7 +67,7 @@ const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
         class="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl hover:bg-slate-800/50 transition"
       >
         <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
-          <img v-if="avatarSrc(otherMembers(ch)[0].avatarUrl)" :src="avatarSrc(otherMembers(ch)[0].avatarUrl)" class="w-full h-full object-cover" />
+          <img v-if="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" :src="avatarSrc(otherMembers(ch)[0].avatarUrl)" class="w-full h-full object-cover" />
           <template v-else>{{ otherMembers(ch)[0]?.displayName?.charAt(0) || '?' }}</template>
         </div>
         <div class="min-w-0 flex-1">

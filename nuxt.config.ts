@@ -67,6 +67,8 @@ export default defineNuxtConfig({
   nitro: {
     // GitHub Actions の generate 時に static プリセットを使う
     preset: process.env.NITRO_PRESET === 'static' ? 'static' : undefined,
+    // gzip/brotli 圧縮で API レスポンスと静的アセットの読み込みを高速化
+    compressPublicAssets: true,
   },
 
   // 静的生成時: API は出さない・ページのプリレンダーで API/DB に依存しない

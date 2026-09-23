@@ -81,6 +81,9 @@ function seed() {
 
   $fetch('/api/notifications?limit=50')
     .then((res: any) => {
+      // A mark-read may have raced with this seed (page already open) — trust
+      // the current screen and show 0 instead of resurrecting a stale badge.
+      if (isReadingActivity()) { activityUnread.value = 0; return }
       activityUnread.value = (res.items || []).filter((i: any) => new Date(i.createdAt).getTime() > actLast).length
     })
     .catch(() => { activityUnread.value = 0 })
@@ -94,7 +97,7 @@ function seed() {
         if (!lm) continue
         const ts = new Date(lm.createdAt).getTime()
         const lastRead = Number(dmLast[ch.id] || 0)
-        if (lm.sender?.id && lm.sender.id !== myId && ts > lastRead) unread.add(ch.id)
+        if (lm.sender?.id && lm.sender.id !== myId && ts > lastRead && !isReadingDm(ch.id)) unread.add(ch.id)
         if (!best || ts > best.ts) best = { ts, sender: lm.sender }
       }
       dmUnreadChannels.value = unread
