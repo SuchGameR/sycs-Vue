@@ -189,6 +189,7 @@ function onSheetUp() {
             <PostComments :post="selected" @update="onPatch" />
           </div>
         </div>
+        </div>
       </div>
     </Transition>
   </div>

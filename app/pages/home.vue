@@ -15,6 +15,7 @@ const refreshMode = computed(() => userSettings.value.refreshMode || 'auto')
 
 let pollTimer: ReturnType<typeof setTimeout> | null = null
 const offset = ref(0)
+const cursor = ref('')
 const hasMore = ref(true)
 
 const { sentinel, loading: loadingMore, done, reset: resetScroll } = useInfiniteScroll(async () => {
@@ -22,19 +23,21 @@ const { sentinel, loading: loadingMore, done, reset: resetScroll } = useInfinite
 })
 
 async function loadPosts(reset = true, silent = false) {
-  if (!silent) loading.value = true
+  if (reset && !silent) loading.value = true
   if (reset) {
     offset.value = 0
+    cursor.value = ''
     hasMore.value = true
     resetScroll()
   }
   if (!hasMore.value) return { hasMore: false }
   try {
     const data = await $fetch('/api/posts', {
-      params: { ...timelines.buildQuery(), limit: FEED_PAGE_SIZE, offset: offset.value },
+      params: { ...timelines.buildQuery(), limit: FEED_PAGE_SIZE, offset: offset.value, cursor: cursor.value },
     })
     const incoming = data.posts || []
     offset.value = data.nextOffset ?? (offset.value + incoming.length)
+    if (typeof data.nextCursor === 'string' && data.nextCursor) cursor.value = data.nextCursor
     hasMore.value = data.hasMore ?? incoming.length === FEED_PAGE_SIZE
     if (reset) {
       posts.value = incoming

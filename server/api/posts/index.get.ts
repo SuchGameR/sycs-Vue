@@ -1,15 +1,29 @@
 import { db } from '../../db'
 import * as schema from '../../db/schema'
-import { desc, inArray, eq, and, notInArray, or } from 'drizzle-orm'
+import { desc, asc, inArray, eq, and, notInArray, or, lt } from 'drizzle-orm'
 import { getCurrentUser } from '../../utils/auth'
 import { isServerMember } from '../../utils/serverAuth'
 import { serializePosts } from '../../utils/postQuery'
 import { enrichUsers, publicUser } from '../../utils/userExtras'
 
+interface Cursor { createdAt: number; id: string }
+function decodeCursor(raw?: string | string[]): Cursor | null {
+  const s = Array.isArray(raw) ? raw[0] : raw
+  if (!s) return null
+  const [ts, id] = String(s).split('|')
+  const n = Number(ts)
+  if (!id || !Number.isFinite(n)) return null
+  return { createdAt: n, id }
+}
+function encodeCursor(c: Cursor | null): string {
+  return c ? `${c.createdAt}|${c.id}` : ''
+}
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50)
   const offset = Number(query.offset) || 0
+  const initialCursor = decodeCursor(query.cursor)
 
   let scope = String(query.scope || '')
   const legacy = String(query.timeline || '')
@@ -194,17 +208,74 @@ export default defineEventHandler(async (event) => {
     for (const u of us) reposterCache.set(u.id, publicUser(u, extras[u.id]))
   }
 
+  // Keyset pagination for newest-first feeds: each stream (posts, boosts) keeps
+  // its own (createdAt, id) cursor so pages stay stable while new posts arrive.
+  const useKeyset = sort === 'latest'
+
+  function encodeCursorPair(postsCur: Cursor | null, boostsCur: Cursor | null): string {
+    return Buffer.from(JSON.stringify({
+      p: postsCur ? [postsCur.createdAt, postsCur.id] : null,
+      b: boostsCur ? [boostsCur.createdAt, boostsCur.id] : null,
+    })).toString('base64url')
+  }
+
+  async function fetchPostsWindow(prev: Cursor | null, take: number) {
+    const keyCond = prev ? or(
+      lt(schema.posts.createdAt, new Date(prev.createdAt)),
+      and(eq(schema.posts.createdAt, new Date(prev.createdAt)), lt(schema.posts.id, prev.id)),
+    ) : undefined
+    return db.query.posts.findMany({
+      where: and(...conditions, keyCond),
+      orderBy: [desc(schema.posts.createdAt), desc(schema.posts.id)],
+      limit: take,
+    })
+  }
+
+  async function fetchBoostsKeyset(prev: Cursor | null, take: number) {
+    const keyCond = prev ? or(
+      lt(schema.reposts.createdAt, new Date(prev.createdAt)),
+      and(eq(schema.reposts.createdAt, new Date(prev.createdAt)), lt(schema.reposts.id, prev.id)),
+    ) : undefined
+    const reposts = await db.query.reposts.findMany({
+      where: and(boostWhere, keyCond),
+      orderBy: [desc(schema.reposts.createdAt), desc(schema.reposts.id)],
+      limit: take,
+    })
+    if (!reposts.length) return []
+    const ids = [...new Set(reposts.map(r => r.postId))]
+    const rows = await db.query.posts.findMany({ where: inArray(schema.posts.id, ids) })
+    const map = new Map(rows.map(p => [p.id, p]))
+    return reposts
+      .filter(r => map.has(r.postId))
+      .map(r => ({ createdAt: r.createdAt, reposterId: r.userId, post: map.get(r.postId)!, repostId: r.id }))
+  }
+
   // Fetch in batches until we have `limit` visible posts (or boosts) or the source
   // is exhausted, merging posts and boosts by createdAt so the combined feed stays
-  // newest-first. `offset`/`nextOffset` stay correct across both streams.
+  // newest-first.
   const collected: any[] = []
   const boostShown = new Set<string>()
   let cursor = offset
+  let postCursor: Cursor | null = initialCursor
+  let boostCursor: Cursor | null = initialCursor
+  let postExhausted = false
+  let boostExhausted = false
+  const boostActive = includeBoosts && !!boostWhere && !!boostPool?.length
   let reachedEnd = false
   let pageFull = false
+
   while (collected.length < limit && !reachedEnd && !pageFull) {
-    const postsBatch = await db.query.posts.findMany({ limit, offset: cursor, where, orderBy })
-    const boostsBatch = includeBoosts ? await fetchBoosts(cursor) : []
+    let postsBatch: any[]
+    let boostsBatch: any[]
+    if (useKeyset) {
+      postsBatch = postExhausted ? [] : await fetchPostsWindow(postCursor, limit)
+      if (!postsBatch.length) postExhausted = true
+      boostsBatch = (boostActive && !boostExhausted) ? await fetchBoostsKeyset(boostCursor, limit) : []
+      if (boostActive && !boostsBatch.length) boostExhausted = true
+    } else {
+      postsBatch = await db.query.posts.findMany({ limit, offset: cursor, where, orderBy })
+      boostsBatch = boostActive ? await fetchBoosts(cursor) : []
+    }
     if (!postsBatch.length && !boostsBatch.length) { reachedEnd = true; break }
 
     await ensurePrivacy([...postsBatch, ...boostsBatch.map(b => b.post)])
@@ -228,7 +299,12 @@ export default defineEventHandler(async (event) => {
 
     for (const item of merged) {
       if (collected.length >= limit) { pageFull = true; break }
-      cursor++
+      if (useKeyset) {
+        if (item.kind === 'post') postCursor = { createdAt: +item.createdAt, id: item.row.id }
+        else boostCursor = { createdAt: +item.createdAt, id: item.row.repostId }
+      } else {
+        cursor++
+      }
       if (item.kind === 'post') {
         if (isVisible(item.row) && authorVisible(item.row)) collected.push(item.row)
       } else {
@@ -243,9 +319,17 @@ export default defineEventHandler(async (event) => {
         }
       }
     }
-    if (postsBatch.length < limit && boostsBatch.length < limit) reachedEnd = true
+
+    if (useKeyset) {
+      if (postExhausted && (!boostActive || boostExhausted)) { reachedEnd = true; break }
+    } else if (postsBatch.length < limit && boostsBatch.length < limit) {
+      reachedEnd = true
+    }
   }
 
   const result = await serializePosts(collected, currentUser)
+  if (useKeyset) {
+    return { posts: result, nextOffset: cursor, nextCursor: encodeCursorPair(postCursor, boostCursor), hasMore: !reachedEnd }
+  }
   return { posts: result, nextOffset: cursor, hasMore: !reachedEnd }
 })

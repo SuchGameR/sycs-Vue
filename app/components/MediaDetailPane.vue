@@ -36,6 +36,16 @@ const mediaList = computed(() => {
 })
 const currentMedia = computed(() => mediaList.value[Math.min(mediaIndex.value, mediaList.value.length - 1)] || null)
 
+const currentAttachment = computed<any | null>(() => {
+  if (kind.value === 'image') return images.value[Math.min(mediaIndex.value, images.value.length - 1)] || null
+  if (kind.value === 'file') return files.value[Math.min(mediaIndex.value, files.value.length - 1)] || null
+  return currentMedia.value
+})
+const download = computed<{ href: string | null; name: string | undefined }>(() => ({
+  href: currentAttachment.value?.originalUrl || currentAttachment.value?.url || null,
+  name: currentAttachment.value?.originalName || undefined,
+}))
+
 const kindLabel = computed(() => {
   if (kind.value === 'video') return '動画'
   if (kind.value === 'image') return '画像'
@@ -128,6 +138,9 @@ function timeAgo(date: string) {
           <Icon :name="kindIcon" class="w-4 h-4 text-indigo-400 shrink-0 ml-1" />
           <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ kindLabel }}</span>
           <span v-if="sourceLabel" class="text-[11px] text-slate-600 truncate">· {{ sourceLabel }}</span>
+          <a v-if="download.href" :href="download.href" :download="download.name" class="ml-1 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="元のファイルをダウンロード">
+            <Icon name="lucide:download" class="w-4 h-4" />
+          </a>
           <button @click="pane.close()" class="ml-auto p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition" title="閉じる">
             <Icon name="lucide:x" class="w-4 h-4" />
           </button>
