@@ -4,9 +4,10 @@ import { sql, eq } from 'drizzle-orm'
 import { getCurrentUser } from '../utils/auth'
 import { serializePosts } from '../utils/postQuery'
 import { enrichUsers, publicUser } from '../utils/userExtras'
+import { normalizeTag } from '../utils/hashtags'
 
 /**
- * Cross-type search: users, posts, servers.
+ * Cross-type search: users, posts, servers, hashtags.
  *
  * Efficiency: every table is backed by a GIN trigram index (pg_trgm), so the
  * ILIKE '%q%' predicates are resolved with an index bitmap scan instead of a
@@ -19,14 +20,21 @@ export default defineEventHandler(async (event) => {
   const type = String(query.type || 'all')
   const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 50)
 
-  if (!qRaw) return { users: [], posts: [], servers: [], query: '' }
+  if (!qRaw) return { users: [], posts: [], servers: [], hashtags: [], query: '' }
 
   const q = qRaw.toLowerCase()
   const currentUser = await getCurrentUser(event)
 
-  const wantUsers = type === 'all' || type === 'users'
-  const wantPosts = type === 'all' || type === 'posts'
-  const wantServers = type === 'all' || type === 'servers'
+  // `#tag` (or a bare legal tag) is a hashtag lookup, not a text search. Routing
+  // it to the indexed link table is both exact and far cheaper than ILIKE over
+  // post content, and it means "#foo" in the search box behaves like tapping a
+  // hashtag link in the feed.
+  const tagKey = normalizeTag(qRaw)
+  const wantHashtags = type === 'all' || type === 'hashtags'
+  const tagOnly = !!tagKey && wantHashtags
+  const wantUsers = !tagOnly && (type === 'all' || type === 'users')
+  const wantPosts = !tagOnly && (type === 'all' || type === 'posts')
+  const wantServers = !tagOnly && (type === 'all' || type === 'servers')
 
   const like = sql`'%' || ${q} || '%'`
   const prefix = sql`${q} || '%'`
@@ -34,6 +42,69 @@ export default defineEventHandler(async (event) => {
   const users: any[] = []
   const posts: any[] = []
   const serverRows: any[] = []
+  const hashtagRows: any[] = []
+
+  if (tagOnly) {
+    // Rank by the same time-decayed engagement the trending endpoint uses, so a
+    // tag that spiked today outranks one with a higher all-time count.
+    const res = await db.execute(sql`
+      WITH scored AS (
+        SELECT ph.tag,
+          SUM(
+            (1 + (
+              (SELECT count(*)::int FROM post_reactions r WHERE r.post_id = p.id)
+              + 2 * (SELECT count(*)::int FROM post_comments c WHERE c.post_id = p.id)
+              + 3 * (SELECT count(*)::int FROM reposts rp WHERE rp.post_id = p.id)
+              + 0.25 * COALESCE(p.view_count, 0)
+            ))
+            / POWER(GREATEST(EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600.0, 0) + 2, 1.5)
+          ) AS score,
+          COUNT(*)::int AS "scoredPosts"
+        FROM post_hashtags ph
+        JOIN posts p ON p.id = ph.post_id
+        WHERE ph.tag = ${tagKey}
+          AND p.created_at > NOW() - INTERVAL '30 days'
+          AND p.visibility = 'public'
+          AND p.server_id IS NULL
+        GROUP BY ph.tag
+      )
+      SELECT h.tag, h.display_tag AS "displayTag", h.post_count AS "postCount",
+        COALESCE(s.score, 0) AS score, COALESCE(s."scoredPosts", 0) AS "scoredPosts"
+      FROM hashtags h
+      LEFT JOIN scored s ON s.tag = h.tag
+      WHERE h.tag = ${tagKey}
+    `)
+    const r: any = (res as any).rows[0]
+    if (r) {
+      hashtagRows.push({
+        tag: r.tag,
+        displayTag: r.displayTag || r.tag,
+        postCount: r.postCount,
+        recentPosts: r.scoredPosts,
+        score: Math.round(Number(r.score) * 1000) / 1000,
+      })
+    }
+    return { users: [], posts: [], servers: [], hashtags: hashtagRows, query: qRaw }
+  }
+
+  if (wantHashtags && tagKey) {
+    const res = await db.execute(sql`
+      SELECT tag, display_tag AS "displayTag", post_count AS "postCount"
+      FROM hashtags
+      WHERE tag = ${tagKey}
+      LIMIT 1
+    `)
+    const r: any = (res as any).rows[0]
+    if (r) {
+      hashtagRows.push({
+        tag: r.tag,
+        displayTag: r.displayTag || r.tag,
+        postCount: r.postCount,
+        recentPosts: 0,
+        score: r.postCount,
+      })
+    }
+  }
 
   if (wantUsers) {
     const res = await db.execute(sql`
@@ -115,5 +186,5 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  return { users, posts, servers: serverRows, query: qRaw }
+  return { users, posts, servers: serverRows, hashtags: hashtagRows, query: qRaw }
 })

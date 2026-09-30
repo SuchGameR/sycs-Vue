@@ -1,4 +1,4 @@
-import { and, eq, notInArray, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, notInArray, or, sql } from 'drizzle-orm'
 import { db } from '../db'
 import * as schema from '../db/schema'
 
@@ -98,11 +98,15 @@ export function extractHashtagEntries(content: string): HashtagEntry[] {
 export async function recountHashtags(tags: string[]): Promise<void> {
   const unique = [...new Set(tags)]
   if (!unique.length) return
-  await db.execute(sql`
-    UPDATE hashtags h
-    SET post_count = (SELECT count(*)::int FROM post_hashtags ph WHERE ph.tag = h.tag)
-    WHERE h.tag = ANY(${unique}::text[])
-  `)
+  // Built with the query builder rather than a raw `= ANY($1::text[])`: the
+  // drizzle sql`` tag expands a JS array into a comma-separated tuple, which
+  // Postgres rejects as `ANY(($1, $2)...)`.
+  await db
+    .update(schema.hashtags)
+    .set({
+      postCount: sql`(SELECT count(*)::int FROM post_hashtags ph WHERE ph.tag = ${schema.hashtags.tag})`,
+    })
+    .where(inArray(schema.hashtags.tag, unique))
 }
 
 /**

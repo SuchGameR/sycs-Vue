@@ -171,6 +171,18 @@ body {
   pointer-events: none;
 }
 
+/* The plate follows a finger, so the rail must not let the browser pan it.
+   `touch-pan-y` keeps vertical page scrolling working while horizontal
+   movement is handed to the pointer handlers for the swipe-to-select
+   gesture. */
+.sycs-floatnav-rail {
+  pointer-events: auto;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y;
+}
+
 .sycs-floatnav > div {
   pointer-events: auto;
   background:

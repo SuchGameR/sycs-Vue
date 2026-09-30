@@ -48,6 +48,15 @@ export default defineEventHandler(async (event) => {
     channelId,
   }).returning()
 
+  // Index hashtags so the tag pages have something to show. Failure here must not
+  // fail the post: the post is already committed, and the boot-time backfill in
+  // server/db/index.ts re-indexes any post left without links.
+  try {
+    await syncPostHashtags(post.id, post.content)
+  } catch (e: any) {
+    console.warn('[hashtags] Failed to index post', post.id, ':', e?.message || e)
+  }
+
   const values: any[] = []
 
   if (body.attachments?.length) {

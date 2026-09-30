@@ -7,8 +7,8 @@ const mediaPane = useMediaPane()
 const { map: customEmojiMap } = useCustomEmojis()
 
 const queryStr = ref(String(route.query.q || ''))
-const tab = ref<'all' | 'posts' | 'users' | 'servers'>(String(route.query.type || 'all') as any)
-const results = ref<{ users: any[]; posts: any[]; servers: any[] }>({ users: [], posts: [], servers: [] })
+const tab = ref<'all' | 'posts' | 'users' | 'servers' | 'hashtags'>(String(route.query.type || 'all') as any)
+const results = ref<{ users: any[]; posts: any[]; servers: any[]; hashtags: any[] }>({ users: [], posts: [], servers: [], hashtags: [] })
 const loading = ref(false)
 const error = ref('')
 const searched = ref(false)
@@ -16,9 +16,18 @@ const searched = ref(false)
 const tabs = [
   { key: 'all', label: 'すべて', icon: 'lucide:layout-grid' },
   { key: 'posts', label: '投稿', icon: 'lucide:message-square' },
+  { key: 'hashtags', label: 'ハッシュタグ', icon: 'lucide:hash' },
   { key: 'users', label: 'ユーザー', icon: 'lucide:users' },
   { key: 'servers', label: 'サーバー', icon: 'lucide:server' },
 ] as const
+
+// A legal `#tag` query is a hashtag lookup; hide the other tabs so the result
+// list doesn't render empty "no posts" / "no users" sections.
+const isTagQuery = computed(() => /^#?[A-Za-z0-9_\u3040-\u30FF]+$/.test(queryStr.value.trim()))
+
+function tagHref(tag: string) {
+  return '/hashtag/' + encodeURIComponent(tag)
+}
 
 async function runSearch(silent = false) {
   const q = queryStr.value.trim()
@@ -26,7 +35,7 @@ async function runSearch(silent = false) {
   if (!silent) loading.value = true
   error.value = ''
   try {
-    const data = await $fetch<{ users: any[]; posts: any[]; servers: any[] }>('/api/search', {
+    const data = await $fetch<{ users: any[]; posts: any[]; servers: any[]; hashtags: any[] }>('/api/search', {
       params: { q, type: tab.value === 'all' ? 'all' : tab.value },
     })
     results.value = data
@@ -44,7 +53,7 @@ function submit() {
   if (q) runSearch()
 }
 
-function switchTab(t: 'all' | 'posts' | 'users' | 'servers') {
+function switchTab(t: 'all' | 'posts' | 'users' | 'servers' | 'hashtags') {
   tab.value = t
   router.replace({ path: '/search', query: { q: queryStr.value.trim() || undefined, type: t === 'all' ? undefined : t } })
   if (queryStr.value.trim()) runSearch()
@@ -137,8 +146,25 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
         <div v-if="tab !== 'all' && !results.posts.length" class="px-3 py-8 text-center text-slate-600 text-sm">投稿が見つかりません</div>
       </template>
 
+      <!-- Hashtags -->
+      <template v-if="tab !== 'servers'">
+        <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-t border-outline-variant">ハッシュタグ</div>
+        <NuxtLink v-for="h in results.hashtags" :key="h.tag" :to="tagHref(h.tag)"
+          class="w-full flex items-center gap-3 px-3 py-3 hover:bg-surface-container/30 transition">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+            <Icon name="lucide:hash" class="w-4 h-4 text-indigo-400" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-on-surface truncate">#{{ h.displayTag }}</p>
+            <p class="text-xs text-on-surface-variant">{{ h.postCount }} 件の投稿</p>
+          </div>
+          <Icon name="lucide:chevron-right" class="w-4 h-4 text-slate-600 shrink-0" />
+        </NuxtLink>
+        <div v-if="tab === 'hashtags' && !results.hashtags.length" class="px-3 py-8 text-center text-slate-600 text-sm">ハッシュタグが見つかりません</div>
+      </template>
+
       <!-- Users -->
-      <template v-if="tab !== 'posts'">
+      <template v-if="tab !== 'posts' && tab !== 'hashtags'">
         <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-t border-outline-variant">ユーザー</div>
         <NuxtLink v-for="u in results.users" :key="u.id" :to="`/profile/@${u.username}`"
           class="w-full flex items-center gap-3 px-3 py-3 hover:bg-surface-container/30 transition">
@@ -171,7 +197,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
         <div v-if="tab === 'servers' && !results.servers.length" class="px-3 py-8 text-center text-slate-600 text-sm">サーバーが見つかりません</div>
       </template>
 
-      <div v-if="!results.users.length && !results.posts.length && !results.servers.length"
+      <div v-if="!results.users.length && !results.posts.length && !results.servers.length && !results.hashtags.length"
         class="px-3 py-10 text-center text-slate-600 text-sm">「{{ queryStr }}」に一致する結果はありませんでした</div>
     </div>
 
