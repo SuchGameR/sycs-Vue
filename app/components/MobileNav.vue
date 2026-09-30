@@ -1,62 +1,88 @@
 <script setup lang="ts">
 const route = useRoute()
 const { activityUnread, dmUnread, dmLatest } = useUnread()
+const { data: me } = useFetch('/api/auth/me', { key: 'mobilenav-me' })
 
-const items = [
-  { to: '/home', label: 'ホーム', icon: 'lucide:home' },
-  { to: '/dm', label: 'DM', icon: 'lucide:message-square' },
-  { to: '/actions', label: 'アクティビティ', icon: 'lucide:bell' },
-]
+type Item = { key: string; to: string; icon: string; match: (p: string) => boolean }
 
-function isActive(to: string) {
-  if (to === '/home') return route.path === '/home'
-  return route.path.startsWith(to)
+const items = computed<Item[]>(() => {
+  const uid = me.value?.user?.id
+  return [
+    { key: 'home', to: '/home', icon: 'lucide:house', match: p => p === '/home' },
+    { key: 'search', to: '/search', icon: 'lucide:search', match: p => p.startsWith('/search') },
+    { key: 'dm', to: '/dm', icon: 'lucide:send', match: p => p.startsWith('/dm') },
+    { key: 'actions', to: '/actions', icon: 'lucide:heart', match: p => p.startsWith('/actions') },
+    uid
+      ? { key: 'me', to: `/profile/${me.value?.user?.username || uid}`, icon: 'lucide:user-round', match: p => p.startsWith('/profile/') && p.endsWith(uid) }
+      : { key: 'signin', to: '/signin', icon: 'lucide:log-in', match: p => p.startsWith('/signin') },
+  ]
+})
+
+const activeIndex = computed(() => {
+  const p = route.path
+  const i = items.value.findIndex(it => it.match(p))
+  return i === -1 ? -1 : i
+})
+
+/** アクティブプレートの位置。nth-child で CSS 側にも残す。 */
+const plateStyle = computed(() => {
+  const i = activeIndex.value
+  if (i < 0) return { opacity: '0', transform: 'translateX(-9999px)' }
+  return { transform: `translateX(${i * 100}%)` }
+})
+
+function badgeFor(key: string) {
+  if (key === 'dm') return dmUnread.value
+  if (key === 'actions') return activityUnread.value
+  return 0
 }
 
-const showServers = ref(false)
+
 </script>
 
 <template>
-  <nav class="fixed bottom-0 left-0 right-0 h-16 bg-surface/95 backdrop-blur-md border-t border-outline-variant sycs-glass flex items-center justify-around px-2 z-[70]">
-    <NuxtLink
-      v-for="item in items"
-      :key="item.to"
-      :to="item.to"
-      class="relative flex flex-col items-center gap-1 transition px-2"
-      :class="isActive(item.to) ? 'text-indigo-400' : 'text-on-surface-variant'"
+  <div class="min-[681px]:hidden">
+    <nav
+      class="sycs-floatnav fixed inset-x-0 bottom-0 z-[70] flex justify-center px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)]"
+      aria-label="メインナビゲーション"
     >
-      <span class="relative">
-        <Icon v-if="item.to !== '/dm'" :name="item.icon" class="w-6 h-6" />
-        <img
-          v-else-if="dmLatest?.avatarUrl"
-          :src="avatarSrc(dmLatest.avatarUrl)"
-          class="w-6 h-6 rounded-full object-cover"
+      <div class="relative flex items-center gap-1 rounded-[9999px] px-2 py-1.5">
+        <!-- 選択中の位置をなぞるプレート -->
+        <span
+          class="sycs-floatnav-plate pointer-events-none absolute left-2 top-1.5 h-[calc(100%-0.75rem)] w-[calc((100%-1rem)/5)] rounded-[9999px] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+          :style="plateStyle"
+          aria-hidden="true"
         />
-        <Icon v-else :name="item.icon" class="w-6 h-6" />
 
-        <span
-          v-if="item.to === '/actions' && activityUnread > 0"
-          class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
-        >{{ activityUnread }}</span>
-        <span
-          v-if="item.to === '/dm' && dmUnread > 0"
-          class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
-        >{{ dmUnread }}</span>
-      </span>
-      <span class="text-[10px] font-bold">{{ item.label }}</span>
-    </NuxtLink>
+        <NuxtLink
+          v-for="it in items"
+          :key="it.key"
+          :to="it.to"
+          class="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[9999px] transition-colors duration-200 active:scale-90"
+          :class="activeIndex === items.indexOf(it) ? 'text-on-surface' : 'text-on-surface-variant'"
+          :aria-current="activeIndex === items.indexOf(it) ? 'page' : undefined"
+          :aria-label="it.key"
+        >
+          <img
+            v-if="it.key === 'dm' && dmLatest?.avatarUrl"
+            :src="avatarSrc(dmLatest.avatarUrl)"
+            alt=""
+            class="h-6 w-6 rounded-full object-cover"
+          />
+          <img
+            v-else-if="it.key === 'me' && me?.user?.avatarUrl"
+            :src="avatarSrc(me.user.avatarUrl)"
+            alt=""
+            class="h-6 w-6 rounded-full object-cover ring-1 ring-current/30"
+          />
+          <Icon v-else :name="it.icon" class="h-[22px] w-[22px]" />
 
-    <NuxtLink to="/search" class="flex flex-col items-center gap-1 text-on-surface-variant px-2"
-      :class="route.path === '/search' ? 'text-indigo-400' : ''">
-      <Icon name="lucide:search" class="w-6 h-6" />
-      <span class="text-[10px] font-bold">検索</span>
-    </NuxtLink>
-
-    <button @click="showServers = true" class="flex flex-col items-center gap-1 text-on-surface-variant px-2">
-      <Icon name="lucide:server" class="w-6 h-6" />
-      <span class="text-[10px] font-bold">サーバー</span>
-    </button>
-
-    <ServerListModal v-if="showServers" @close="showServers = false" />
-  </nav>
+          <span
+            v-if="badgeFor(it.key) > 0"
+            class="absolute right-1 top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-[var(--sycs-floatnav-ring)]"
+          >{{ badgeFor(it.key) > 99 ? '99+' : badgeFor(it.key) }}</span>
+        </NuxtLink>
+      </div>
+    </nav>
+  </div>
 </template>

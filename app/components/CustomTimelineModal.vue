@@ -4,6 +4,14 @@ import { TIMELINE_PRESETS } from '~/composables/useCustomTimelines'
 const emit = defineEmits<{ close: [] }>()
 const timelines = useCustomTimelines()
 
+/**
+ * この Modal は v-if で mount / unmount される。
+ * BottomSheet の :open を“真に開いているか”として扱うため、
+ * mount 時点を true にしてから unmount で閉じる。
+ */
+const open = ref(true)
+onUnmounted(() => { open.value = false })
+
 const mode = ref<'easy' | 'detail'>('easy')
 const label = ref('')
 const conditions = reactive({
@@ -85,9 +93,8 @@ const selectCls = 'w-full bg-surface-container border border-outline rounded-lg 
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/70" @click.self="emit('close')">
-      <div class="bg-surface-container border border-outline rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto">
+  <BottomSheet :open="open" height="min(88dvh, 36rem)" :dismiss-on-backdrop="true" @close="emit('close')">
+    <div>
         <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
           <h3 class="font-bold text-white">カスタムタイムライン</h3>
           <button @click="emit('close')" class="text-on-surface-variant hover:text-white transition">
@@ -179,7 +186,6 @@ const selectCls = 'w-full bg-surface-container border border-outline rounded-lg 
             作成してピン留め
           </button>
         </div>
-      </div>
     </div>
-  </Teleport>
+  </BottomSheet>
 </template>

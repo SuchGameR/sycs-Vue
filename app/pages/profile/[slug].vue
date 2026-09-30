@@ -16,6 +16,11 @@ const userPosts = ref<any[]>([])
 const loading = ref(true)
 const showSettings = ref(false)
 
+const relationKind = ref<'followers' | 'following' | null>(null)
+function openRelation(kind: 'followers' | 'following') {
+  relationKind.value = kind
+}
+
 const postOffset = ref(0)
 const postHasMore = ref(true)
 const { sentinel: postSentinel, loading: loadingMorePosts, reset: resetPostScroll } = useInfiniteScroll(async () => {
@@ -336,8 +341,14 @@ async function toggleBookmark(postId: string) {
           <!-- Stats -->
           <div class="flex gap-5 mt-4 text-sm">
             <span><span class="font-bold text-white">{{ profile.stats.posts }}</span> <span class="text-on-surface-variant">投稿</span></span>
-            <span><span class="font-bold text-white">{{ profile.stats.followers }}</span> <span class="text-on-surface-variant">フォロワー</span></span>
-            <span><span class="font-bold text-white">{{ profile.stats.following }}</span> <span class="text-on-surface-variant">フォロー中</span></span>
+            <button
+              class="hover:underline underline-offset-2 transition"
+              @click="openRelation('followers')"
+            ><span class="font-bold text-white">{{ profile.stats.followers }}</span> <span class="text-on-surface-variant">フォロワー</span></button>
+            <button
+              class="hover:underline underline-offset-2 transition"
+              @click="openRelation('following')"
+            ><span class="font-bold text-white">{{ profile.stats.following }}</span> <span class="text-on-surface-variant">フォロー中</span></button>
           </div>
           <div v-if="settings.birthday || settings.birthplace" class="flex gap-4 mt-3 text-xs text-on-surface-variant">
             <span v-if="settings.birthday"><Icon name="lucide:cake" class="w-3.5 h-3.5 inline mr-1" />{{ settings.birthday }}</span>
@@ -347,6 +358,14 @@ async function toggleBookmark(postId: string) {
       </div>
 
       <SettingsModal v-if="isOwnProfile && showSettings" @close="showSettings = false; loadProfile()" />
+
+      <UserRelationList
+        v-if="relationKind"
+        :open="!!relationKind"
+        :kind="relationKind"
+        :user-id="resolvedId"
+        @close="relationKind = null"
+      />
 
       <!-- Tabs -->
       <div class="flex items-center border-b border-outline-variant px-5 sticky top-0 backdrop-blur-[10px] z-40">

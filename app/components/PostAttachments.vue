@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FileCard from './media/FileCard.vue'
+import MusicPlayer from './media/MusicPlayer.vue'
 
 const MODEL_EXT = /\.(glb|gltf|obj|fbx|stl|3ds)(\?|$)/i
 
@@ -72,6 +73,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   observer?.disconnect()
+  if (trackRaf) cancelAnimationFrame(trackRaf)
 })
 
 function gridClass(count: number) {
@@ -81,9 +83,63 @@ function gridClass(count: number) {
   return 'grid-cols-3'
 }
 
-function imageClass(count: number) {
-  if (count === 1) return 'max-h-96'
-  return 'h-48'
+/**
+ * 1 枚だけのときはトリミングせず原寸比のまま収める。
+ * 縦長は「縦を優先」して最大 600px まで見せ、横長は幅で詰める。
+ * max-w / max-h を同時に効かせればブラウザが比を保ったまま縮尺を決める。
+ * 複数枚は画像はカルーセルに回るので、ここに残るのは動画などの非画像だけ。
+ */
+function mediaClass(count: number) {
+  if (count === 1) return 'mx-auto block w-auto h-auto max-w-full max-h-[600px] object-contain'
+  return 'w-full h-48 object-cover'
+}
+
+type AttachmentItem = { att: any; index: number }
+
+/**
+ * 画像はカルーセル、非画像は従来のグリッドに振り分ける。
+ * emit('open') / openModal() が参照するのは attachments の添字なので、
+ * 振り分け後も元の添字を必ず一緒に持ち回す。
+ */
+function splitBy(pred: (att: any) => boolean) {
+  const out: AttachmentItem[] = []
+  props.attachments.forEach((att, index) => {
+    if (pred(att)) out.push({ att, index })
+  })
+  return out
+}
+
+const imageItems = computed<AttachmentItem[]>(() => splitBy((att) => isImage(att.mime)))
+const otherItems = computed<AttachmentItem[]>(() => splitBy((att) => !isImage(att.mime)))
+
+/** 画像は 2 枚以上あるときだけカルーセル (1 枚は従来どおりの表示) */
+const carousel = computed(() => imageItems.value.length > 1)
+
+const gridItems = computed<AttachmentItem[]>(() => (carousel.value
+  ? otherItems.value
+  : props.attachments.map((att, index) => ({ att, index }))))
+
+const trackEl = ref<HTMLElement | null>(null)
+const slideIndex = ref(0)
+let trackRaf = 0
+
+/** snap-center なので「スクロール位置 / トラック幅」で今どの画像か分かる */
+function onTrackScroll() {
+  if (trackRaf) return
+  trackRaf = requestAnimationFrame(() => {
+    trackRaf = 0
+    const track = trackEl.value
+    if (!track) return
+    const width = track.clientWidth || 1
+    slideIndex.value = Math.min(Math.max(0, Math.round(track.scrollLeft / width)), imageItems.value.length - 1)
+  })
+}
+
+function scrollSlide(delta: number) {
+  const track = trackEl.value
+  if (!track) return
+  const next = Math.min(Math.max(0, slideIndex.value + delta), imageItems.value.length - 1)
+  track.scrollTo({ left: next * track.clientWidth, behavior: 'smooth' })
 }
 
 const modalOpen = ref(false)
@@ -93,6 +149,19 @@ const pan = ref({ x: 0, y: 0 })
 let isDragging = false
 let dragStart = { x: 0, y: 0 }
 const modalImg = ref<HTMLImageElement | null>(null)
+
+/**
+ * 長押しで「詳細」を見る。
+ * interactive (タイムライン内) なら既存のメディアペインへ、
+ * それ以外はコンポーネント内のライトボックスを開く。
+ */
+function onLongPressAtt(att: any, index: number) {
+  if (props.interactive && !props.imageLightbox) {
+    emit('open', index)
+    return
+  }
+  openModal(index)
+}
 
 function openModal(index: number) {
   modalIndex.value = index
@@ -183,19 +252,71 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="el" v-if="attachments.length" class="mt-2 grid gap-1.5"
-    :class="gridClass(attachments.length)">
-    <div v-for="(att, i) in attachments" :key="att.id"
-      class="relative group rounded-lg overflow-hidden bg-surface/50">
-      <template v-if="isImage(att.mime)">
-        <img :src="displayUrl(att)" loading="lazy"
-          :class="['w-full object-cover cursor-pointer transition duration-300', imageClass(attachments.length)]"
-          @click.stop="isBlurred(att) ? reveal(att.id) : ((props.interactive && !props.imageLightbox) ? emit('open', i) : openModal(i))"
-          @dblclick="!props.interactive && openModal(i)" />
+  <div ref="el" v-if="attachments.length" class="mt-2">
+    <div v-if="carousel" class="relative group rounded-lg overflow-hidden bg-surface/50">
+      <div ref="trackEl" class="sycs-hscroll flex overflow-x-auto snap-x snap-mandatory"
+        @scroll.passive="onTrackScroll">
+        <LongPress
+          v-for="item in imageItems"
+          :key="item.att.id"
+          :delay="420"
+          :move-tolerance="24"
+          class="sycs-pressable snap-center shrink-0 w-full"
+          @longpress="onLongPressAtt(item.att, item.index)"
+        >
+          <div class="relative w-full flex items-center justify-center">
+            <img :src="displayUrl(item.att)" loading="lazy" draggable="false"
+              class="w-full max-h-[600px] object-contain select-none cursor-pointer transition duration-300"
+              @click.stop="isBlurred(item.att) ? reveal(item.att.id) : ((props.interactive && !props.imageLightbox) ? emit('open', item.index) : openModal(item.index))"
+              @dblclick="!props.interactive && openModal(item.index)" />
 
-        <div v-if="isBlurred(att)"
+            <div v-if="isBlurred(item.att)"
+              class="absolute inset-0 flex items-center justify-center cursor-pointer"
+              @click="reveal(item.att.id)">
+              <div class="bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 text-white text-sm font-bold flex items-center gap-2">
+                <Icon name="lucide:eye-off" class="w-4 h-4" />
+                閲覧するにはクリック
+              </div>
+            </div>
+          </div>
+        </LongPress>
+      </div>
+
+      <div class="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-black/60 text-[10px] text-white/80 tabular-nums pointer-events-none">
+        {{ slideIndex + 1 }} / {{ imageItems.length }}
+      </div>
+
+      <button v-if="slideIndex > 0" @click.stop="scrollSlide(-1)" title="前の画像"
+        class="hidden min-[1024px]:flex absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white items-center justify-center transition opacity-0 group-hover:opacity-100 focus-visible:opacity-100">
+        <Icon name="lucide:chevron-left" class="w-5 h-5" />
+      </button>
+      <button v-if="slideIndex < imageItems.length - 1" @click.stop="scrollSlide(1)" title="次の画像"
+        class="hidden min-[1024px]:flex absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white items-center justify-center transition opacity-0 group-hover:opacity-100 focus-visible:opacity-100">
+        <Icon name="lucide:chevron-right" class="w-5 h-5" />
+      </button>
+    </div>
+
+    <div v-if="gridItems.length" class="grid gap-1.5"
+      :class="[gridClass(attachments.length), carousel ? 'mt-1.5' : '']">
+    <LongPress
+      v-for="item in gridItems"
+      :key="item.att.id"
+      :delay="420"
+      class="sycs-pressable"
+      @longpress="onLongPressAtt(item.att, item.index)"
+    >
+    <div
+      class="relative group rounded-lg overflow-hidden bg-surface/50"
+      :class="attachments.length === 1 ? 'w-fit mx-auto max-w-full' : ''">
+      <template v-if="isImage(item.att.mime)">
+        <img :src="displayUrl(item.att)" loading="lazy"
+          :class="['cursor-pointer transition duration-300', mediaClass(attachments.length)]"
+          @click.stop="isBlurred(item.att) ? reveal(item.att.id) : ((props.interactive && !props.imageLightbox) ? emit('open', item.index) : openModal(item.index))"
+          @dblclick="!props.interactive && openModal(item.index)" />
+
+        <div v-if="isBlurred(item.att)"
           class="absolute inset-0 flex items-center justify-center cursor-pointer"
-          @click="reveal(att.id)">
+          @click="reveal(item.att.id)">
           <div class="bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 text-white text-sm font-bold flex items-center gap-2">
             <Icon name="lucide:eye-off" class="w-4 h-4" />
             閲覧するにはクリック
@@ -203,35 +324,35 @@ onUnmounted(() => {
         </div>
       </template>
 
-      <template v-else-if="isVideo(att.mime)">
-        <video :src="att.url" controls preload="metadata"
-          class="w-full h-48 object-cover bg-black" />
+      <template v-else-if="isVideo(item.att.mime)">
+        <video :src="item.att.url" controls preload="metadata"
+          :class="[mediaClass(attachments.length), 'bg-black']" />
         <button v-if="props.interactive" type="button"
-          @click.stop="emit('open', i)"
+          @click.stop="emit('open', item.index)"
           class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
           <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
         </button>
       </template>
 
-      <template v-else-if="isAudio(att.mime)">
-        <div class="flex items-center gap-2 mt-4 px-2 w-full">
-          <audio :src="att.url" controls class="flex-1 h-12" />
+      <template v-else-if="isAudio(item.att.mime)">
+        <div class="flex flex-col gap-2 mt-2 px-2 w-full">
+          <MusicPlayer :src="item.att.url" />
           <button v-if="props.interactive" type="button"
-            @click.stop="emit('open', i)"
-            class="p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition shrink-0" title="詳細を開く">
+            @click.stop="emit('open', item.index)"
+            class="self-end p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition shrink-0" title="詳細を開く">
             <Icon name="lucide:maximize-2" class="w-4 h-4" />
           </button>
         </div>
       </template>
 
-      <template v-else-if="isModel(att)">
+      <template v-else-if="isModel(item.att)">
         <div class="relative">
           <div class="h-32 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-fuchsia-900/40 to-slate-900">
             <Icon name="lucide:box" class="w-8 h-8 text-fuchsia-400" />
             <span class="text-[11px] text-on-surface-variant">3Dモデル</span>
           </div>
           <button v-if="props.interactive" type="button"
-            @click.stop="emit('open', i)"
+            @click.stop="emit('open', item.index)"
             class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
             <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
           </button>
@@ -239,14 +360,16 @@ onUnmounted(() => {
       </template>
 
       <template v-else>
-        <FileCard :url="att.url" :mime="att.mime" />
+        <FileCard :url="item.att.url" :mime="item.att.mime" />
         <button v-if="props.interactive" type="button"
-          @click.stop="emit('open', i)"
+          @click.stop="emit('open', item.index)"
           class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
           <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
         </button>
       </template>
     </div>
+    </LongPress>
+  </div>
   </div>
 
   <Teleport to="body">
@@ -295,3 +418,14 @@ onUnmounted(() => {
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+.sycs-hscroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sycs-hscroll::-webkit-scrollbar {
+  display: none;
+}
+</style>

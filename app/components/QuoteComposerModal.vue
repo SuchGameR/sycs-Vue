@@ -7,11 +7,9 @@ watch(() => route.fullPath, () => closeQuote())
 </script>
 
 <template>
-  <Teleport to="body">
-    <ClientOnly>
-    <div v-if="target" class="fixed inset-0 z-[190] flex items-center justify-center p-4">
-      <div class="fixed inset-0 bg-black/70" @click="closeQuote()" />
-      <div class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-4">
+  <ClientOnly>
+    <BottomSheet :open="!!target" height="min(90dvh, 36rem)" :dismiss-on-backdrop="true" @close="closeQuote()">
+      <div class="p-4">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-bold text-white flex items-center gap-2">
             <Icon name="lucide:message-square-quote" class="w-4 h-4 text-indigo-400" />
@@ -28,7 +26,6 @@ watch(() => route.fullPath, () => closeQuote())
 
         <p v-if="error" class="text-sm text-red-400 mt-2">{{ error }}</p>
       </div>
-    </div>
-    </ClientOnly>
-  </Teleport>
+    </BottomSheet>
+  </ClientOnly>
 </template>

@@ -61,6 +61,31 @@ export const posts = pgTable('posts', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
 
+// Hashtags: `tag` is the normalized (lowercase) lookup key and PK, `displayTag`
+// keeps the casing the tag was first written with. `postCount` is a denormalized
+// counter that is always recomputed FROM post_hashtags (the link table is the
+// single source of truth) so re-indexing a post can never double count.
+export const hashtags = pgTable('hashtags', {
+  tag: text('tag').primaryKey(),
+  displayTag: text('display_tag').notNull(),
+  postCount: integer('post_count').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  postCountIdx: index('hashtags_post_count_idx').on(t.postCount),
+}))
+
+// The (post, tag) unique index is the idempotency guard for indexing: re-saving
+// a post re-inserts the same pairs and the ON CONFLICT DO NOTHING makes the
+// operation a no-op. Both FKs cascade, so deleting a post or a hashtag row
+// removes its links and requires no explicit cleanup code.
+export const postHashtags = pgTable('post_hashtags', {
+  postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  tag: text('tag').notNull().references(() => hashtags.tag, { onDelete: 'cascade' }),
+}, (t) => ({
+  postTagIdx: uniqueIndex('post_hashtags_post_tag_idx').on(t.postId, t.tag),
+  tagIdx: index('post_hashtags_tag_idx').on(t.tag),
+}))
+
 export const postComments = pgTable('post_comments', {
   id: text('id').primaryKey(),
   postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),

@@ -23,6 +23,214 @@
 
 .sycs-emoji-jumbo .sycs-emoji {
   height: 0.15em !important;
-  vertical-align: -0.15em;
   margin: 0 0.05em;
+}
+
+/* ==========================================================================
+   ズーム抑止
+   iOS Safari は iOS 10 以降 user-scalable=no を無視するため、
+   viewport meta に加えて touch-action と gesturestart の cancel で抑止する。
+   ========================================================================== */
+html {
+  /* double-tap zoom と pinch-zoom を無効化 */
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  touch-action: pan-x pan-y;
+}
+
+/* 画像/動画ビューアだけは拡大したいので pinch-zoom を許可する */
+.sycs-allow-zoom,
+.sycs-allow-zoom * {
+  touch-action: auto;
+}
+
+/* ==========================================================================
+   iOS 風ボトムシート
+   ReactionPicker / ServerListModal など「下からせり上がる」面で使う。
+   <Transition name="sycs-sheet"> とセットで読む。
+   ========================================================================== */
+/* z-index: シートはどの固定要素より前面に出す。
+   MobileNav(z-70) / MediaMiniPlayer(z-80) / FAB(z-90) /
+   VoiceCallDock(z-98) / 添付ライトボックス(z-300) より上。 */
+.sycs-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  touch-action: pan-x pan-y;
+}
+
+.sycs-sheet-panel {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 401;
+  display: flex;
+  flex-direction: column;
+  /* 上端だけ丸める iOS の標準シート */
+  border-radius: 14px 14px 0 0;
+  background: rgb(var(--md-sys-color-surface-container, 30 41 59));
+  color: rgb(var(--md-sys-color-on-surface, 226 232 240));
+  box-shadow:
+    0 -1px 0 0 rgb(var(--md-sys-color-outline-variant, 55 65 81)),
+    0 -12px 40px -8px rgb(0 0 0 / 0.5);
+  /* 縦スワイプで閉じられるようにする */
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+/* ホームインジケータ / ジェスチャーバー領域 */
+.sycs-sheet-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+}
+
+/* ドラッグハンドル (iOS のグレーのバー) */
+.sycs-sheet-grabber {
+  flex: none;
+  width: 36px;
+  height: 5px;
+  margin: 5px auto 0;
+  border-radius: 999px;
+  background: rgb(var(--md-sys-color-outline, 148 163 184) / 0.9);
+}
+
+.sycs-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* デスクトップ (681px 以上) は中央ダイアログに戻す */
+@media (min-width: 681px) {
+  .sycs-sheet-panel {
+    inset-inline: auto;
+    left: 50%;
+    bottom: auto;
+    top: 50%;
+    translate: -50% -50%;
+    width: min(32rem, calc(100vw - 2rem));
+    max-height: 80vh;
+    border-radius: 14px;
+    border: 1px solid rgb(var(--md-sys-color-outline, 100 116 139));
+  }
+  .sycs-sheet-grabber {
+    display: none;
+  }
+  .sycs-sheet-safe {
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* --- トランジション --------------------------------------------------- */
+.sycs-sheet-enter-active,
+.sycs-sheet-leave-active {
+  transition:
+    opacity 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sycs-sheet-leave-active {
+  transition:
+    opacity 0.24s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sycs-sheet-enter-from,
+.sycs-sheet-leave-to {
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+@media (min-width: 681px) {
+  .sycs-sheet-enter-from,
+  .sycs-sheet-leave-to {
+    transform: scale(0.96) translateY(0);
+  }
+}
+
+/* --- ドラッグ中の追従 (JS が data-dragging を付ける) ------------------ */
+.sycs-sheet-panel[data-dragging] {
+  transition: none;
+}
+
+/* ==========================================================================
+   モバイル下部フローティングナビ (Liquid Glass)
+   ピル型 + backdrop-filter + 大きなソフトシャドウ。
+   ライト/ダーク両方で読めるよう、リング色は Facing で決まる。
+   ========================================================================== */
+.sycs-floatnav {
+  --sycs-floatnav-ring: rgb(var(--md-sys-color-surface) / 0.72);
+  pointer-events: none;
+}
+
+.sycs-floatnav > div {
+  pointer-events: auto;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(var(--md-sys-color-on-surface) / 0.09) 0%,
+      rgb(var(--md-sys-color-on-surface) / 0.04) 100%
+    ),
+    rgb(var(--md-sys-color-surface) / 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgb(var(--md-sys-color-outline-variant) / 0.5);
+  box-shadow:
+    0 1px 0 0 rgb(var(--md-sys-color-on-surface) / 0.08) inset,
+    0 8px 16px -6px rgb(0 0 0 / 0.28),
+    0 20px 40px -12px rgb(0 0 0 / 0.38);
+}
+
+/* 選択中のプレート: バーより一段濃い面 + 独立した微細シャドウ */
+.sycs-floatnav-plate {
+  background: rgb(var(--md-sys-color-on-surface) / 0.13);
+  box-shadow:
+    0 1px 2px 0 rgb(0 0 0 / 0.18),
+    0 0 0 0.5px rgb(var(--md-sys-color-outline-variant) / 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sycs-floatnav {
+    --sycs-floatnav-ring: rgb(var(--md-sys-color-surface) / 0.6);
+  }
+}
+
+/* ==========================================================================
+   ハッシュタグ
+   ========================================================================== */
+.sycs-hashtag {
+  color: rgb(var(--md-sys-color-primary));
+  font-weight: 500;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+.sycs-hashtag:hover {
+  text-decoration: underline;
+}
+html[data-style='liquid-glass'] .sycs-hashtag {
+  color: rgb(var(--md-sys-color-primary) / 0.95);
+}
+
+/* ==========================================================================
+   長押し
+   ========================================================================== */
+.sycs-pressable {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 長押し中に押下ocinadaptation を出さない */
+.sycs-pressable[data-pressing] {
+  transform: scale(0.97);
+  transition: transform 0.12s ease;
 }

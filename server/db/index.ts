@@ -416,6 +416,51 @@ async function initDbInternal() {
       FROM likes l
       ON CONFLICT (user_id, post_id, emoji) DO NOTHING
     `)
+    // Hashtags
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hashtags (
+        tag TEXT PRIMARY KEY,
+        display_tag TEXT NOT NULL,
+        post_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS post_hashtags (
+        post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        tag TEXT NOT NULL REFERENCES hashtags(tag) ON DELETE CASCADE
+      )
+    `)
+    // Idempotency guard for indexing (unique per post+tag) and the trending index.
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS post_hashtags_post_tag_idx ON post_hashtags(post_id, tag)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS post_hashtags_tag_idx ON post_hashtags(tag)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS hashtags_post_count_idx ON hashtags(post_count DESC)`)
+    // Hashtag backfill: index posts whose content contains a '#' but which have no
+    // rows in post_hashtags yet. Runs on every boot so posts written outside the
+    // API (direct SQL edits, imports, rows predating the feature) still get
+    // indexed; capped per boot so startup cost stays bounded. `utils/hashtags`
+    // imports `db` from this module, so it is pulled in dynamically to avoid a
+    // static import cycle at module-evaluation time.
+    try {
+      const { syncPostHashtags } = await import('../utils/hashtags')
+      const pending = await client.query(`
+        SELECT p.id, p.content
+        FROM posts p
+        WHERE p.content LIKE '%#%'
+          AND NOT EXISTS (SELECT 1 FROM post_hashtags ph WHERE ph.post_id = p.id)
+        ORDER BY p.created_at ASC
+        LIMIT 500
+      `)
+      for (const row of pending.rows as Array<{ id: string; content: string }>) {
+        await syncPostHashtags(row.id, row.content)
+      }
+      if (pending.rows.length) {
+        console.log(`[db] Indexed hashtags for ${pending.rows.length} existing post(s)`)
+      }
+    } catch (err: any) {
+      // Never fail boot on the backfill; it is repaired on the next restart.
+      console.warn('[db] Hashtag backfill skipped:', err?.message || err)
+    }
   } finally {
     client.release()
   }

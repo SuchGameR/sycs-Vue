@@ -144,7 +144,7 @@ onMounted(ensureMe)
     </div>
 
     <div class="flex gap-3" @click.self="openThread">
-      <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
+      <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0 h-fit">
         <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" loading="lazy" class="w-10 h-10 rounded-full object-cover" />
         <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
           {{ post.user.displayName.charAt(0) }}

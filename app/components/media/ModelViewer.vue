@@ -37,16 +37,29 @@ let frame: number | null = null
 let ro: ResizeObserver | null = null
 let io: IntersectionObserver | null = null
 let disposed = false
+let pendingFit = false
 
+/**
+ * 描画バッファを CSS ボックスの物理ピクセルと一致させる。
+ *  Returns true when the size was actually applied — a hidden tab gives 0x0,
+ *  and in that case the fit is postponed until the ResizeObserver sees a real box.
+ *  updateStyle = false keeps the canvas CSS at 100%/100%, so the buffer aspect
+ *  and the rendered box always agree and the image is never stretched.
+ */
 function setSize() {
   const el = container.value
-  if (!el || !renderer || !camera) return
+  if (!el || !renderer || !camera) return false
   const w = el.clientWidth
   const h = el.clientHeight
-  if (!w || !h) return
+  if (!w || !h) return false
   renderer.setSize(w, h, false)
   camera.aspect = w / h
   camera.updateProjectionMatrix()
+  if (pendingFit && model) {
+    pendingFit = false
+    fitToModel()
+  }
+  return true
 }
 
 function start() {
@@ -64,6 +77,17 @@ function stop() {
   if (frame !== null) { cancelAnimationFrame(frame); frame = null }
 }
 
+/**
+ * モデルを「縦横どちらの画角にも必ず収まる」位置へカメラを置く。
+ *
+ *   PerspectiveCamera の fov は縦画角、aspect は横縦比だけなので、
+ *  横長・縦長いずれのコンテナでも収まるようにする。
+ *    横画角 = 2 * atan(tan(縦画角 / 2) * aspect)
+ *    距離   = 半径 / sin(画角 / 2)  … 縦と横のうち大きい方を採用
+ *
+ *  境界ボックス中心を原点に移してから bounding sphere(外接球)で判定するので、
+ *  どの角度から見ても切れない。distance に 1.12 倍を掛けて余白を作る。
+ */
 function fitToModel() {
   if (!model || !camera || !controls || !scene) return
   const box = new THREE.Box3().setFromObject(model)
@@ -71,11 +95,14 @@ function fitToModel() {
   const center = box.getCenter(new THREE.Vector3())
   model.position.sub(center)
   const maxDim = Math.max(size.x, size.y, size.z) || 1
-  const fov = (camera.fov * Math.PI) / 180
-  const dist = maxDim / (2 * Math.tan(fov / 2))
-  camera.position.set(maxDim * 0.35, maxDim * 0.45, dist * 1.7)
+  const radius = 0.5 * Math.hypot(size.x, size.y, size.z) || maxDim / 2
+  const aspect = camera.aspect > 0 && isFinite(camera.aspect) ? camera.aspect : 1
+  const vFov = (camera.fov * Math.PI) / 180
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
+  const dist = Math.max(radius / Math.sin(vFov / 2), radius / Math.sin(hFov / 2)) * 1.12
+  camera.position.copy(new THREE.Vector3(0.35, 0.45, 1).normalize().multiplyScalar(dist))
   camera.near = Math.max(maxDim / 1000, 0.01)
-  camera.far = maxDim * 200
+  camera.far = dist + maxDim * 20
   camera.updateProjectionMatrix()
   controls.target.set(0, 0, 0)
   controls.update()
@@ -124,6 +151,7 @@ function load() {
       if (disposed || !scene) return
       model = gltf.scene
       scene.add(model)
+      pendingFit = !setSize()
       fitToModel()
       loading.value = false
     },
@@ -228,7 +256,7 @@ watch(() => props.src, () => { if (scene) load() })
   <div class="relative rounded-xl overflow-hidden bg-surface border border-outline-variant">
     <div
       ref="container"
-      class="w-full h-[52vh] min-h-[280px] touch-none"
+      class="mv-stage touch-none"
     />
 
     <div v-if="loading" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface/80">
@@ -261,3 +289,20 @@ watch(() => props.src, () => { if (scene) load() })
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 高さ固定 (h-[52vh]) だとレイアウトと喧嘩するので、比率で枠を決める。
+   max-height は 16/9 より広いウィンドウで縦に伸びすぎるのを防ぐ役。 */
+.mv-stage {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 62vh;
+  min-height: 200px;
+}
+@media (min-width: 768px) {
+  .mv-stage {
+    aspect-ratio: 16 / 10;
+    max-height: 64vh;
+  }
+}
+</style>

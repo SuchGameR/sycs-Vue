@@ -8,6 +8,7 @@ import { requireAuth } from '../../utils/auth'
 import { saveFileWithWatermark, urlToFilePath } from '../../utils/upload'
 import { emit } from '../../utils/eventBus'
 import { isServerMember } from '../../utils/serverAuth'
+import { syncPostHashtags } from '../../utils/hashtags'
 
 const IMAGE_EXTENSIONS = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
 

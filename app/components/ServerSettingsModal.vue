@@ -13,6 +13,9 @@ const props = defineProps<{
   initialChannelId?: string | null
 }>()
 
+const open = ref(true)
+onUnmounted(() => { open.value = false })
+
 const emit = defineEmits<{ close: []; refresh: []; deleted: [] }>()
 
 const { on } = useRealtime()
@@ -343,10 +346,8 @@ const btnGhost = 'px-4 py-2 rounded-lg border border-outline text-sm text-on-sur
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="fixed inset-0 z-[90] flex items-center justify-center p-4" @click.self="emit('close')">
-      <div class="absolute inset-0 bg-black/60" />
-      <div class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden">
+  <BottomSheet :open="open" height="min(88dvh, 44rem)" :dismiss-on-backdrop="true" @close="emit('close')">
+      <div class="flex flex-col h-full">
         <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant shrink-0">
           <h2 class="text-lg font-bold text-white">サーバー設定</h2>
           <button @click="emit('close')" class="text-on-surface-variant hover:text-white transition">
@@ -740,6 +741,5 @@ const btnGhost = 'px-4 py-2 rounded-lg border border-outline text-sm text-on-sur
           </div>
         </div>
       </div>
-    </div>
-  </Teleport>
+</BottomSheet>
 </template>

@@ -273,11 +273,8 @@ function fileIcon(mime: string) {
       </div>
 
       <!-- Attachment preview modal -->
-      <Teleport to="body">
-        <div v-if="activePreview !== null && activeFile()" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70"
-          @click.self="activePreview = null">
-          <div class="bg-surface-container border border-outline rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            @click.stop>
+      <BottomSheet :open="activePreview !== null" height="min(90dvh, 36rem)" :dismiss-on-backdrop="true" @close="activePreview = null">
+          <div>
             <div class="relative bg-black rounded-t-2xl min-h-[200px] flex items-center justify-center">
               <img v-if="activeFile()!.type === 'image'" :src="activeFile()!.preview" class="max-w-full max-h-[50vh] object-contain rounded-t-2xl" />
               <video v-else-if="activeFile()!.type === 'video'" :src="activeFile()!.preview" controls autoplay muted loop
@@ -315,8 +312,7 @@ function fileIcon(mime: string) {
               </label>
             </div>
           </div>
-        </div>
-      </Teleport>
+      </BottomSheet>
 
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center gap-2">

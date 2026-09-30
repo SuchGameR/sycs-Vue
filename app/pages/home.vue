@@ -116,20 +116,80 @@ function flushPending() {
   document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+interface FeedScrollMemory {
+  tabId: string
+  topId: string
+  offset: number
+}
+
+const scrollMemory = useState<FeedScrollMemory | null>('home-scroll-memory', () => null)
+
+function mainEl() {
+  return document.querySelector('main')
+}
+
+function captureScrollMemory() {
+  const el = mainEl()
+  if (!el) return
+  const nodes = el.querySelectorAll<HTMLElement>('[data-post-id]')
+  let topId = ''
+  let offset = 0
+  for (const node of nodes) {
+    const rect = node.getBoundingClientRect()
+    const top = rect.top - el.getBoundingClientRect().top
+    if (top <= 8) {
+      topId = node.dataset.postId || ''
+      offset = top
+    } else break
+  }
+  if (!topId && nodes.length) {
+    const first = nodes[0]
+    topId = first.dataset.postId || ''
+    offset = first.getBoundingClientRect().top - el.getBoundingClientRect().top
+  }
+  if (!topId) { scrollMemory.value = null; return }
+  scrollMemory.value = { tabId: timelines.activeId.value, topId, offset }
+}
+
+async function restoreScrollMemory() {
+  const memory = scrollMemory.value
+  const el = mainEl()
+  if (!memory || !el || memory.tabId !== timelines.activeId.value) return
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const node = el.querySelector<HTMLElement>(`[data-post-id="${CSS.escape(memory.topId)}"]`)
+    if (node) {
+      const delta = node.getBoundingClientRect().top - el.getBoundingClientRect().top
+      el.scrollTop += delta - memory.offset
+      onMainScroll()
+      return
+    }
+    const before = posts.value.length
+    const { hasMore } = await loadPosts(false, true)
+    await nextTick()
+    if (!hasMore || posts.value.length === before) return
+  }
+}
+
 onMounted(() => {
-  const el = document.querySelector('main')
+  const el = mainEl()
   el?.addEventListener('scroll', onMainScroll, { passive: true })
   onMainScroll()
-  loadPosts(true).then(startPolling)
+  loadPosts(true).then(async () => {
+    await restoreScrollMemory()
+    startPolling()
+  })
 })
 
 onUnmounted(() => {
-  document.querySelector('main')?.removeEventListener('scroll', onMainScroll)
+  captureScrollMemory()
+  mainEl()?.removeEventListener('scroll', onMainScroll)
   stopPolling()
 })
 
 watch(() => timelines.activeId.value, () => {
   stopPolling()
+  scrollMemory.value = null
   posts.value = []
   pending.value = []
   loadPosts(true).then(startPolling)
@@ -211,10 +271,12 @@ function reportPost(postId: string) { alert('報告しました') }
       <div v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
       <template v-else>
         <div class="rounded-xl border border-outline-variant overflow-hidden bg-surface/20">
-          <PostItem v-for="post in posts" :key="post.id" :post="post"
-            :show-view-count="userSettings.showViewCount ?? true" :current-user-id="me?.user?.id"
-            @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
-            @delete="deletePost" @report="reportPost" @open-media="openMedia" />
+          <div v-for="post in posts" :key="post.id" :data-post-id="post.id">
+            <PostItem :post="post"
+              :show-view-count="userSettings.showViewCount ?? true" :current-user-id="me?.user?.id"
+              @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
+              @delete="deletePost" @report="reportPost" @open-media="openMedia" />
+          </div>
           <p v-if="!posts.length" class="text-center text-on-surface-variant py-8">まだ投稿がありません</p>
         </div>
 
@@ -235,26 +297,16 @@ function reportPost(postId: string) { alert('報告しました') }
     </button>
 
     <!-- Mobile composer sheet -->
-    <Transition name="sheet">
-      <div v-if="composerOpen" class="min-[681px]:hidden fixed inset-0 z-[200] flex flex-col justify-end">
-        <div class="absolute inset-0 bg-black/60" @click="composerOpen = false" />
-        <div class="relative bg-surface-container border-t border-outline-variant rounded-t-2xl p-4 pb-6 max-h-[85vh] overflow-y-auto">
-          <div class="flex items-center justify-between mb-3">
-            <span class="font-bold text-white">新規投稿</span>
-            <button @click="composerOpen = false" class="p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition">
-              <Icon name="lucide:x" class="w-5 h-5" />
-            </button>
-          </div>
-          <PostComposer @submit="createFromSheet" />
+    <BottomSheet :open="composerOpen" height="min(85dvh, 40rem)" :dismiss-on-backdrop="true" @close="composerOpen = false">
+      <div class="p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-bold text-white">新規投稿</span>
+          <button @click="composerOpen = false" class="p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition">
+            <Icon name="lucide:x" class="w-5 h-5" />
+          </button>
         </div>
+        <PostComposer @submit="createFromSheet" />
       </div>
-    </Transition>
+    </BottomSheet>
   </div>
 </template>
-
-<style scoped>
-.sheet-enter-active, .sheet-leave-active { transition: opacity 0.2s ease; }
-.sheet-enter-active .relative, .sheet-leave-active .relative { transition: transform 0.2s ease; }
-.sheet-enter-from, .sheet-leave-to { opacity: 0; }
-.sheet-enter-from .relative, .sheet-leave-to .relative { transform: translateY(24px); }
-</style>

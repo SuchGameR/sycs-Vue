@@ -108,7 +108,7 @@ function onSheetUp() {
     <Transition name="mini">
       <div
         v-if="selected && !mobileFull"
-        class="w-fit fixed left-3 right-3 bottom-[4.5rem] z-[80] bg-surface-container border border-outline rounded-xl shadow-2xl flex items-center gap-3 p-2"
+        class="w-fit max-w-[300px] fixed left-3 right-3 bottom-[4.5rem] z-[80] bg-surface-container border border-outline rounded-xl shadow-2xl flex items-center gap-3 p-2"
       >
         <button class="shrink-0" @click="pane.openMobileFull()">
           <img v-if="firstImage" :src="firstImage.url" class="w-11 h-11 rounded-lg object-cover" />

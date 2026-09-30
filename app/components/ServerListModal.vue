@@ -1,6 +1,14 @@
 <script setup lang="ts">
 const emit = defineEmits<{ close: [] }>()
 
+/**
+ * この Modal は v-if で mount / unmount される。
+ * BottomSheet の :open を“真に開いているか”として扱うため、
+ * mount 時点を true にしてから unmount で閉じる。
+ */
+const open = ref(true)
+onUnmounted(() => { open.value = false })
+
 const servers = ref<any[]>([])
 const loading = ref(true)
 const showCreateForm = ref(false)
@@ -18,7 +26,7 @@ async function loadServers() {
   }
 }
 
-onMounted(loadServers)
+onMounted(() => { loadServers() })
 
 async function createServer() {
   const data = await $fetch('/api/servers', {
@@ -44,18 +52,17 @@ async function joinServer() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="fixed inset-0 z-[100] flex items-center justify-center p-4" @click.self="emit('close')">
-      <div class="absolute inset-0 bg-black/60" />
-      <div class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-4"
-        :class="{ '!max-h-none': showCreateForm || showJoinForm }">
+  <BottomSheet :open="open" :height="showCreateForm || showJoinForm ? 'min(88dvh, 40rem)' : 'min(78dvh, 34rem)'" @close="emit('close')">
+    <div class="p-6 pt-3 space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl font-bold text-white">サーバー一覧</h2>
-          <button @click="emit('close')" class="text-on-surface-variant hover:text-white transition">
+          <h2 class="text-xl font-bold">サーバー一覧</h2>
+          <button @click="emit('close')" class="p-1 -mr-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition">
             <Icon name="lucide:x" class="w-5 h-5" />
           </button>
         </div>
 
+        <!-- 一覧 (フォーム表示中は入れ替える) -->
+        <template v-if="!showCreateForm && !showJoinForm">
         <div class="flex gap-2">
           <button @click="showJoinForm = true" class="flex-1 py-2.5 rounded-lg border border-outline text-sm text-on-surface hover:bg-surface-container transition flex items-center justify-center gap-1.5">
             <Icon name="lucide:log-in" class="w-4 h-4" />
@@ -80,44 +87,44 @@ async function joinServer() {
               {{ server.name?.charAt(0) }}
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="font-bold text-sm text-white truncate">{{ server.name }}</h3>
+              <h3 class="font-bold text-sm text-on-surface truncate">{{ server.name }}</h3>
               <p class="text-xs text-on-surface-variant truncate">{{ server.description || '説明なし' }}</p>
             </div>
           </button>
         </div>
+        </template>
 
-        <!-- Create form overlay -->
-        <div v-if="showCreateForm" class="absolute inset-0 bg-surface-container rounded-2xl p-6 flex flex-col space-y-4 z-10" @click.stop>
-          <h3 class="text-lg font-bold text-white">サーバーを作成</h3>
-          <div class="space-y-3 flex-1">
+        <!-- Create form (シート内で入れ替える) -->
+        <div v-if="showCreateForm" class="space-y-4">
+          <h3 class="text-lg font-bold">サーバーを作成</h3>
+          <div class="space-y-3">
             <div>
               <label class="text-xs text-on-surface-variant font-medium block mb-1">サーバー名</label>
-              <input v-model="createForm.name" class="w-full bg-surface-container border border-outline rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-indigo-500" placeholder="サーバー名" />
+              <input v-model="createForm.name" class="w-full bg-surface border border-outline rounded-lg px-3 py-2 text-on-surface text-sm focus:ring-1 focus:ring-indigo-500" placeholder="サーバー名" />
             </div>
             <div>
               <label class="text-xs text-on-surface-variant font-medium block mb-1">説明 (任意)</label>
-              <textarea v-model="createForm.description" rows="3" class="w-full bg-surface-container border border-outline rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-indigo-500 resize-none" placeholder="説明" />
+              <textarea v-model="createForm.description" rows="3" class="w-full bg-surface border border-outline rounded-lg px-3 py-2 text-on-surface text-sm focus:ring-1 focus:ring-indigo-500 resize-none" placeholder="説明" />
             </div>
           </div>
           <div class="flex justify-end gap-2">
-            <button @click="showCreateForm = false" class="px-4 py-2 text-sm text-on-surface-variant hover:text-white transition">戻る</button>
+            <button @click="showCreateForm = false" class="px-4 py-2 text-sm text-on-surface-variant hover:text-on-surface transition">戻る</button>
             <button @click="createServer" :disabled="!createForm.name.trim()" class="px-5 py-2 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition disabled:opacity-50">作成</button>
           </div>
         </div>
 
-        <!-- Join form overlay -->
-        <div v-if="showJoinForm" class="absolute inset-0 bg-surface-container rounded-2xl p-6 flex flex-col space-y-4 z-10" @click.stop>
-          <h3 class="text-lg font-bold text-white">招待コードで参加</h3>
-          <div class="flex-1">
+        <!-- Join form (シート内で入れ替える) -->
+        <div v-else-if="showJoinForm" class="space-y-4">
+          <h3 class="text-lg font-bold">招待コードで参加</h3>
+          <div>
             <label class="text-xs text-on-surface-variant font-medium block mb-1">招待コード</label>
-            <input v-model="joinCode" class="w-full bg-surface-container border border-outline rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-indigo-500" placeholder="コードを入力" />
+            <input v-model="joinCode" class="w-full bg-surface border border-outline rounded-lg px-3 py-2 text-on-surface text-sm focus:ring-1 focus:ring-indigo-500" placeholder="コードを入力" />
           </div>
           <div class="flex justify-end gap-2">
-            <button @click="showJoinForm = false" class="px-4 py-2 text-sm text-on-surface-variant hover:text-white transition">戻る</button>
+            <button @click="showJoinForm = false" class="px-4 py-2 text-sm text-on-surface-variant hover:text-on-surface transition">戻る</button>
             <button @click="joinServer" :disabled="!joinCode.trim()" class="px-5 py-2 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition disabled:opacity-50">参加</button>
           </div>
         </div>
-      </div>
     </div>
-  </Teleport>
+  </BottomSheet>
 </template>

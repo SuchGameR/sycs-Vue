@@ -161,8 +161,8 @@ function timeAgo(date: string) {
             </div>
           </div>
 
-          <!-- Media -->
-          <div class="px-4">
+          <!-- Media ( THIS PANE ALLOWS PINCH-ZOOM: 遷移元ページ側の抑止から除外するため) -->
+          <div class="px-4 sycs-allow-zoom">
             <!-- Video -->
             <template v-if="kind === 'video' && currentMedia">
               <Transition name="media-swap" mode="out-in">

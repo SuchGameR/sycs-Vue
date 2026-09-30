@@ -72,7 +72,7 @@ onUnmounted(() => {
     <AppHeader
       :is-server-page="isServerPage"
       :server="serverCache"
-      class="sticky top-0 z-50 bg-surface border-b border-outline-variant sycs-glass"
+      class="sticky top-0 z-50 bg-surface sycs-header-bg border-b border-outline-variant sycs-glass"
     />
     <div class="flex">
       <SidebarLeft

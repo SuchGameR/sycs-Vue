@@ -15,7 +15,8 @@ export interface PublicBadge {
  *   'user-uuid': [{ kind: 'image', value: '/uploads/badge.png', label: '公式' }]
  */
 export const BADGE_ASSIGNMENTS: Record<string, PublicBadge[]> = {
-  // '@suchgamer': [{ kind: 'icon', value: 'lucide:crown', label: '創設者' }],
+  '@suchgamer': [{ kind: 'icon', value: 'lucide:badge-check', label: '運営' }],
+  '@sub2': [{ kind: 'icon', value: 'lucide:shield', label: 'メンバー' }],
 }
 
 export function configBadges(user: { id: string; username?: string | null }): PublicBadge[] {

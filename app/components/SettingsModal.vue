@@ -1,6 +1,14 @@
 <script setup lang="ts">
 const emit = defineEmits<{ close: [] }>();
 
+/**
+ * この Modal は v-if で mount / unmount される。
+ * BottomSheet の :open を“真に開いているか”として扱うため、
+ * mount 時点を true にしてから unmount で閉じる。
+ */
+const open = ref(true);
+onUnmounted(() => { open.value = false });
+
 const { data: userData, refresh: refreshUser } = await useFetch("/api/auth/me", {
   key: "settings-user",
 });
@@ -259,13 +267,8 @@ async function save() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
-      <div
-        class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex"
-        @click.stop
-      >
+  <BottomSheet :open="open" height="min(85dvh, 44rem)" :dismiss-on-backdrop="true" @close="emit('close')">
+      <div class="flex h-full">
         <div
           class="w-44 shrink-0 border-r border-outline-variant p-3 space-y-1 overflow-y-auto"
         >
@@ -283,7 +286,7 @@ async function save() {
             <Icon :name="cat.icon" class="w-4 h-4 shrink-0" /> {{ cat.label }}
           </button>
         </div>
-        <div class="flex-1 p-6 overflow-y-auto space-y-5">
+        <div class="flex-1 min-w-0 p-6 overflow-y-auto space-y-5">
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-xl font-bold text-white">
               {{ categories.find((c) => c.key === activeCategory)?.label || "設定" }}
@@ -689,18 +692,11 @@ async function save() {
           </button>
         </div>
       </div>
-    </div>
+  </BottomSheet>
 
-    <!-- Crop modal -->
-    <div
-      v-if="cropMode"
-      class="fixed inset-0 z-[200] flex items-center justify-center p-4"
-    >
-      <div class="absolute inset-0 bg-black/70" @click="cancelCrop" />
-      <div
-        class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-lg"
-        @click.stop
-      >
+  <!-- Crop modal -->
+  <BottomSheet :open="!!cropMode" :dismiss-on-backdrop="true" @close="cancelCrop">
+      <div>
         <div class="p-4 border-b border-outline-variant flex items-center justify-between">
           <h3 class="font-bold text-white">
             {{ cropMode === "avatar" ? "アバターを編集" : "バナーを編集" }}
@@ -712,6 +708,7 @@ async function save() {
         <div
           class="bg-black/40 select-none"
           ref="cropContainerRef"
+          @pointerdown.stop
           @mousedown="onCropMouseDown"
           @mousemove="onCropMouseMove"
           @mouseup="onCropMouseUp"
@@ -787,6 +784,5 @@ async function save() {
           </div>
         </div>
       </div>
-    </div>
-  </Teleport>
+  </BottomSheet>
 </template>

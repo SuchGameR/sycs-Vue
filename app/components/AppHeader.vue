@@ -48,8 +48,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         <div class="relative flex items-center gap-4 flex-1 min-w-0 justify-center">
           <!-- SYCS logo on mobile / Profile info on mobile -->
           <Transition name="pop" mode="out-in">
-            <NuxtLink v-if="!isServerPage && !isHomePage && !(isProfilePage && profileHeader)" key="logo" to="/" class="text-lg font-extrabold tracking-tighter shrink-0 min-[681px]:hidden">
-              SYCS<span class="text-indigo-500">.</span>
+            <NuxtLink v-if="!isServerPage && !isHomePage && !(isProfilePage && profileHeader)" key="logo" to="/" class="shrink-0 min-[681px]:hidden">
+              <SycsLogo :size="23" />
             </NuxtLink>
             <div v-else-if="isProfilePage && profileHeader" key="profile" class="flex items-center gap-3 shrink-0 mx-auto pr-4">
               <img v-if="avatarSrc(profileHeader.avatarUrl)" :src="avatarSrc(profileHeader.avatarUrl)" class="w-8 h-8 rounded-full object-cover shrink-0" />

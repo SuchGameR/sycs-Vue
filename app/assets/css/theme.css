@@ -33,6 +33,65 @@ html[data-scheme='light'] {
 }
 
 /* ==========================================================================
+   背景の linear — 全スタイル共通の土台
+   ハードコードした色 (#0f1420 など) をやめて、配色トークンだけで
+   「上 = 面 / 下 = 少し沈んだ面」のグラデーションを組み立てる。
+   変数を参照するだけなので、ライト / ダーク / seed を跨いでもズレない。
+   ========================================================================== */
+
+body {
+  background-color: rgb(var(--md-sys-color-surface) / 1);
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--md-sys-color-surface) / 1) 0%,
+    rgb(var(--md-sys-color-surface-dim) / 1) 100%
+  );
+  background-attachment: fixed;
+}
+
+/* AppHeader の面。ヘッダーは fixed / sticky なので background-attachment は
+   使わない（スクロールでグラデーションだけが取り残される）。 */
+.sycs-header-bg {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--md-sys-color-surface) / 1) 0%,
+    rgb(var(--md-sys-color-surface-dim) / 1) 100%
+  );
+}
+
+/* Material 3 は面の高さを「コンテナ濃度の重ね合わせ」で表すので、
+   下側は surface ではなく surface-container まで沈めて差を出す。 */
+html[data-style='material3'] .sycs-header-bg {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--md-sys-color-surface) / 1) 0%,
+    rgb(var(--md-sys-color-surface-container) / 1) 100%
+  );
+}
+
+/* Liquid Glass は tint + blur が主役なので不透明にしない。 */
+html[data-style='liquid-glass'] .sycs-header-bg {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--md-sys-color-surface) / 0.55) 0%,
+    rgb(var(--md-sys-color-surface-dim) / 0.55) 100%
+  );
+}
+
+/* ロゴSVGの縁取り色。ヘッダーの面に溶けるようにテーマごとに変える。 */
+:root {
+  --sycs-logo-halo: rgb(var(--md-sys-color-surface));
+}
+
+html[data-style='material3'] {
+  --sycs-logo-halo: rgb(var(--md-sys-color-surface-container));
+}
+
+html[data-style='liquid-glass'] {
+  --sycs-logo-halo: rgb(var(--md-sys-color-surface) / 0.55);
+}
+
+/* ==========================================================================
    ライトテーマの可読性補正
 
    ライトでは text-white が「白い面の上」で見えなくなる。

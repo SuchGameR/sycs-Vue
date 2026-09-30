@@ -19,6 +19,8 @@ services:
       - PHP_FORWARD_COOKIE=true
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
+      # nuxt.config.ts の `devtools: { enabled: process.env.NUXT_DEVTOOLS === 'true' }` を有効化
+      - NUXT_DEVTOOLS=true
     volumes:
       - .:/app
       - /app/node_modules

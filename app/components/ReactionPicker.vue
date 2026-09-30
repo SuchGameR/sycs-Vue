@@ -13,7 +13,7 @@ const open = ref(false)
 const query = ref('')
 const customText = ref('')
 const customError = ref('')
-const { trigger, update: updatePos, style: panelStyle } = useDropdownPosition(336)
+const { trigger } = useDropdownPosition(336)
 
 const emojiName = ref('')
 const emojiFile = ref<File | null>(null)
@@ -51,27 +51,7 @@ function toggle() {
   uploadError.value = ''
   custom.ensure()
   ensureMe()
-  nextTick(() => updatePos(460))
 }
-
-function reposition() { updatePos(460) }
-
-watch(open, (v) => {
-  if (!import.meta.client) return
-  if (v) {
-    window.addEventListener('scroll', reposition, true)
-    window.addEventListener('resize', reposition)
-  } else {
-    window.removeEventListener('scroll', reposition, true)
-    window.removeEventListener('resize', reposition)
-  }
-})
-
-onUnmounted(() => {
-  if (!import.meta.client) return
-  window.removeEventListener('scroll', reposition, true)
-  window.removeEventListener('resize', reposition)
-})
 
 function choose(emoji: string) {
   prefs.pushRecent(emoji)
@@ -146,15 +126,15 @@ async function removeEmoji(id: string) {
       <Icon name="lucide:smile-plus" class="w-4 h-4" />
     </button>
 
-    <Teleport to="body">
-      <div v-if="open" class="fixed inset-0 z-[298]" @click="open = false" />
-      <Transition name="rp-pop">
-        <div
-          v-if="open"
-          class="fixed z-[299] bg-surface border border-outline rounded-2xl shadow-2xl p-3 overflow-y-auto"
-          :style="panelStyle"
-          @click.stop
-        >
+    <!-- モバイルは iOS 風ボトムシート、681px 以上はドロップダウン -->
+    <BottomSheet :open="open" height="min(78dvh, 34rem)" @close="open = false">
+      <div class="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
+        <h3 class="text-sm font-bold">リアクション</h3>
+        <button @click="open = false" class="p-1 -mr-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition">
+          <Icon name="lucide:x" class="w-4 h-4" />
+        </button>
+      </div>
+      <div class="px-3 pb-3">
           <div v-if="recent.length" class="mb-2">
             <div class="flex items-center justify-between mb-1">
               <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">よく使う</span>
@@ -297,15 +277,8 @@ async function removeEmoji(id: string) {
             </div>
             <p v-if="customError" class="text-[10px] text-red-400">{{ customError }}</p>
           </div>
-        </div>
-      </Transition>
-    </Teleport>
-  </div>
-</template>
+      </div>
+    </BottomSheet>
 
-<style scoped>
-.rp-pop-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.rp-pop-leave-active { transition: opacity 0.1s ease; }
-.rp-pop-enter-from { opacity: 0; transform: translateY(6px); }
-.rp-pop-leave-to { opacity: 0; }
-</style>
+    </div>
+</template>

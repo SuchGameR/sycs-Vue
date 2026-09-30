@@ -45,9 +45,8 @@ async function createAndAdd() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div v-if="addTarget" class="fixed inset-0 z-[300] flex items-end min-[681px]:items-center justify-center bg-black/60 p-0 min-[681px]:p-4" @click.self="closeAdd">
-      <div class="w-full min-[681px]:max-w-sm bg-surface border border-outline-variant rounded-t-2xl min-[681px]:rounded-2xl shadow-2xl max-h-[80vh] flex flex-col">
+  <BottomSheet :open="!!addTarget" height="min(80dvh, 26rem)" :dismiss-on-backdrop="true" @close="closeAdd">
+      <div class="flex flex-col h-full min-[681px]:max-w-sm min-[681px]:mx-auto">
         <div class="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
           <h3 class="font-bold text-white">プレイリストに追加</h3>
           <button @click="closeAdd" class="p-1 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container transition">
@@ -55,7 +54,7 @@ async function createAndAdd() {
           </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-2">
+        <div class="flex-1 overflow-y-auto p-2 min-h-0">
           <p v-if="!playlists.length" class="text-center text-on-surface-variant text-sm py-6">プレイリストがありません</p>
           <button
             v-for="list in playlists"
@@ -99,6 +98,5 @@ async function createAndAdd() {
           <p v-if="error" class="text-xs text-red-400">{{ error }}</p>
         </div>
       </div>
-    </div>
-  </Teleport>
+  </BottomSheet>
 </template>

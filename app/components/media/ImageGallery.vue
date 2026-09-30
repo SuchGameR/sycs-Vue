@@ -79,7 +79,11 @@ watch(() => props.index, reset)
 </script>
 
 <template>
-  <div class="rounded-xl overflow-hidden bg-black/40 relative">
+  <!-- sycs-allow-zoom: 画像ビューアだけ pinch-zoom / ダブルタップ拡大を許可 -->
+  <div
+    class="rounded-xl overflow-hidden bg-black/40 relative sycs-allow-zoom"
+    @dblclick="zoom > 1 ? reset() : zoomIn()"
+  >
     <div class="relative flex items-center justify-center min-h-[200px]">
       <img
         ref="imgEl"
