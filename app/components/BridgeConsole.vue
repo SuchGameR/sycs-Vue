@@ -66,7 +66,7 @@ async function runRelay() {
 </script>
 
 <template>
-  <div v-if="open" class="fixed inset-y-0 right-0 z-[100] flex w-[520px] max-w-[92vw] flex-col border-l border-zinc-800 bg-[#101014] shadow-2xl">
+  <div v-if="open" class="fixed inset-y-0 right-0 z-[100] flex w-[520px] max-w-[92vw] flex-col border-l border-zinc-800 bg-surface-container shadow-2xl">
     <div class="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
       <div class="flex items-center gap-2">
         <Icon name="mdi:bridge" class="text-xl" />

@@ -32,7 +32,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#0b0f19] text-white flex items-center justify-center p-6">
+  <div class="min-h-screen bg-surface text-white flex items-center justify-center p-6">
     <div class="w-full max-w-sm space-y-8">
       <div class="text-center">
         <h1 class="text-4xl font-extrabold">SYCS<span class="text-indigo-500">.</span></h1>
@@ -71,7 +71,7 @@ async function handleSubmit() {
 
       <div class="relative">
         <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-700" /></div>
-        <div class="relative flex justify-center text-sm"><span class="bg-[#0b0f19] px-2 text-slate-500">または</span></div>
+        <div class="relative flex justify-center text-sm"><span class="bg-surface px-2 text-slate-500">または</span></div>
       </div>
 
       <div class="space-y-3">

@@ -5,7 +5,7 @@ const { data: me } = useFetch('/api/auth/me', { key: 'landing-auth', lazy: true 
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#0b0f19] text-white flex flex-col items-center justify-center p-6">
+  <div class="min-h-screen bg-surface text-white flex flex-col items-center justify-center p-6">
     <div class="max-w-xl text-center space-y-8">
       <h1 class="text-6xl font-extrabold tracking-tighter">SYCS<span class="text-indigo-500">.</span></h1>
       <p class="text-xl text-slate-400">次世代の分散型コミュニティ体験を、ここから。</p>

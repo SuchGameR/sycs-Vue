@@ -17,7 +17,7 @@ const showServers = ref(false)
 </script>
 
 <template>
-  <nav class="fixed bottom-0 left-0 right-0 h-16 bg-[#0b0f19]/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-around px-2 z-[70]">
+  <nav class="fixed bottom-0 left-0 right-0 h-16 bg-surface/95 backdrop-blur-md border-t border-slate-800 sycs-glass flex items-center justify-around px-2 z-[70]">
     <NuxtLink
       v-for="item in items"
       :key="item.to"

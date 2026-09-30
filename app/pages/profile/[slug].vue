@@ -272,8 +272,8 @@ async function toggleBookmark(postId: string) {
         <div class="px-5 pb-5">
           <div class="flex items-end -mt-12 mb-3">
             <img v-if="avatarSrc(profile.user.avatarUrl)" :src="avatarSrc(profile.user.avatarUrl)"
-              class="w-20 h-20 rounded-full border-4 border-[#0b0f19] object-cover" />
-            <div v-else class="w-20 h-20 rounded-full border-4 border-[#0b0f19] bg-indigo-600 flex items-center justify-center text-2xl font-bold text-white">
+              class="w-20 h-20 rounded-full border-4 border-surface object-cover" />
+            <div v-else class="w-20 h-20 rounded-full border-4 border-surface bg-indigo-600 flex items-center justify-center text-2xl font-bold text-white">
               {{ profile.user.displayName?.charAt(0) || '?' }}
             </div>
           </div>

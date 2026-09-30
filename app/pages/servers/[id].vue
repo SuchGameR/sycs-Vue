@@ -274,7 +274,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex bg-[#0b0f19] text-slate-200 overflow-hidden">
+  <div class="h-full flex bg-surface text-slate-200 overflow-hidden">
     <!-- Channel Sidebar -->
     <aside class="w-56 bg-slate-900/60 flex flex-col shrink-0 border-r border-slate-800">
       <div class="h-12 px-3 flex items-center justify-between border-b border-slate-800 shrink-0">
@@ -438,11 +438,11 @@ onUnmounted(() => {
       @deleted="deleteServerSafe"
     />
 
-    <div v-if="loading" class="fixed inset-0 z-40 flex items-center justify-center bg-[#0b0f19]/80">
+    <div v-if="loading" class="fixed inset-0 z-40 flex items-center justify-center bg-surface/80">
       <div class="text-slate-500">読み込み中...</div>
     </div>
 
-    <div v-if="loadError && !loading" class="fixed inset-0 z-40 flex items-center justify-center bg-[#0b0f19]/90">
+    <div v-if="loadError && !loading" class="fixed inset-0 z-40 flex items-center justify-center bg-surface/90">
       <div class="text-center space-y-3">
         <Icon name="lucide:alert-circle" class="w-10 h-10 text-red-500 mx-auto" />
         <p class="text-slate-400 text-sm">{{ loadError }}</p>

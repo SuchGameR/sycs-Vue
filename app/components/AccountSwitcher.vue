@@ -45,7 +45,7 @@ function onRemove(id: string) {
   <Teleport to="body">
     <div class="fixed inset-0 z-[180] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
-      <div class="relative bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden" @click.stop>
+      <div class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden" @click.stop>
         <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
           <h3 class="font-bold text-white flex items-center gap-2">
             <Icon name="lucide:user-round-cog" class="w-5 h-5 text-indigo-400" />

@@ -87,7 +87,7 @@ const selectCls = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 p
 <template>
   <Teleport to="body">
     <div class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/70" @click.self="emit('close')">
-      <div class="bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto">
+      <div class="bg-surface-container border border-slate-700 rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto">
         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
           <h3 class="font-bold text-white">カスタムタイムライン</h3>
           <button @click="emit('close')" class="text-slate-500 hover:text-white transition">

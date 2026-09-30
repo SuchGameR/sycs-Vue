@@ -68,11 +68,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#0b0f19] text-slate-100 [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px]">
+  <div class="min-h-screen bg-surface text-slate-100 [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px]">
     <AppHeader
       :is-server-page="isServerPage"
       :server="serverCache"
-      class="sticky top-0 z-50 bg-[#0b0f19] border-b border-slate-800"
+      class="sticky top-0 z-50 bg-surface border-b border-slate-800 sycs-glass"
     />
     <div class="flex">
       <SidebarLeft

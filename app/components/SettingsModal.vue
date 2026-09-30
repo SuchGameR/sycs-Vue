@@ -15,8 +15,15 @@ const bannerUrl = ref(user.value?.bannerUrl || "");
 const isPrivate = ref(user.value?.isPrivate || false);
 const birthday = ref(s.value.birthday || "");
 const birthplace = ref(s.value.birthplace || "");
-const theme = ref(s.value.theme || "dark");
 const language = ref(s.value.language || "ja");
+
+// 外観 (スタイル × 明暗 × seed) は composable が単一の真実を持つ。
+// ここでは保存ボタンでサーバーへ送るため値を参照するだけ。
+const {
+  style: themeStyle,
+  scheme: themeScheme,
+  seed: themeSeed,
+} = useTheme();
 const github = ref(s.value.github || "");
 const twitter = ref(s.value.twitter || "");
 const website = ref(s.value.website || "");
@@ -230,7 +237,9 @@ async function save() {
         mediaOpenMode: mediaOpenMode.value,
         birthday: birthday.value,
         birthplace: birthplace.value,
-        theme: theme.value,
+        themeStyle: themeStyle.value,
+        themeScheme: themeScheme.value,
+        themeSeed: themeSeed.value,
         language: language.value,
         github: github.value,
         twitter: twitter.value,
@@ -254,7 +263,7 @@ async function save() {
     <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
       <div
-        class="relative bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex"
+        class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex"
         @click.stop
       >
         <div
@@ -311,11 +320,11 @@ async function save() {
                   <img
                     v-if="avatarSrc(avatarUrl)"
                     :src="avatarSrc(avatarUrl)"
-                    class="w-14 h-14 rounded-full border-4 border-[#151a24] object-cover"
+                    class="w-14 h-14 rounded-full border-4 border-surface-container object-cover"
                   />
                   <div
                     v-else
-                    class="w-14 h-14 rounded-full border-4 border-[#151a24] bg-indigo-600 flex items-center justify-center text-lg font-bold text-white"
+                    class="w-14 h-14 rounded-full border-4 border-surface-container bg-indigo-600 flex items-center justify-center text-lg font-bold text-white"
                   >
                     {{ displayName?.charAt(0) || "?" }}
                   </div>
@@ -623,39 +632,7 @@ async function save() {
           </div>
 
           <div v-if="activeCategory === 'appearance'" class="space-y-4">
-            <div>
-              <label class="block text-sm text-slate-400 mb-2">テーマ</label>
-              <div class="grid grid-cols-2 gap-2">
-                <label
-                  class="flex items-center gap-3 p-3 rounded-lg cursor-pointer"
-                  :class="
-                    theme === 'dark'
-                      ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
-                      : 'bg-slate-800/30'
-                  "
-                >
-                  <input type="radio" v-model="theme" value="dark" class="sr-only" />
-                  <div
-                    class="w-6 h-6 rounded-full bg-slate-900 border border-slate-600 shrink-0"
-                  />
-                  <span class="text-sm text-white">ダーク</span>
-                </label>
-                <label
-                  class="flex items-center gap-3 p-3 rounded-lg cursor-pointer"
-                  :class="
-                    theme === 'light'
-                      ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
-                      : 'bg-slate-800/30'
-                  "
-                >
-                  <input type="radio" v-model="theme" value="light" class="sr-only" />
-                  <div
-                    class="w-6 h-6 rounded-full bg-white border border-slate-300 shrink-0"
-                  />
-                  <span class="text-sm text-white">ライト</span>
-                </label>
-              </div>
-            </div>
+            <ThemePicker />
             <div>
               <label class="block text-sm text-slate-400 mb-2">言語</label>
               <select
@@ -721,7 +698,7 @@ async function save() {
     >
       <div class="absolute inset-0 bg-black/70" @click="cancelCrop" />
       <div
-        class="relative bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-lg"
+        class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-lg"
         @click.stop
       >
         <div class="p-4 border-b border-slate-800 flex items-center justify-between">

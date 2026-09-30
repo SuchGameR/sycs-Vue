@@ -97,7 +97,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed flex flex-col rounded-xl border border-slate-700 bg-[#121826]/95 backdrop-blur-md shadow-2xl overflow-hidden"
+    class="fixed flex flex-col rounded-xl border border-slate-700 bg-surface-container/95 backdrop-blur-md shadow-2xl overflow-hidden"
     :class="(dragging || resizing) ? 'select-none' : ''"
     :style="{ left: win.x + 'px', top: win.y + 'px', width: win.w + 'px', height: win.h + 'px', zIndex: win.z }"
     @pointerdown="wb.focusWindow(win.id)"

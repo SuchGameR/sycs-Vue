@@ -507,7 +507,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
     <!-- incoming call -->
     <Transition name="slide-up">
-      <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] w-72 bg-[#151a24]/95 border border-slate-700 rounded-2xl p-4 shadow-2xl backdrop-blur">
+      <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] w-72 bg-surface-container/95 border border-slate-700 rounded-2xl p-4 shadow-2xl backdrop-blur">
         <div class="flex items-center gap-3">
           <div class="relative">
             <img v-if="avatarSrc(incoming.from.avatarUrl)" :src="avatarSrc(incoming.from.avatarUrl)" class="w-11 h-11 rounded-full object-cover" />
@@ -537,7 +537,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
     <!-- fullscreen call view -->
     <Transition name="fade">
-      <div v-if="callOpen && !minimized" data-vc-aud-root class="fixed inset-0 z-[85] bg-[#0b0f19] flex flex-col">
+      <div v-if="callOpen && !minimized" data-vc-aud-root class="fixed inset-0 z-[85] bg-surface flex flex-col">
         <!-- top bar -->
         <div class="flex items-center justify-between px-5 py-3 shrink-0 border-b border-slate-800/60">
           <div class="flex items-center gap-2.5 min-w-0">
@@ -623,7 +623,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
         </div>
 
         <!-- whiteboard overlay -->
-        <div v-if="whiteboardOpen" class="absolute inset-0 z-[1] flex flex-col bg-[#0b0f19]/98">
+        <div v-if="whiteboardOpen" class="absolute inset-0 z-[1] flex flex-col bg-surface/98">
           <div class="flex items-center gap-1.5 px-4 py-2 border-b border-slate-800 bg-slate-900/80 flex-wrap">
             <Icon name="lucide:presentation" class="w-4 h-4 text-indigo-400 shrink-0" />
             <span class="text-sm font-bold text-white mr-2">ホワイトボード</span>
@@ -684,7 +684,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
         <div class="shrink-0 px-4 py-4 flex items-center justify-center gap-3 border-t border-slate-800/60 relative flex-wrap z-[2]">
           <!-- reaction picker -->
           <Transition name="slide-up">
-            <div v-if="showReactions" class="absolute bottom-full mb-3 flex items-center gap-1 bg-[#151a24] border border-slate-700 rounded-full px-3 py-2 shadow-2xl">
+            <div v-if="showReactions" class="absolute bottom-full mb-3 flex items-center gap-1 bg-surface-container border border-slate-700 rounded-full px-3 py-2 shadow-2xl">
               <button v-for="e in EMOJIS" :key="e" @click="pickReaction(e)" class="text-2xl hover:scale-125 transition">{{ e }}</button>
             </div>
           </Transition>
@@ -718,7 +718,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
         <!-- invite modal -->
         <div v-if="inviteOpen" class="absolute inset-0 z-[4] bg-black/60 flex items-center justify-center" @click.self="inviteOpen = false">
-          <div class="bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-sm mx-4 p-5 shadow-2xl">
+          <div class="bg-surface-container border border-slate-700 rounded-2xl w-full max-w-sm mx-4 p-5 shadow-2xl">
             <div class="flex items-center justify-between mb-3">
               <h3 class="font-bold text-white flex items-center gap-2"><Icon name="lucide:user-plus" class="w-4 h-4 text-indigo-400" /> 通話に招待</h3>
               <button @click="inviteOpen = false" class="text-slate-500 hover:text-white transition"><Icon name="lucide:x" class="w-5 h-5" /></button>
@@ -740,7 +740,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
       <div
         v-if="callOpen && minimized"
         ref="miniEl"
-        class="fixed z-[98] w-20 h-20 rounded-2xl bg-[#151a24]/95 border border-slate-700 shadow-2xl backdrop-blur flex flex-col items-center justify-center gap-1 cursor-grab active:cursor-grabbing select-none touch-none"
+        class="fixed z-[98] w-20 h-20 rounded-2xl bg-surface-container/95 border border-slate-700 shadow-2xl backdrop-blur flex flex-col items-center justify-center gap-1 cursor-grab active:cursor-grabbing select-none touch-none"
         :style="{ left: miniPos.x + 'px', top: miniPos.y + 'px' }"
         @pointerdown="onMiniDown"
         @click="expandCall"

@@ -52,7 +52,7 @@ function openExt(id: string) {
 <template>
   <div class="hidden min-[681px]:block">
     <!-- Footer bar -->
-    <div class="fixed bottom-0 left-0 right-0 h-[30px] bg-[#0b0f19]/95 backdrop-blur-md border-t border-slate-800 z-[60] flex items-center px-3">
+    <div class="fixed bottom-0 left-0 right-0 h-[30px] bg-surface/95 backdrop-blur-md border-t border-slate-800 sycs-glass z-[60] flex items-center px-3">
       <div class="w-48 min-[1024px]:w-60 shrink-0 flex items-center gap-2 text-[10px] text-slate-600">
         <Icon name="lucide:layout-grid" class="w-3 h-3" />
         <span>ワークベンチ</span>
@@ -107,7 +107,7 @@ function openExt(id: string) {
     <Transition name="wb-pop">
       <div
         v-if="open"
-        class="fixed bottom-[38px] left-1/2 -translate-x-1/2 w-[440px] max-w-[92vw] max-h-[70vh] overflow-y-auto bg-[#151a24] border border-slate-700 rounded-2xl shadow-2xl z-[200]"
+        class="fixed bottom-[38px] left-1/2 -translate-x-1/2 w-[440px] max-w-[92vw] max-h-[70vh] overflow-y-auto bg-surface-container border border-slate-700 rounded-2xl shadow-2xl z-[200]"
       >
         <div class="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
           <Icon name="lucide:blocks" class="w-4 h-4 text-indigo-400" />

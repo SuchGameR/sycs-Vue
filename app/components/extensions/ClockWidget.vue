@@ -2,15 +2,17 @@
 const clock_type_key = 'sycs_clock_type'
 const CLOCK_ACCENT_KEY = 'sycs:clock-accent'
 type ClockMode = 'digital' | 'analog'
-type Theme = 'dark' | 'light'
 
 const now = ref(new Date())
 let timer: ReturnType<typeof setInterval> | null = null
 
 const mode = ref<ClockMode>('analog')
-const theme = ref<Theme>('dark')
 const accent = ref('#8b5cf6')
 const accentOpen = ref(false)
+
+// 時計の配色はアプリのテーマに追従させる。
+const { resolvedScheme } = useTheme()
+const theme = computed<'dark' | 'light'>(() => resolvedScheme.value)
 
 const ACCENTS = [
   '#8b5cf6', '#6366f1', '#0ea5e9', '#10b981',
@@ -24,11 +26,6 @@ onMounted(async () => {
     const savedAccent = localStorage.getItem(CLOCK_ACCENT_KEY)
     if (savedAccent && /^#[0-9a-fA-F]{6}$/.test(savedAccent)) accent.value = savedAccent
   }
-  try {
-    const me = await $fetch<{ user: any }>('/api/auth/me')
-    const s = JSON.parse(me.user?.settings || '{}')
-    if (s.theme === 'light' || s.theme === 'dark') theme.value = s.theme
-  } catch { /* 未ログイン時はダークのまま */ }
   timer = setInterval(() => { now.value = new Date() }, 200)
 })
 onUnmounted(() => {

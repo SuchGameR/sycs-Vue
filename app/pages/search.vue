@@ -74,7 +74,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
 <template>
   <div class="max-w-2xl mx-auto pb-24 min-[681px]:pb-6 min-h-full">
-    <div class="sticky top-14 bg-[#0b0f19]/95 backdrop-blur z-20 border-b border-slate-800">
+    <div class="sticky top-14 bg-surface/95 backdrop-blur z-20 border-b border-slate-800">
       <form class="p-3 flex items-center gap-2" @submit.prevent="submit">
         <div class="flex-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 focus-within:border-indigo-500 transition">
           <Icon name="lucide:search" class="w-4 h-4 text-slate-500 shrink-0" />

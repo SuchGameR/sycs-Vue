@@ -7,7 +7,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "theme:generate": "esbuild scripts/generate-theme-tokens.mjs --bundle --platform=node --format=esm --outfile=node_modules/.cache/sycs-gen-theme.mjs --log-level=warning && node node_modules/.cache/sycs-gen-theme.mjs"
   },
   "dependencies": {
     "@tiptap/core": "^3.29.2",
@@ -28,8 +29,8 @@
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
+    "@material/material-color-utilities": "^0.4.0",
     "@nuxt/icon": "^2.3.1",
-    "@nuxtjs/color-mode": "^4.0.1",
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/cropperjs": "^1.1.5",

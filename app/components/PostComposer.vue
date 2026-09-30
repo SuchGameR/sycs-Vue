@@ -276,7 +276,7 @@ function fileIcon(mime: string) {
       <Teleport to="body">
         <div v-if="activePreview !== null && activeFile()" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70"
           @click.self="activePreview = null">
-          <div class="bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          <div class="bg-surface-container border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
             @click.stop>
             <div class="relative bg-black rounded-t-2xl min-h-[200px] flex items-center justify-center">
               <img v-if="activeFile()!.type === 'image'" :src="activeFile()!.preview" class="max-w-full max-h-[50vh] object-contain rounded-t-2xl" />

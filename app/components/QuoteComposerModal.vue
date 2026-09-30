@@ -11,7 +11,7 @@ watch(() => route.fullPath, () => closeQuote())
     <ClientOnly>
     <div v-if="target" class="fixed inset-0 z-[190] flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/70" @click="closeQuote()" />
-      <div class="relative bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-4">
+      <div class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-4">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-bold text-white flex items-center gap-2">
             <Icon name="lucide:message-square-quote" class="w-4 h-4 text-indigo-400" />

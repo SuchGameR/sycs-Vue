@@ -346,7 +346,7 @@ const btnGhost = 'px-4 py-2 rounded-lg border border-slate-700 text-sm text-slat
   <Teleport to="body">
     <div class="fixed inset-0 z-[90] flex items-center justify-center p-4" @click.self="emit('close')">
       <div class="absolute inset-0 bg-black/60" />
-      <div class="relative bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden">
+      <div class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden">
         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800 shrink-0">
           <h2 class="text-lg font-bold text-white">サーバー設定</h2>
           <button @click="emit('close')" class="text-slate-500 hover:text-white transition">

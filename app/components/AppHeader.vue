@@ -28,10 +28,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       <!-- Server banner as header background -->
       <template v-if="isServerPage && server?.bannerUrl">
         <img :src="server.bannerUrl" class="absolute inset-0 w-full h-full object-cover" />
-        <div class="absolute inset-0 bg-[#0b0f19]/70"></div>
+        <div class="absolute inset-0 bg-surface/70"></div>
       </template>
       <!-- Left section: matches left sidebar width -->
-      <div class="hidden min-[681px]:flex items-center px-4 w-48 min-[1024px]:w-60 shrink-0 z-40" :class="isServerPage ? '' : 'shadow-[0px_0px_43px_50px_#0b0f19]'">
+      <div class="hidden min-[681px]:flex items-center px-4 w-48 min-[1024px]:w-60 shrink-0 z-40" :class="isServerPage ? '' : 'sycs-header-fade'">
         <NuxtLink v-if="!isServerPage" to="/" class="text-lg font-extrabold tracking-tighter shrink-0">
           SYCS<span class="text-indigo-500">.</span>
         </NuxtLink>
@@ -42,7 +42,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         <Transition name="fade">
           <div v-if="isProfilePage && profileHeader" key="overlay" class="absolute inset-0">
             <div v-if="profileHeader?.bannerUrl" class="absolute inset-0 bg-cover bg-center" :style="`background-image: url(${profileHeader.bannerUrl})`"></div>
-            <div class="absolute inset-0 backdrop-blur-[10px] bg-[#0b0f19]/40"></div>
+            <div class="absolute inset-0 backdrop-blur-[10px] bg-surface/40"></div>
           </div>
         </Transition>
         <div class="relative flex items-center gap-4 flex-1 min-w-0 justify-center">
@@ -84,7 +84,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       </div>
 
       <!-- Right section: fixed width on desktop, home of the global search box -->
-      <div class="hidden min-[1024px]:flex items-center gap-2 px-4 w-[280px] shrink-0 z-40" :class="isServerPage ? '' : 'shadow-[0px_0px_43px_50px_#0b0f19]'">
+      <div class="hidden min-[1024px]:flex items-center gap-2 px-4 w-[280px] shrink-0 z-40" :class="isServerPage ? '' : 'sycs-header-fade'">
         <button
           class="flex-1 flex items-center gap-2 bg-slate-900/70 border border-slate-800 rounded-full px-3 py-1.5 text-sm text-slate-500 hover:border-slate-600 focus-within:border-indigo-500 transition min-w-0"
           @click="router.push('/search')"

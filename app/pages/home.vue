@@ -238,7 +238,7 @@ function reportPost(postId: string) { alert('報告しました') }
     <Transition name="sheet">
       <div v-if="composerOpen" class="min-[681px]:hidden fixed inset-0 z-[200] flex flex-col justify-end">
         <div class="absolute inset-0 bg-black/60" @click="composerOpen = false" />
-        <div class="relative bg-[#0f1420] border-t border-slate-800 rounded-t-2xl p-4 pb-6 max-h-[85vh] overflow-y-auto">
+        <div class="relative bg-surface-container border-t border-slate-800 rounded-t-2xl p-4 pb-6 max-h-[85vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-3">
             <span class="font-bold text-white">新規投稿</span>
             <button @click="composerOpen = false" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition">

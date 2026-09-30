@@ -1,0 +1,136 @@
+/* ==========================================================================
+   SYCS テーマ基盤
+
+   色の実体は themes.generated.css (npm run theme:generate) が持つ。
+   このファイルは「変数の使い方」と「スタイル別の表現」を担う。
+
+     <html data-style="classic|material3|liquid-glass"
+           data-scheme="light|dark"
+           data-seed="tonal-spot|vibrant|...">
+   ========================================================================== */
+
+@import './themes.generated.css';
+
+/* ネイティブ UI (スクロールバー・フォーム・select) を明暗に追従させる */
+:root {
+  color-scheme: dark;
+}
+html[data-scheme='light'] {
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   Tailwind 任意値 bg-[#0b0f19] などの置き換え先
+   Tailwind の bg-surface / bg-surface-container と同じ変数を参照する。
+   ========================================================================== */
+
+/* AppHeader の左右から内容を見えなくする大きなフェード。
+   旧: shadow-[0px_0px_43px_50px_#0b0f19] */
+.sycs-header-fade {
+  box-shadow: 0 0 43px 50px rgb(var(--md-sys-color-surface) / 1);
+}
+
+/* ==========================================================================
+   Liquid Glass (Apple iOS 26 / visionOS 相当)
+
+   本家の見た目は 4 つの層。
+     1. ブラー     … 背面の情報をぼかす
+     2. スペキュラ … 上縁と外周に光のハイライト
+     3. 影         … 浮き上がり
+     4. 彩度       … 背面色を飽和させる
+
+   .sycs-glass / .sycs-glass-strong は Liquid Glass のときだけ効く。
+   Classic / Material 3 では何もしないので、必ず付けておいてよい。
+   ========================================================================== */
+
+html[data-style='liquid-glass'] body {
+  background-image:
+    radial-gradient(120% 80% at 12% 0%, rgb(var(--t-indigo-500) / 0.2) 0%, transparent 55%),
+    radial-gradient(100% 70% at 88% 8%, rgb(var(--t-sky-500) / 0.18) 0%, transparent 55%),
+    radial-gradient(90% 90% at 50% 100%, rgb(var(--t-fuchsia-500) / 0.14) 0%, transparent 60%),
+    linear-gradient(180deg, rgb(var(--t-slate-900) / 1) 0%, rgb(var(--t-slate-950) / 1) 100%);
+  background-attachment: fixed;
+}
+
+html[data-style='liquid-glass'][data-scheme='light'] body {
+  background-image:
+    radial-gradient(120% 80% at 12% 0%, rgb(var(--t-indigo-400) / 0.18) 0%, transparent 55%),
+    radial-gradient(100% 70% at 88% 8%, rgb(var(--t-sky-400) / 0.18) 0%, transparent 55%),
+    radial-gradient(90% 90% at 50% 100%, rgb(var(--t-pink-300) / 0.16) 0%, transparent 60%),
+    linear-gradient(180deg, rgb(var(--t-slate-900) / 1) 0%, rgb(var(--t-slate-800) / 1) 100%);
+}
+
+/* position は指定しない。対象は fixed / sticky なので、
+   疑似要素 Anchoring も成立し、position: relative で上書きすると崩れる。 */
+html[data-style='liquid-glass'] .sycs-glass {
+  background-color: var(--lg-tint);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  border-color: rgb(255 255 255 / 0.12);
+  box-shadow: var(--lg-specular), var(--lg-shadow);
+}
+
+html[data-style='liquid-glass'] .sycs-glass-strong {
+  background-color: var(--lg-tint-strong);
+  -webkit-backdrop-filter: blur(calc(var(--lg-blur) * 1.6)) saturate(var(--lg-sat));
+  backdrop-filter: blur(calc(var(--lg-blur) * 1.6)) saturate(var(--lg-sat));
+  border-color: rgb(255 255 255 / 0.16);
+  box-shadow: var(--lg-specular-strong), var(--lg-shadow);
+}
+
+html[data-style='liquid-glass'] .sycs-glass-thin {
+  -webkit-backdrop-filter: blur(calc(var(--lg-blur) * 0.5)) saturate(140%);
+  backdrop-filter: blur(calc(var(--lg-blur) * 0.5)) saturate(140%);
+}
+
+/* ==========================================================================
+   ライトテーマの前景色補正
+
+   ダーク前提で書かれた「白文字 on カード」は、ライトだと
+   「白い背景に白い文字」になってしまう。
+   「neutral 面の背景クラス」と「明るい前景色クラス」が同居している
+   要素だけを対象にして補正する。塗りボタン上の text-white は対象外。
+   ========================================================================== */
+
+html[data-scheme='light']
+  :is(.bg-slate-700, .bg-slate-800, .bg-slate-900)
+  :is(.text-white, .text-slate-100, .text-slate-200, .text-slate-300) {
+  color: rgb(var(--t-slate-200) / 1);
+}
+
+html[data-scheme='light']
+  :is(.bg-slate-700\/60, .bg-slate-800\/50, .bg-slate-800\/40, .bg-slate-800\/30, .bg-slate-900\/40)
+  :is(.text-white, .text-slate-100, .text-slate-200, .text-slate-300) {
+  color: rgb(var(--t-slate-200) / 1);
+}
+
+html[data-scheme='light'] option {
+  background-color: rgb(var(--t-slate-800) / 1);
+  color: rgb(var(--t-slate-200) / 1);
+}
+
+html[data-scheme='light'] ::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--t-slate-600) / 1);
+}
+
+/* ==========================================================================
+   テーマ切替のトランジション
+   ========================================================================== */
+
+html[data-theme-animating] *,
+html[data-theme-animating] *::before,
+html[data-theme-animating] *::after {
+  transition:
+    background-color 200ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 200ms cubic-bezier(0.2, 0, 0, 1),
+    color 200ms cubic-bezier(0.2, 0, 0, 1),
+    fill 200ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-animating] *,
+  html[data-theme-animating] *::before,
+  html[data-theme-animating] *::after {
+    transition: none !important;
+  }
+}

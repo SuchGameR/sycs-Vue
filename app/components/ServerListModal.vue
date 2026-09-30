@@ -47,7 +47,7 @@ async function joinServer() {
   <Teleport to="body">
     <div class="fixed inset-0 z-[100] flex items-center justify-center p-4" @click.self="emit('close')">
       <div class="absolute inset-0 bg-black/60" />
-      <div class="relative bg-[#151a24] border border-slate-700 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-4"
+      <div class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-4"
         :class="{ '!max-h-none': showCreateForm || showJoinForm }">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-bold text-white">サーバー一覧</h2>
@@ -87,7 +87,7 @@ async function joinServer() {
         </div>
 
         <!-- Create form overlay -->
-        <div v-if="showCreateForm" class="absolute inset-0 bg-[#151a24] rounded-2xl p-6 flex flex-col space-y-4 z-10" @click.stop>
+        <div v-if="showCreateForm" class="absolute inset-0 bg-surface-container rounded-2xl p-6 flex flex-col space-y-4 z-10" @click.stop>
           <h3 class="text-lg font-bold text-white">サーバーを作成</h3>
           <div class="space-y-3 flex-1">
             <div>
@@ -106,7 +106,7 @@ async function joinServer() {
         </div>
 
         <!-- Join form overlay -->
-        <div v-if="showJoinForm" class="absolute inset-0 bg-[#151a24] rounded-2xl p-6 flex flex-col space-y-4 z-10" @click.stop>
+        <div v-if="showJoinForm" class="absolute inset-0 bg-surface-container rounded-2xl p-6 flex flex-col space-y-4 z-10" @click.stop>
           <h3 class="text-lg font-bold text-white">招待コードで参加</h3>
           <div class="flex-1">
             <label class="text-xs text-slate-500 font-medium block mb-1">招待コード</label>

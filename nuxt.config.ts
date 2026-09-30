@@ -33,6 +33,17 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap' }
+      ],
+      script: [
+        {
+          // 描画前にテーマを確定させる。CSS の読み込みを待つ必要がないよう
+          // データ属性だけを書く同期 script。
+          // seed も必ず書き出す (M3 / Liquid Glass の CSS ブロックは
+          // [data-seed] セレクタなので、欠けると変数が一つも当たらない)。
+          innerHTML: `(function(){try{var s=localStorage.getItem('sycs:theme-style');var q=localStorage.getItem('sycs:theme-scheme');var d=localStorage.getItem('sycs:theme-seed');var r=/^(classic|material3|liquid-glass)$/.test(s)?s:'classic';var m=q==='light'||q==='dark'?q:(q==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):'dark');var u=/^(tonal-spot|vibrant|expressive|content|fruit-salad|rainbow|sky|indigo|teal)$/.test(d)?d:(r==='liquid-glass'?'sky':'tonal-spot');var e=document.documentElement;e.dataset.style=r;e.dataset.scheme=m;e.dataset.seed=u;e.dataset.theme=r+':'+m}catch(_){}})()`,
+          tagPosition: 'head',
+          tagPriority: 'critical',
+        }
       ]
     }
   },
@@ -56,13 +67,9 @@ export default defineNuxtConfig({
     }
   },
 
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@nuxt/icon',
-    '@nuxtjs/color-mode'
-  ],
+  modules: ['@nuxtjs/tailwindcss', '@nuxt/icon'],
 
-  css: ['~/assets/css/app.css'],
+  css: ['~/assets/css/theme.css', '~/assets/css/app.css'],
 
   nitro: {
     // GitHub Actions の generate 時に static プリセットを使う

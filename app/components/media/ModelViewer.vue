@@ -1,4 +1,17 @@
 <script setup lang="ts">
+/**
+ * 3D ビュワーの背景色は CSS 側のトークンから読む。
+ *  値は "R G B" 形式なので THREE.Color へ渡す前に #rrggbb へ戻す。
+ */
+function themeSurfaceColor(): string {
+  if (typeof window === 'undefined') return '#0b0f19'
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue('--t-slate-900')
+    .trim()
+  const [r, g, b] = raw.split(/\s+/).map(Number)
+  if ([r, g, b].some((n) => Number.isNaN(n))) return '#0b0f19'
+  return `rgb(${r}, ${g}, ${b})`
+}
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -137,7 +150,7 @@ function init() {
   el.appendChild(renderer.domElement)
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color('#0b0f19')
+  scene.background = new THREE.Color(themeSurfaceColor())
 
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000)
   camera.position.set(0, 2, 6)
@@ -212,13 +225,13 @@ watch(() => props.src, () => { if (scene) load() })
 </script>
 
 <template>
-  <div class="relative rounded-xl overflow-hidden bg-[#0b0f19] border border-slate-800">
+  <div class="relative rounded-xl overflow-hidden bg-surface border border-slate-800">
     <div
       ref="container"
       class="w-full h-[52vh] min-h-[280px] touch-none"
     />
 
-    <div v-if="loading" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0b0f19]/80">
+    <div v-if="loading" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface/80">
       <Icon name="lucide:loader-2" class="w-7 h-7 text-indigo-400 animate-spin" />
       <div class="w-40 h-1 rounded-full bg-slate-800 overflow-hidden">
         <div class="h-full bg-indigo-500 transition-all" :style="{ width: progress + '%' }" />
@@ -226,7 +239,7 @@ watch(() => props.src, () => { if (scene) load() })
       <p class="text-[11px] text-slate-500">{{ progress ? progress + '%' : '3Dモデルを読み込み中...' }}</p>
     </div>
 
-    <div v-if="error" class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0b0f19]/90 p-6 text-center">
+    <div v-if="error" class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface/90 p-6 text-center">
       <Icon name="lucide:box" class="w-8 h-8 text-slate-600" />
       <p class="text-xs text-slate-400">{{ error }}</p>
     </div>
