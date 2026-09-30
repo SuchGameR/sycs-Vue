@@ -68,16 +68,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface text-slate-100 [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px]">
+  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px]">
     <AppHeader
       :is-server-page="isServerPage"
       :server="serverCache"
-      class="sticky top-0 z-50 bg-surface border-b border-slate-800 sycs-glass"
+      class="sticky top-0 z-50 bg-surface border-b border-outline-variant sycs-glass"
     />
     <div class="flex">
       <SidebarLeft
         v-if="layout.sidebar"
-        class="hidden min-[681px]:flex w-48 min-[1024px]:w-60 border-r border-slate-800 sticky top-14"
+        class="hidden min-[681px]:flex w-48 min-[1024px]:w-60 border-r border-outline-variant sticky top-14"
       />
       <main class="flex-1 min-w-0 h-[calc(100vh-56px-var(--app-footer-h))] overflow-y-auto">
         <slot />

@@ -80,7 +80,7 @@ onUnmounted(() => { dragging = false })
         v-for="tab in visibleTabs"
         :key="tab.id"
         class="group flex items-center rounded-full transition whitespace-nowrap shrink-0"
-        :class="activeId === tab.id ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-200 bg-slate-800/40 hover:bg-slate-800/70'"
+        :class="activeId === tab.id ? 'bg-slate-100 text-slate-900' : 'text-on-surface-variant hover:text-on-surface bg-surface-container/40 hover:bg-surface-container/70'"
       >
         <button
           @click="onTabClick(tab.id)"
@@ -93,7 +93,7 @@ onUnmounted(() => { dragging = false })
           v-if="!tab.fixed"
           @click="remove(tab.id, $event)"
           class="mr-1 p-0.5 rounded-full transition shrink-0"
-          :class="activeId === tab.id ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-300' : 'text-slate-500 hover:text-white hover:bg-slate-700'"
+          :class="activeId === tab.id ? 'text-on-surface-variant hover:text-slate-900 hover:bg-slate-300' : 'text-on-surface-variant hover:text-white hover:bg-surface-container-high'"
           title="タブを閉じる"
         >
           <Icon name="lucide:x" class="w-3.5 h-3.5" />
@@ -106,7 +106,7 @@ onUnmounted(() => { dragging = false })
         ref="moreBtn"
         @click="toggleMore"
         class="px-2.5 py-1.5 rounded-full text-sm font-medium transition flex items-center gap-1"
-        :class="showMore ? 'text-slate-200 bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'"
+        :class="showMore ? 'text-on-surface bg-surface-container/50' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'"
       >
         その他
         <Icon name="lucide:chevron-down" class="w-3.5 h-3.5 transition-transform" :class="showMore ? 'rotate-180' : ''" />
@@ -115,7 +115,7 @@ onUnmounted(() => { dragging = false })
 
     <button
       @click="showBuilder = true"
-      class="p-1.5 rounded-full text-slate-400 hover:text-indigo-400 hover:bg-slate-800/50 transition shrink-0"
+      class="p-1.5 rounded-full text-on-surface-variant hover:text-indigo-400 hover:bg-surface-container/50 transition shrink-0"
       title="カスタムタイムラインを作成"
     >
       <Icon name="lucide:plus" class="w-4 h-4" />
@@ -126,12 +126,12 @@ onUnmounted(() => { dragging = false })
       <Transition name="tabs-pop">
         <div
           v-if="showMore"
-          class="fixed z-[300] bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl min-w-52 max-h-[60vh] overflow-y-auto"
+          class="fixed z-[300] bg-surface border border-outline-variant rounded-xl py-1.5 shadow-xl min-w-52 max-h-[60vh] overflow-y-auto"
           :style="{ top: menuPos.top + 'px', left: menuPos.left + 'px' }"
         >
           <div v-for="tab in unpinnedTabs" :key="tab.id" class="flex items-center group">
             <button @click="select(tab.id)" class="flex-1 text-left px-3 py-2 text-sm transition truncate"
-              :class="activeId === tab.id ? 'text-indigo-400' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'">
+              :class="activeId === tab.id ? 'text-indigo-400' : 'text-on-surface-variant hover:text-white hover:bg-surface-container/50'">
               {{ tab.label }}
             </button>
             <button @click.stop="timelines.togglePin(tab.id)" class="p-1.5 text-slate-600 hover:text-indigo-400 transition" title="ピン留め">

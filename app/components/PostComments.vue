@@ -227,13 +227,13 @@ function timeAgo(date: string) {
 <template>
   <div class="flex flex-col h-full min-h-0">
     <!-- Reactions -->
-    <div class="px-4 pt-3 pb-2 flex flex-wrap items-center gap-1.5 shrink-0 border-b border-slate-800/60">
+    <div class="px-4 pt-3 pb-2 flex flex-wrap items-center gap-1.5 shrink-0 border-b border-outline-variant/60">
       <button
         v-for="r in (post.reactions || [])"
         :key="r.emoji"
         @click="toggleReaction(r.emoji)"
         class="flex items-center gap-1 px-2 py-1 rounded-full text-sm border transition"
-        :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-500'"
+        :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-surface-container/50 border-outline text-on-surface hover:border-slate-500'"
         :title="(r.users || []).map((u: any) => u.displayName || '').join(', ')"
       >
         <EmojiIcon :emoji="r.emoji" size="sm" />
@@ -245,12 +245,12 @@ function timeAgo(date: string) {
 
     <!-- Comments -->
     <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
-      <div v-if="loading" class="text-center text-slate-500 text-sm py-6">読み込み中...</div>
+      <div v-if="loading" class="text-center text-on-surface-variant text-sm py-6">読み込み中...</div>
       <template v-else>
         <div v-for="c in comments" :key="c.id" class="flex gap-2.5">
           <NuxtLink :to="`/profile/@${c.user?.username || c.userId}`" class="shrink-0">
             <img v-if="avatarSrc(c.user?.avatarUrl)" :src="avatarSrc(c.user.avatarUrl)" class="w-7 h-7 rounded-full object-cover" />
-            <div v-else class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold">
+            <div v-else class="w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center text-white text-xs font-bold">
               {{ c.user?.displayName?.charAt(0) || '?' }}
             </div>
           </NuxtLink>
@@ -261,22 +261,22 @@ function timeAgo(date: string) {
               <UserTitle :title="c.user?.title" />
               <span class="text-[11px] text-slate-600 shrink-0">{{ timeAgo(c.createdAt) }}</span>
             </div>
-            <p v-if="c.content" class="text-sm text-slate-300 whitespace-pre-wrap break-words" v-html="renderRichText(c.content, { custom: customEmojiMap })" />
+            <p v-if="c.content" class="text-sm text-on-surface whitespace-pre-wrap break-words" v-html="renderRichText(c.content, { custom: customEmojiMap })" />
             <PostAttachments v-if="c.attachments?.length" :attachments="c.attachments" class="max-w-md" />
           </div>
         </div>
-        <p v-if="!comments.length" class="text-center text-slate-500 text-sm py-8">まだコメントはありません</p>
+        <p v-if="!comments.length" class="text-center text-on-surface-variant text-sm py-8">まだコメントはありません</p>
         <div ref="commentSentinel" class="h-1" aria-hidden="true"></div>
-        <div v-if="loadingMoreComments" class="text-center text-slate-500 text-xs py-2">読み込み中...</div>
+        <div v-if="loadingMoreComments" class="text-center text-on-surface-variant text-xs py-2">読み込み中...</div>
         <p v-else-if="comments.length && !commentHasMore" class="text-center text-slate-600 text-[11px] py-2">すべて表示しました</p>
       </template>
     </div>
 
     <!-- Composer -->
-    <div class="border-t border-slate-800 p-3 shrink-0">
+    <div class="border-t border-outline-variant p-3 shrink-0">
       <div
-        class="bg-slate-900 border rounded-xl px-3 py-2 transition"
-        :class="dragging ? 'border-indigo-500 bg-indigo-600/10' : 'border-slate-700 focus-within:border-indigo-500'"
+        class="bg-surface border rounded-xl px-3 py-2 transition"
+        :class="dragging ? 'border-indigo-500 bg-indigo-600/10' : 'border-outline focus-within:border-indigo-500'"
         @dragover.prevent="dragging = true"
         @dragleave.prevent="dragging = false"
         @drop="onDrop"
@@ -284,9 +284,9 @@ function timeAgo(date: string) {
       >
         <div v-if="pendingFiles.length" class="flex flex-wrap gap-2 mb-2">
           <div v-for="(f, i) in pendingFiles" :key="i"
-            class="relative group w-16 h-16 rounded-lg overflow-hidden bg-slate-800 border border-slate-700 shrink-0">
+            class="relative group w-16 h-16 rounded-lg overflow-hidden bg-surface-container border border-outline shrink-0">
             <img v-if="f.type === 'image'" :src="f.preview" class="w-full h-full object-cover" />
-            <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-400 px-1">
+            <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-on-surface-variant px-1">
               <Icon :name="fileIcon(f.mime)" class="w-5 h-5" />
               <span class="text-[9px] truncate w-full text-center">{{ f.file.name }}</span>
             </div>
@@ -308,7 +308,7 @@ function timeAgo(date: string) {
 
         <div class="flex items-center gap-1 mt-1">
           <button @click="fileInput?.click()" :disabled="pendingFiles.length >= MAX_FILES || submitting"
-            class="p-1.5 rounded-full text-slate-500 hover:text-indigo-400 hover:bg-slate-800/50 transition disabled:opacity-30"
+            class="p-1.5 rounded-full text-on-surface-variant hover:text-indigo-400 hover:bg-surface-container/50 transition disabled:opacity-30"
             :title="`ファイル添付 (${pendingFiles.length}/${MAX_FILES})`">
             <Icon name="lucide:paperclip" class="w-4 h-4" />
           </button>

@@ -36,7 +36,7 @@ async function handleSubmit() {
     <div class="w-full max-w-sm space-y-8">
       <div class="text-center">
         <h1 class="text-4xl font-extrabold">SYCS<span class="text-indigo-500">.</span></h1>
-        <p class="text-slate-400 mt-2">ログイン</p>
+        <p class="text-on-surface-variant mt-2">ログイン</p>
       </div>
 
       <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -45,22 +45,22 @@ async function handleSubmit() {
         </div>
 
         <div>
-          <label class="block text-sm text-slate-400 mb-1">ユーザーID または メールアドレス</label>
+          <label class="block text-sm text-on-surface-variant mb-1">ユーザーID または メールアドレス</label>
           <input v-model="login" required
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             placeholder="username or you@example.com" autocomplete="username" />
         </div>
 
         <div>
-          <label class="block text-sm text-slate-400 mb-1">パスワード</label>
+          <label class="block text-sm text-on-surface-variant mb-1">パスワード</label>
           <input v-model="password" type="password" required
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             placeholder="********" />
         </div>
 
         <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" v-model="rememberMe" class="w-4 h-4 rounded border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-slate-800" />
-          <span class="text-sm text-slate-400">ログインを保持する</span>
+          <input type="checkbox" v-model="rememberMe" class="w-4 h-4 rounded border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-surface-container" />
+          <span class="text-sm text-on-surface-variant">ログインを保持する</span>
         </label>
 
         <button type="submit" :disabled="loading"
@@ -70,24 +70,24 @@ async function handleSubmit() {
       </form>
 
       <div class="relative">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-700" /></div>
-        <div class="relative flex justify-center text-sm"><span class="bg-surface px-2 text-slate-500">または</span></div>
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-outline" /></div>
+        <div class="relative flex justify-center text-sm"><span class="bg-surface px-2 text-on-surface-variant">または</span></div>
       </div>
 
       <div class="space-y-3">
         <a :href="`/api/auth/github?redirect=${encodeURIComponent(redirectTarget)}`"
-          class="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 border border-slate-700 rounded-lg font-medium hover:bg-slate-700 transition">
+          class="flex items-center justify-center gap-2 w-full py-2.5 bg-surface-container border border-outline rounded-lg font-medium hover:bg-surface-container-high transition">
           <Icon name="mdi:github" class="text-xl" />
           GitHub でログイン
         </a>
         <a :href="`/api/auth/google?redirect=${encodeURIComponent(redirectTarget)}`"
-          class="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 border border-slate-700 rounded-lg font-medium hover:bg-slate-700 transition">
+          class="flex items-center justify-center gap-2 w-full py-2.5 bg-surface-container border border-outline rounded-lg font-medium hover:bg-surface-container-high transition">
           <Icon name="mdi:google" class="text-xl" />
           Google でログイン
         </a>
       </div>
 
-      <p class="text-center text-sm text-slate-500">
+      <p class="text-center text-sm text-on-surface-variant">
         アカウントをお持ちでない方は
         <NuxtLink to="/signup" class="text-indigo-400 hover:underline">新規登録</NuxtLink>
       </p>

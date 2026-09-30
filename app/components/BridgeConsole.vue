@@ -110,7 +110,7 @@ async function runRelay() {
               <span class="text-[10px] text-zinc-500">{{ p.id }} · v{{ p.version }} · {{ p.source }}</span>
             </div>
             <div class="mt-1 flex flex-wrap gap-1">
-              <span v-for="c in p.capabilities" :key="c" class="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-300">{{ c }}</span>
+              <span v-for="c in p.capabilities" :key="c" class="rounded bg-surface-container px-1.5 py-0.5 text-[10px] text-zinc-300">{{ c }}</span>
             </div>
           </div>
         </div>
@@ -123,12 +123,12 @@ async function runRelay() {
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="mb-1 block text-xs text-zinc-500">Action</label>
-            <input v-model="selectedAction" type="text" class="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5" />
+            <input v-model="selectedAction" type="text" class="w-full rounded border border-zinc-800 bg-surface-dim px-2 py-1.5" />
             <div class="mt-1 max-h-40 overflow-y-auto">
               <button
                 v-for="(v, k) in PHP_ACTIONS"
                 :key="k"
-                class="mb-0.5 block w-full rounded px-2 py-1 text-left text-xs hover:bg-zinc-800"
+                class="mb-0.5 block w-full rounded px-2 py-1 text-left text-xs hover:bg-surface-container"
                 @click="selectedAction = v"
               >
                 {{ k }} → {{ v }}
@@ -137,9 +137,9 @@ async function runRelay() {
           </div>
           <div>
             <label class="mb-1 block text-xs text-zinc-500">csrfToken</label>
-            <input v-model="csrfToken" type="text" class="mb-3 w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5" />
+            <input v-model="csrfToken" type="text" class="mb-3 w-full rounded border border-zinc-800 bg-surface-dim px-2 py-1.5" />
             <label class="mb-1 block text-xs text-zinc-500">params (JSON)</label>
-            <textarea v-model="actionParams" rows="8" class="w-full rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5 font-mono text-xs" />
+            <textarea v-model="actionParams" rows="8" class="w-full rounded border border-zinc-800 bg-surface-dim px-2 py-1.5 font-mono text-xs" />
           </div>
         </div>
         <button class="rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold hover:bg-emerald-500" :disabled="busy" @click="runCall">
@@ -149,9 +149,9 @@ async function runRelay() {
         <div class="border-t border-zinc-800 pt-3">
           <div class="mb-2 font-semibold">Register plugin</div>
           <div class="grid grid-cols-3 gap-2">
-            <input v-model="registerFields.id" placeholder="id" class="rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5" />
-            <input v-model="registerFields.name" placeholder="name" class="rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5" />
-            <input v-model="registerFields.version" placeholder="version" class="rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5" />
+            <input v-model="registerFields.id" placeholder="id" class="rounded border border-zinc-800 bg-surface-dim px-2 py-1.5" />
+            <input v-model="registerFields.name" placeholder="name" class="rounded border border-zinc-800 bg-surface-dim px-2 py-1.5" />
+            <input v-model="registerFields.version" placeholder="version" class="rounded border border-zinc-800 bg-surface-dim px-2 py-1.5" />
           </div>
           <div class="mt-2 flex gap-2">
             <button class="rounded-lg bg-zinc-700 px-3 py-1.5 hover:bg-zinc-600" @click="runRegister">Register</button>

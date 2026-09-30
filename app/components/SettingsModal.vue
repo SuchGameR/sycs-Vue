@@ -263,11 +263,11 @@ async function save() {
     <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
       <div
-        class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex"
+        class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex"
         @click.stop
       >
         <div
-          class="w-44 shrink-0 border-r border-slate-800 p-3 space-y-1 overflow-y-auto"
+          class="w-44 shrink-0 border-r border-outline-variant p-3 space-y-1 overflow-y-auto"
         >
           <button
             v-for="cat in categories"
@@ -277,7 +277,7 @@ async function save() {
             :class="
               activeCategory === cat.key
                 ? 'bg-indigo-600/20 text-indigo-400'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                : 'text-on-surface-variant hover:text-white hover:bg-surface-container/30'
             "
           >
             <Icon :name="cat.icon" class="w-4 h-4 shrink-0" /> {{ cat.label }}
@@ -290,7 +290,7 @@ async function save() {
             </h2>
             <button
               @click="emit('close')"
-              class="text-slate-500 hover:text-white transition"
+              class="text-on-surface-variant hover:text-white transition"
             >
               <Icon name="lucide:x" class="w-5 h-5" />
             </button>
@@ -304,7 +304,7 @@ async function save() {
 
           <div v-if="activeCategory === 'profile'" class="space-y-4">
             <div
-              class="bg-slate-800/30 border border-slate-800 rounded-xl overflow-hidden"
+              class="bg-surface-container/30 border border-outline-variant rounded-xl overflow-hidden"
             >
               <div
                 v-if="bannerUrl"
@@ -330,8 +330,8 @@ async function save() {
                   </div>
                 </div>
                 <p class="font-bold text-white">{{ displayName || "表示名" }}</p>
-                <p class="text-xs text-slate-500">@{{ user?.username }}</p>
-                <p v-if="bio" class="text-xs text-slate-400 mt-1">{{ bio }}</p>
+                <p class="text-xs text-on-surface-variant">@{{ user?.username }}</p>
+                <p v-if="bio" class="text-xs text-on-surface-variant mt-1">{{ bio }}</p>
                 <p v-if="statusMessage" class="text-[11px] text-emerald-400 mt-0.5 flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>{{ statusMessage }}
                 </p>
@@ -342,7 +342,7 @@ async function save() {
               <button
                 @click="startCrop('avatar')"
                 :disabled="uploadingAvatar"
-                class="flex-1 py-2 rounded-lg bg-slate-800 text-xs text-slate-300 hover:bg-slate-700 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                class="flex-1 py-2 rounded-lg bg-surface-container text-xs text-on-surface hover:bg-surface-container-high transition flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <Icon
                   v-if="uploadingAvatar"
@@ -355,7 +355,7 @@ async function save() {
               <button
                 @click="startCrop('banner')"
                 :disabled="uploadingBanner"
-                class="flex-1 py-2 rounded-lg bg-slate-800 text-xs text-slate-300 hover:bg-slate-700 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                class="flex-1 py-2 rounded-lg bg-surface-container text-xs text-on-surface hover:bg-surface-container-high transition flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <Icon
                   v-if="uploadingBanner"
@@ -368,101 +368,101 @@ async function save() {
             </div>
 
             <div>
-              <label class="block text-sm text-slate-400 mb-1">表示名</label>
+              <label class="block text-sm text-on-surface-variant mb-1">表示名</label>
               <input
                 v-model="displayName"
                 type="text"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label class="block text-sm text-slate-400 mb-1">自己紹介</label>
+              <label class="block text-sm text-on-surface-variant mb-1">自己紹介</label>
               <textarea
                 v-model="bio"
                 rows="3"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+                class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
               />
             </div>
             <div>
-              <label class="block text-sm text-slate-400 mb-1">ステータスメッセージ</label>
+              <label class="block text-sm text-on-surface-variant mb-1">ステータスメッセージ</label>
               <div class="relative">
                 <input
                   v-model="statusMessage"
                   type="text"
                   maxlength="80"
                   placeholder="今なにしてる？（例: 作業中、ゲーム中）"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 pr-14 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 pr-14 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-600 tabular-nums">{{ statusMessage.length }}/80</span>
               </div>
             </div>
-            <div v-if="user?.badges?.length || user?.title" class="p-3 bg-slate-800/30 rounded-lg">
+            <div v-if="user?.badges?.length || user?.title" class="p-3 bg-surface-container/30 rounded-lg">
               <p class="text-sm font-medium text-white mb-2">バッジ・称号</p>
               <div class="flex items-center gap-2 flex-wrap">
                 <UserBadges :badges="user.badges" size="md" />
                 <UserTitle :title="user.title" />
               </div>
-              <p class="text-xs text-slate-500 mt-2">バッジはサーバー側で付与されます。称号は利用状況に応じて自動で決まります。</p>
+              <p class="text-xs text-on-surface-variant mt-2">バッジはサーバー側で付与されます。称号は利用状況に応じて自動で決まります。</p>
             </div>
           </div>
 
           <div v-if="activeCategory === 'detail'" class="space-y-4">
             <div>
-              <label class="block text-sm text-slate-400 mb-1">誕生日</label
+              <label class="block text-sm text-on-surface-variant mb-1">誕生日</label
               ><input
                 v-model="birthday"
                 type="date"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500"
+                class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label class="block text-sm text-slate-400 mb-1">出身</label
+              <label class="block text-sm text-on-surface-variant mb-1">出身</label
               ><input
                 v-model="birthplace"
                 type="text"
                 placeholder="例: 東京都"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
 
           <div v-if="activeCategory === 'links'" class="space-y-4">
             <div>
-              <label class="block text-sm text-slate-400 mb-1">GitHub</label>
+              <label class="block text-sm text-on-surface-variant mb-1">GitHub</label>
               <div class="flex items-center gap-2">
                 <Icon
                   name="lucide:github"
-                  class="w-4 h-4 text-slate-500 shrink-0"
+                  class="w-4 h-4 text-on-surface-variant shrink-0"
                 /><input
                   v-model="github"
                   type="text"
                   placeholder="ユーザー名"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Twitter / X</label>
+              <label class="block text-sm text-on-surface-variant mb-1">Twitter / X</label>
               <div class="flex items-center gap-2">
                 <Icon
                   name="lucide:twitter"
-                  class="w-4 h-4 text-slate-500 shrink-0"
+                  class="w-4 h-4 text-on-surface-variant shrink-0"
                 /><input
                   v-model="twitter"
                   type="text"
                   placeholder="@ユーザー名"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Webサイト</label>
+              <label class="block text-sm text-on-surface-variant mb-1">Webサイト</label>
               <div class="flex items-center gap-2">
-                <Icon name="lucide:globe" class="w-4 h-4 text-slate-500 shrink-0" /><input
+                <Icon name="lucide:globe" class="w-4 h-4 text-on-surface-variant shrink-0" /><input
                   v-model="website"
                   type="url"
                   placeholder="https://"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -470,7 +470,7 @@ async function save() {
 
           <div v-if="activeCategory === 'posts'" class="space-y-4">
             <div>
-              <label class="block text-sm text-slate-400 mb-2">ボタンの表示順</label>
+              <label class="block text-sm text-on-surface-variant mb-2">ボタンの表示順</label>
               <p class="text-xs text-slate-600 mb-3">
                 各投稿の下にあるボタンの並び順をカスタマイズ
               </p>
@@ -478,11 +478,11 @@ async function save() {
                 <div
                   v-for="key in buttonOrder"
                   :key="key"
-                  class="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2"
+                  class="flex items-center gap-2 bg-surface-container/50 rounded-lg px-3 py-2"
                 >
                   <Icon
                     :name="allButtons.find((b) => b.key === key)?.icon || ''"
-                    class="w-4 h-4 text-slate-400"
+                    class="w-4 h-4 text-on-surface-variant"
                   />
                   <span class="flex-1 text-sm text-white">{{
                     allButtons.find((b) => b.key === key)?.label
@@ -490,39 +490,39 @@ async function save() {
                   <button
                     @click="moveButton(key, -1)"
                     :disabled="buttonOrder.indexOf(key) === 0"
-                    class="p-1 text-slate-500 hover:text-white disabled:opacity-30 transition"
+                    class="p-1 text-on-surface-variant hover:text-white disabled:opacity-30 transition"
                   >
                     <Icon name="lucide:chevron-up" class="w-4 h-4" />
                   </button>
                   <button
                     @click="moveButton(key, 1)"
                     :disabled="buttonOrder.indexOf(key) === buttonOrder.length - 1"
-                    class="p-1 text-slate-500 hover:text-white disabled:opacity-30 transition"
+                    class="p-1 text-on-surface-variant hover:text-white disabled:opacity-30 transition"
                   >
                     <Icon name="lucide:chevron-down" class="w-4 h-4" />
                   </button>
                 </div>
               </div>
             </div>
-            <div class="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
+            <div class="flex items-center justify-between p-3 bg-surface-container/30 rounded-lg">
               <div>
                 <p class="text-sm font-medium text-white">閲覧数を表示</p>
-                <p class="text-xs text-slate-500">投稿に閲覧数を表示</p>
+                <p class="text-xs text-on-surface-variant">投稿に閲覧数を表示</p>
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" v-model="showViewCount" class="sr-only peer" />
                 <div
-                  class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition peer-checked:after:translate-x-4"
+                  class="w-9 h-5 bg-surface-container-high rounded-full peer peer-checked:bg-indigo-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition peer-checked:after:translate-x-4"
                 ></div>
               </label>
             </div>
           </div>
 
           <div v-if="activeCategory === 'timeline'" class="space-y-4">
-            <label class="block text-sm text-slate-400 mb-2">更新モード</label>
+            <label class="block text-sm text-on-surface-variant mb-2">更新モード</label>
             <div class="space-y-2">
               <label
-                class="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg cursor-pointer"
+                class="flex items-center gap-3 p-3 bg-surface-container/30 rounded-lg cursor-pointer"
                 :class="refreshMode === 'auto' ? 'ring-1 ring-indigo-500' : ''"
               >
                 <input type="radio" v-model="refreshMode" value="auto" class="sr-only" />
@@ -533,13 +533,13 @@ async function save() {
                 />
                 <div>
                   <p class="text-sm font-medium text-white">自動更新</p>
-                  <p class="text-xs text-slate-500">
+                  <p class="text-xs text-on-surface-variant">
                     新しい投稿が自動でタイムラインに表示
                   </p>
                 </div>
               </label>
               <label
-                class="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg cursor-pointer"
+                class="flex items-center gap-3 p-3 bg-surface-container/30 rounded-lg cursor-pointer"
                 :class="refreshMode === 'manual' ? 'ring-1 ring-indigo-500' : ''"
               >
                 <input
@@ -555,7 +555,7 @@ async function save() {
                 />
                 <div>
                   <p class="text-sm font-medium text-white">手動更新</p>
-                  <p class="text-xs text-slate-500">更新ボタンを押したときのみ更新</p>
+                  <p class="text-xs text-on-surface-variant">更新ボタンを押したときのみ更新</p>
                 </div>
               </label>
             </div>
@@ -563,7 +563,7 @@ async function save() {
 
           <div v-if="activeCategory === 'media'" class="space-y-4">
             <div>
-              <label class="block text-sm text-slate-400 mb-2">スマホでの投稿の開き方</label>
+              <label class="block text-sm text-on-surface-variant mb-2">スマホでの投稿の開き方</label>
               <p class="text-xs text-slate-600 mb-3">
                 投稿や動画・画像をタップしたときの表示方法
               </p>
@@ -573,7 +573,7 @@ async function save() {
                   :class="
                     mediaOpenMode === 'sheet'
                       ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
-                      : 'bg-slate-800/30 hover:bg-slate-800/50'
+                      : 'bg-surface-container/30 hover:bg-surface-container/50'
                   "
                 >
                   <input type="radio" v-model="mediaOpenMode" value="sheet" class="sr-only" />
@@ -584,7 +584,7 @@ async function save() {
                   />
                   <div>
                     <p class="text-sm font-medium text-white">アクションシート</p>
-                    <p class="text-xs text-slate-500">
+                    <p class="text-xs text-on-surface-variant">
                       下から開き、ドラッグで戻れる使いやすいシート
                     </p>
                   </div>
@@ -594,7 +594,7 @@ async function save() {
                   :class="
                     mediaOpenMode === 'page'
                       ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
-                      : 'bg-slate-800/30 hover:bg-slate-800/50'
+                      : 'bg-surface-container/30 hover:bg-surface-container/50'
                   "
                 >
                   <input type="radio" v-model="mediaOpenMode" value="page" class="sr-only" />
@@ -605,7 +605,7 @@ async function save() {
                   />
                   <div>
                     <p class="text-sm font-medium text-white">ページ切り替え</p>
-                    <p class="text-xs text-slate-500">全画面で表示</p>
+                    <p class="text-xs text-on-surface-variant">全画面で表示</p>
                   </div>
                 </label>
                 <label
@@ -613,7 +613,7 @@ async function save() {
                   :class="
                     mediaOpenMode === 'mini'
                       ? 'bg-indigo-600/20 ring-1 ring-indigo-500'
-                      : 'bg-slate-800/30 hover:bg-slate-800/50'
+                      : 'bg-surface-container/30 hover:bg-surface-container/50'
                   "
                 >
                   <input type="radio" v-model="mediaOpenMode" value="mini" class="sr-only" />
@@ -624,7 +624,7 @@ async function save() {
                   />
                   <div>
                     <p class="text-sm font-medium text-white">ミニプレイヤー</p>
-                    <p class="text-xs text-slate-500">下の小さなバーにのみ表示</p>
+                    <p class="text-xs text-on-surface-variant">下の小さなバーにのみ表示</p>
                   </div>
                 </label>
               </div>
@@ -634,10 +634,10 @@ async function save() {
           <div v-if="activeCategory === 'appearance'" class="space-y-4">
             <ThemePicker />
             <div>
-              <label class="block text-sm text-slate-400 mb-2">言語</label>
+              <label class="block text-sm text-on-surface-variant mb-2">言語</label>
               <select
                 v-model="language"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500"
+                class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="ja">日本語</option>
                 <option value="en">English</option>
@@ -648,35 +648,35 @@ async function save() {
           </div>
 
           <div v-if="activeCategory === 'privacy'" class="space-y-4">
-            <div class="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
+            <div class="flex items-center justify-between p-3 bg-surface-container/30 rounded-lg">
               <div class="pr-4">
                 <p class="text-sm font-medium text-white flex items-center gap-1.5">
-                  <Icon name="lucide:lock" class="w-4 h-4 text-slate-400" />
+                  <Icon name="lucide:lock" class="w-4 h-4 text-on-surface-variant" />
                   鍵アカウント
                 </p>
-                <p class="text-xs text-slate-500 mt-1">
+                <p class="text-xs text-on-surface-variant mt-1">
                   オンにすると、フォロワーだけがあなたの投稿を閲覧できます。
                 </p>
               </div>
               <label class="relative inline-flex items-center cursor-pointer shrink-0">
                 <input type="checkbox" v-model="isPrivate" class="sr-only peer" />
                 <div
-                  class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition peer-checked:after:translate-x-4"
+                  class="w-9 h-5 bg-surface-container-high rounded-full peer peer-checked:bg-indigo-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition peer-checked:after:translate-x-4"
                 ></div>
               </label>
             </div>
-            <div class="p-3 bg-slate-800/30 rounded-lg">
+            <div class="p-3 bg-surface-container/30 rounded-lg">
               <p class="text-sm font-medium text-white">現在の設定</p>
-              <p class="text-xs mt-1" :class="isPrivate ? 'text-amber-400' : 'text-slate-500'">
+              <p class="text-xs mt-1" :class="isPrivate ? 'text-amber-400' : 'text-on-surface-variant'">
                 {{ isPrivate ? '非公開アカウント（鍵アカ）' : '公開アカウント' }}
               </p>
             </div>
           </div>
 
           <div v-if="activeCategory === 'notifications'" class="space-y-4">
-            <div class="p-3 bg-slate-800/30 rounded-lg">
+            <div class="p-3 bg-surface-container/30 rounded-lg">
               <p class="text-sm font-medium text-white">通知設定</p>
-              <p class="text-xs text-slate-500 mt-1">近日対応予定</p>
+              <p class="text-xs text-on-surface-variant mt-1">近日対応予定</p>
             </div>
           </div>
 
@@ -698,14 +698,14 @@ async function save() {
     >
       <div class="absolute inset-0 bg-black/70" @click="cancelCrop" />
       <div
-        class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-lg"
+        class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-lg"
         @click.stop
       >
-        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="p-4 border-b border-outline-variant flex items-center justify-between">
           <h3 class="font-bold text-white">
             {{ cropMode === "avatar" ? "アバターを編集" : "バナーを編集" }}
           </h3>
-          <button @click="cancelCrop" class="text-slate-500 hover:text-white transition">
+          <button @click="cancelCrop" class="text-on-surface-variant hover:text-white transition">
             <Icon name="lucide:x" class="w-5 h-5" />
           </button>
         </div>
@@ -755,17 +755,17 @@ async function save() {
           <div class="flex items-center gap-1">
             <button
               @click="zoomOut"
-              class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition"
+              class="p-1.5 rounded-lg bg-surface-container text-on-surface-variant hover:text-white hover:bg-surface-container-high transition"
               title="縮小"
             >
               <Icon name="lucide:zoom-out" class="w-4 h-4" />
             </button>
-            <span class="text-xs text-slate-500 w-10 text-center"
+            <span class="text-xs text-on-surface-variant w-10 text-center"
               >{{ Math.round(cropZoom * 100) }}%</span
             >
             <button
               @click="zoomIn"
-              class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition"
+              class="p-1.5 rounded-lg bg-surface-container text-on-surface-variant hover:text-white hover:bg-surface-container-high transition"
               title="拡大"
             >
               <Icon name="lucide:zoom-in" class="w-4 h-4" />
@@ -774,7 +774,7 @@ async function save() {
           <div class="flex items-center gap-2">
             <button
               @click="cancelCrop"
-              class="px-4 py-2 text-sm text-slate-400 hover:text-white transition"
+              class="px-4 py-2 text-sm text-on-surface-variant hover:text-white transition"
             >
               キャンセル
             </button>

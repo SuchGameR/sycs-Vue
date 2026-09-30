@@ -30,7 +30,7 @@ async function handleSubmit() {
     <div class="w-full max-w-sm space-y-8">
       <div class="text-center">
         <h1 class="text-4xl font-extrabold">SYCS<span class="text-indigo-500">.</span></h1>
-        <p class="text-slate-400 mt-2">新規アカウント作成</p>
+        <p class="text-on-surface-variant mt-2">新規アカウント作成</p>
       </div>
 
       <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -39,30 +39,30 @@ async function handleSubmit() {
         </div>
 
         <div>
-          <label class="block text-sm text-slate-400 mb-1">メールアドレス</label>
+          <label class="block text-sm text-on-surface-variant mb-1">メールアドレス</label>
           <input v-model="email" type="email" required
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             placeholder="you@example.com" />
         </div>
 
         <div>
-          <label class="block text-sm text-slate-400 mb-1">ユーザー名</label>
+          <label class="block text-sm text-on-surface-variant mb-1">ユーザー名</label>
           <input v-model="username" type="text" required
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             placeholder="your_username" />
         </div>
 
         <div>
-          <label class="block text-sm text-slate-400 mb-1">表示名</label>
+          <label class="block text-sm text-on-surface-variant mb-1">表示名</label>
           <input v-model="displayName" type="text" required
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             placeholder="Your Name" />
         </div>
 
         <div>
-          <label class="block text-sm text-slate-400 mb-1">パスワード</label>
+          <label class="block text-sm text-on-surface-variant mb-1">パスワード</label>
           <input v-model="password" type="password" required minlength="8"
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            class="w-full bg-surface-container border border-outline rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             placeholder="8文字以上" />
         </div>
 
@@ -73,24 +73,24 @@ async function handleSubmit() {
       </form>
 
       <div class="relative">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-700" /></div>
-        <div class="relative flex justify-center text-sm"><span class="bg-surface px-2 text-slate-500">または</span></div>
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-outline" /></div>
+        <div class="relative flex justify-center text-sm"><span class="bg-surface px-2 text-on-surface-variant">または</span></div>
       </div>
 
       <div class="space-y-3">
         <a href="/api/auth/github"
-          class="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 border border-slate-700 rounded-lg font-medium hover:bg-slate-700 transition">
+          class="flex items-center justify-center gap-2 w-full py-2.5 bg-surface-container border border-outline rounded-lg font-medium hover:bg-surface-container-high transition">
           <Icon name="mdi:github" class="text-xl" />
           GitHub で登録
         </a>
         <a href="/api/auth/google"
-          class="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 border border-slate-700 rounded-lg font-medium hover:bg-slate-700 transition">
+          class="flex items-center justify-center gap-2 w-full py-2.5 bg-surface-container border border-outline rounded-lg font-medium hover:bg-surface-container-high transition">
           <Icon name="mdi:google" class="text-xl" />
           Google で登録
         </a>
       </div>
 
-      <p class="text-center text-sm text-slate-500">
+      <p class="text-center text-sm text-on-surface-variant">
         既にアカウントをお持ちの方は
         <NuxtLink to="/signin" class="text-indigo-400 hover:underline">ログイン</NuxtLink>
       </p>

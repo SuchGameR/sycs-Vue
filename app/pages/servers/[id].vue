@@ -274,10 +274,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex bg-surface text-slate-200 overflow-hidden">
+  <div class="h-full flex bg-surface text-on-surface overflow-hidden">
     <!-- Channel Sidebar -->
-    <aside class="w-56 bg-slate-900/60 flex flex-col shrink-0 border-r border-slate-800">
-      <div class="h-12 px-3 flex items-center justify-between border-b border-slate-800 shrink-0">
+    <aside class="w-56 bg-surface/60 flex flex-col shrink-0 border-r border-outline-variant">
+      <div class="h-12 px-3 flex items-center justify-between border-b border-outline-variant shrink-0">
         <h2 class="font-bold text-white truncate text-sm flex items-center gap-2 min-w-0">
           <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
             <img v-if="server?.iconUrl" :src="server.iconUrl" class="w-full h-full object-cover" />
@@ -285,7 +285,7 @@ onUnmounted(() => {
           </div>
           <span class="truncate">{{ server?.name || 'サーバー' }}</span>
         </h2>
-        <button v-if="canManage" @click="openSettings('overview')" class="text-slate-500 hover:text-white transition">
+        <button v-if="canManage" @click="openSettings('overview')" class="text-on-surface-variant hover:text-white transition">
           <Icon name="lucide:settings" class="w-4 h-4" />
         </button>
       </div>
@@ -293,8 +293,8 @@ onUnmounted(() => {
       <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
         <template v-for="group in groupedChannels" :key="group.type">
           <div class="flex items-center justify-between px-2 py-1 mt-2 first:mt-0">
-            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{{ group.label }}</span>
-            <button v-if="canManage" @click="openSettings('channels')" class="text-slate-500 hover:text-white transition">
+            <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">{{ group.label }}</span>
+            <button v-if="canManage" @click="openSettings('channels')" class="text-on-surface-variant hover:text-white transition">
               <Icon name="lucide:plus" class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -305,10 +305,10 @@ onUnmounted(() => {
             @contextmenu.prevent="canManage && openChannelSettings(ch.id)"
             :class="[
               'w-full text-left px-2 py-1.5 rounded-md transition flex items-center gap-1.5 text-sm',
-              activeChannelId === ch.id ? 'bg-slate-700/60 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              activeChannelId === ch.id ? 'bg-surface-container-high/60 text-white' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'
             ]"
           >
-            <Icon :name="channelIcon(ch.type)" class="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <Icon :name="channelIcon(ch.type)" class="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
             <span class="truncate flex-1">{{ ch.name }}</span>
             <Icon v-if="ch.nsfw" name="lucide:alert-triangle" class="w-3 h-3 text-red-500" />
           </button>
@@ -316,8 +316,8 @@ onUnmounted(() => {
 
         <template v-if="voiceChannels.length">
           <div class="flex items-center justify-between px-2 py-1 mt-2">
-            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">音声チャンネル</span>
-            <button v-if="canManage" @click="openSettings('channels')" class="text-slate-500 hover:text-white transition">
+            <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">音声チャンネル</span>
+            <button v-if="canManage" @click="openSettings('channels')" class="text-on-surface-variant hover:text-white transition">
               <Icon name="lucide:plus" class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -328,10 +328,10 @@ onUnmounted(() => {
             @contextmenu.prevent="canManage && openChannelSettings(ch.id)"
             :class="[
               'w-full text-left px-2 py-1.5 rounded-md transition flex items-center gap-1.5 text-sm',
-              voiceChannelId === ch.id ? 'bg-emerald-700/40 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              voiceChannelId === ch.id ? 'bg-emerald-700/40 text-white' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'
             ]"
           >
-            <Icon name="lucide:volume-2" class="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <Icon name="lucide:volume-2" class="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
             <span class="truncate flex-1">{{ ch.name }}</span>
             <span v-if="voicePresence[`server:${serverId}:${ch.id}`]" class="text-[10px] text-emerald-400">
               {{ voicePresence[`server:${serverId}:${ch.id}`] }}
@@ -340,8 +340,8 @@ onUnmounted(() => {
         </template>
       </div>
 
-      <div class="p-3 border-t border-slate-800 shrink-0">
-        <button @click="showMemberList = true" class="w-full flex items-center gap-2 text-sm text-slate-400 hover:text-white transition">
+      <div class="p-3 border-t border-outline-variant shrink-0">
+        <button @click="showMemberList = true" class="w-full flex items-center gap-2 text-sm text-on-surface-variant hover:text-white transition">
           <Icon name="lucide:users" class="w-4 h-4" />
           メンバー {{ members.length }}
         </button>
@@ -350,45 +350,45 @@ onUnmounted(() => {
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col min-w-0">
-      <div class="h-12 px-4 flex items-center border-b border-slate-800 shrink-0 gap-2">
-        <Icon :name="channelIcon(activeChannel?.type)" class="w-4 h-4 text-slate-500 shrink-0" />
+      <div class="h-12 px-4 flex items-center border-b border-outline-variant shrink-0 gap-2">
+        <Icon :name="channelIcon(activeChannel?.type)" class="w-4 h-4 text-on-surface-variant shrink-0" />
         <span class="font-bold text-white text-sm truncate">{{ activeChannel?.name || 'チャンネルを選択' }}</span>
-        <span v-if="activeChannel?.description" class="text-xs text-slate-500 truncate hidden sm:inline">— {{ activeChannel.description }}</span>
-        <button v-if="activeChannel && canManage" @click="openSettings('channels')" class="ml-1 text-slate-500 hover:text-white transition" title="チャンネル設定">
+        <span v-if="activeChannel?.description" class="text-xs text-on-surface-variant truncate hidden sm:inline">— {{ activeChannel.description }}</span>
+        <button v-if="activeChannel && canManage" @click="openSettings('channels')" class="ml-1 text-on-surface-variant hover:text-white transition" title="チャンネル設定">
           <Icon name="lucide:settings-2" class="w-4 h-4" />
         </button>
-        <button @click="showMemberList = true" class="ml-auto lg:hidden text-slate-500 hover:text-white transition" title="メンバー">
+        <button @click="showMemberList = true" class="ml-auto lg:hidden text-on-surface-variant hover:text-white transition" title="メンバー">
           <Icon name="lucide:users" class="w-4 h-4" />
         </button>
       </div>
 
       <!-- Posts -->
       <div class="flex-1 overflow-y-auto p-4 space-y-3">
-        <div v-if="!activeChannelId" class="flex items-center justify-center h-full text-slate-500">
+        <div v-if="!activeChannelId" class="flex items-center justify-center h-full text-on-surface-variant">
           チャンネルを選択してください
         </div>
         <template v-else>
-          <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/20">
+          <div class="rounded-xl border border-outline-variant overflow-hidden bg-surface/20">
             <PostItem v-for="post in posts" :key="post.id" :post="post"
               :show-view-count="false" :current-user-id="undefined"
               @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
               @open-media="openMedia" />
-            <p v-if="!posts.length" class="text-center text-slate-500 py-8 text-sm">まだ投稿がありません。最初のメディアを投稿しましょう</p>
+            <p v-if="!posts.length" class="text-center text-on-surface-variant py-8 text-sm">まだ投稿がありません。最初のメディアを投稿しましょう</p>
           </div>
 
           <div ref="postSentinel" class="h-1" aria-hidden="true"></div>
-          <div v-if="loadingMorePosts" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
+          <div v-if="loadingMorePosts" class="text-center text-on-surface-variant py-4 text-sm">読み込み中...</div>
           <p v-else-if="posts.length && !postHasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
         </template>
       </div>
 
       <!-- Composer -->
       <div v-if="activeChannelId && canSend" class="px-4 pb-4 shrink-0">
-        <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3">
+        <div class="bg-surface/70 border border-outline-variant rounded-xl p-3">
           <PostComposer :media-kind="composerMediaKind" :placeholder="`${activeChannel?.name || ''} に投稿`" @submit="submitPost" />
         </div>
       </div>
-      <div v-else-if="activeChannelId" class="px-4 pb-4 shrink-0 text-center text-sm text-slate-500">
+      <div v-else-if="activeChannelId" class="px-4 pb-4 shrink-0 text-center text-sm text-on-surface-variant">
         このサーバーで投稿する権限がありません
       </div>
     </div>
@@ -397,21 +397,21 @@ onUnmounted(() => {
     <Transition name="drawer">
       <div v-if="showMemberList" class="fixed inset-0 z-[80] flex justify-end" @click.self="showMemberList = false">
         <div class="absolute inset-0 bg-black/50" @click="showMemberList = false" />
-        <aside class="relative w-64 bg-slate-900 border-l border-slate-800 h-full flex flex-col">
-          <div class="h-12 px-4 flex items-center border-b border-slate-800 shrink-0">
-            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">メンバー — {{ members.length }}</span>
-            <button @click="showMemberList = false" class="ml-auto text-slate-500 hover:text-white transition">
+        <aside class="relative w-64 bg-surface border-l border-outline-variant h-full flex flex-col">
+          <div class="h-12 px-4 flex items-center border-b border-outline-variant shrink-0">
+            <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">メンバー — {{ members.length }}</span>
+            <button @click="showMemberList = false" class="ml-auto text-on-surface-variant hover:text-white transition">
               <Icon name="lucide:x" class="w-4 h-4" />
             </button>
           </div>
           <div class="flex-1 overflow-y-auto p-3 space-y-1">
-            <div v-for="member in members" :key="member.id" class="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-slate-800/50 transition">
+            <div v-for="member in members" :key="member.id" class="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-surface-container/50 transition">
               <img v-if="avatarSrc(member.user?.avatarUrl)" :src="avatarSrc(member.user.avatarUrl)" class="w-8 h-8 rounded-full object-cover" />
-              <div v-else class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xs">
+              <div v-else class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-white font-bold text-xs">
                 {{ memberName(member).charAt(0) }}
               </div>
               <div class="min-w-0 flex-1">
-                <p class="text-sm text-slate-300 truncate">{{ memberName(member) }}</p>
+                <p class="text-sm text-on-surface truncate">{{ memberName(member) }}</p>
                 <p v-if="member.role" class="text-[10px] truncate" :style="{ color: member.role.color || '#99aab5' }">
                   {{ server?.ownerId === member.userId ? '所有者' : member.role.name }}
                 </p>
@@ -439,13 +439,13 @@ onUnmounted(() => {
     />
 
     <div v-if="loading" class="fixed inset-0 z-40 flex items-center justify-center bg-surface/80">
-      <div class="text-slate-500">読み込み中...</div>
+      <div class="text-on-surface-variant">読み込み中...</div>
     </div>
 
     <div v-if="loadError && !loading" class="fixed inset-0 z-40 flex items-center justify-center bg-surface/90">
       <div class="text-center space-y-3">
         <Icon name="lucide:alert-circle" class="w-10 h-10 text-red-500 mx-auto" />
-        <p class="text-slate-400 text-sm">{{ loadError }}</p>
+        <p class="text-on-surface-variant text-sm">{{ loadError }}</p>
         <NuxtLink to="/home" class="inline-block px-5 py-2 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition">
           ホームへ戻る
         </NuxtLink>

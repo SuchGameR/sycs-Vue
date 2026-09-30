@@ -140,7 +140,7 @@ async function removeEmoji(id: string) {
       type="button"
       @click="toggle"
       class="flex items-center gap-1 px-2 py-1 rounded-full text-sm border transition"
-      :class="open ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500'"
+      :class="open ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'border-outline bg-surface-container/50 text-on-surface-variant hover:border-slate-500'"
       title="リアクションを追加"
     >
       <Icon name="lucide:smile-plus" class="w-4 h-4" />
@@ -151,13 +151,13 @@ async function removeEmoji(id: string) {
       <Transition name="rp-pop">
         <div
           v-if="open"
-          class="fixed z-[299] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-3 overflow-y-auto"
+          class="fixed z-[299] bg-surface border border-outline rounded-2xl shadow-2xl p-3 overflow-y-auto"
           :style="panelStyle"
           @click.stop
         >
           <div v-if="recent.length" class="mb-2">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">よく使う</span>
+              <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">よく使う</span>
             </div>
             <div class="flex flex-wrap gap-1">
               <button
@@ -165,18 +165,18 @@ async function removeEmoji(id: string) {
                 :key="'r-' + e"
                 type="button"
                 @click="choose(e)"
-                class="w-8 h-8 rounded-lg hover:bg-slate-800 text-lg transition flex items-center justify-center"
+                class="w-8 h-8 rounded-lg hover:bg-surface-container text-lg transition flex items-center justify-center"
               ><EmojiIcon :emoji="e" /></button>
             </div>
           </div>
 
           <div class="mb-2">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">パレット</span>
+              <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">パレット</span>
               <button
                 type="button"
                 @click="prefs.resetPalette()"
-                class="text-[10px] text-slate-500 hover:text-indigo-400 transition"
+                class="text-[10px] text-on-surface-variant hover:text-indigo-400 transition"
               >リセット</button>
             </div>
             <div class="flex flex-wrap gap-1">
@@ -184,7 +184,7 @@ async function removeEmoji(id: string) {
                 <button
                   type="button"
                   @click="choose(e)"
-                  class="w-8 h-8 rounded-lg hover:bg-slate-800 text-lg transition flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg hover:bg-surface-container text-lg transition flex items-center justify-center"
                 ><EmojiIcon :emoji="e" /></button>
                 <button
                   type="button"
@@ -198,8 +198,8 @@ async function removeEmoji(id: string) {
           </div>
 
           <div class="flex items-center gap-2 mb-2">
-            <div class="flex-1 flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 focus-within:border-indigo-500 transition">
-              <Icon name="lucide:search" class="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <div class="flex-1 flex items-center gap-1.5 bg-surface-container border border-outline rounded-lg px-2 py-1.5 focus-within:border-indigo-500 transition">
+              <Icon name="lucide:search" class="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
               <input
                 v-model="query"
                 placeholder="検索 (happy, :cat:)"
@@ -212,11 +212,11 @@ async function removeEmoji(id: string) {
             <!-- Custom image emojis -->
             <template v-if="customResults.length">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">カスタム</span>
+                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">カスタム</span>
                 <button
                   type="button"
                   @click="manage = !manage"
-                  class="text-[10px] text-slate-500 hover:text-indigo-400 transition"
+                  class="text-[10px] text-on-surface-variant hover:text-indigo-400 transition"
                 >{{ manage ? '完了' : '管理' }}</button>
               </div>
               <div class="grid grid-cols-8 gap-0.5 mb-2">
@@ -224,7 +224,7 @@ async function removeEmoji(id: string) {
                   <button
                     type="button"
                     @click="manage ? null : pickCustom(e)"
-                    class="aspect-square w-full rounded-lg hover:bg-slate-800 transition flex items-center justify-center"
+                    class="aspect-square w-full rounded-lg hover:bg-surface-container transition flex items-center justify-center"
                     :title="':' + e.name + ':'"
                   >
                     <img :src="e.url" :alt="':' + e.name + ':'" class="sycs-emoji sycs-emoji--lg" draggable="false" />
@@ -248,25 +248,25 @@ async function removeEmoji(id: string) {
                 :key="e.name"
                 type="button"
                 @click="choose(e.char)"
-                class="aspect-square rounded-lg hover:bg-slate-800 text-lg transition flex items-center justify-center"
+                class="aspect-square rounded-lg hover:bg-surface-container text-lg transition flex items-center justify-center"
                 :title="':' + e.name + ':'"
               >{{ e.char }}</button>
             </div>
           </div>
 
-          <div class="mt-2 pt-2 border-t border-slate-800 space-y-2">
+          <div class="mt-2 pt-2 border-t border-outline-variant space-y-2">
             <!-- Upload custom image emoji -->
             <div class="flex items-center gap-1.5">
               <input
                 v-model="emojiName"
                 placeholder="画像絵文字の名前"
-                class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 min-w-0"
+                class="flex-1 bg-surface-container border border-outline rounded-lg px-2 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 min-w-0"
                 maxlength="32"
               />
               <button
                 type="button"
                 @click="fileInput?.click()"
-                class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:border-slate-500 transition shrink-0"
+                class="px-2 py-1.5 rounded-lg bg-surface-container border border-outline text-xs text-on-surface hover:border-slate-500 transition shrink-0"
                 :title="emojiFile ? emojiFile.name : '画像を選択'"
               >
                 <Icon name="lucide:image-plus" class="w-3.5 h-3.5" />
@@ -279,20 +279,20 @@ async function removeEmoji(id: string) {
               >{{ uploading ? '...' : '追加' }}</button>
               <input ref="fileInput" type="file" accept="image/png,image/gif,image/webp,image/jpeg" class="hidden" @change="onPickFile" />
             </div>
-            <p v-if="emojiFile" class="text-[10px] text-slate-500 truncate">選択中: {{ emojiFile.name }}（GIF対応）</p>
+            <p v-if="emojiFile" class="text-[10px] text-on-surface-variant truncate">選択中: {{ emojiFile.name }}（GIF対応）</p>
             <p v-if="uploadError" class="text-[10px] text-red-400">{{ uploadError }}</p>
 
             <div class="flex items-center gap-1.5">
               <input
                 v-model="customText"
                 placeholder="パレットに追加 (直接 or :name:)"
-                class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 min-w-0"
+                class="flex-1 bg-surface-container border border-outline rounded-lg px-2 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 min-w-0"
                 @keydown.enter.prevent="addToPaletteText"
               />
               <button
                 type="button"
                 @click="addToPaletteText"
-                class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-xs font-bold text-white hover:bg-slate-600 transition shrink-0"
+                class="px-2.5 py-1.5 rounded-lg bg-surface-container-high text-xs font-bold text-white hover:bg-surface-container-highest transition shrink-0"
               >追加</button>
             </div>
             <p v-if="customError" class="text-[10px] text-red-400">{{ customError }}</p>

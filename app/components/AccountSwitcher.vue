@@ -45,13 +45,13 @@ function onRemove(id: string) {
   <Teleport to="body">
     <div class="fixed inset-0 z-[180] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
-      <div class="relative bg-surface-container border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden" @click.stop>
-        <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="relative bg-surface-container border border-outline rounded-2xl w-full max-w-md overflow-hidden" @click.stop>
+        <div class="px-5 py-4 border-b border-outline-variant flex items-center justify-between">
           <h3 class="font-bold text-white flex items-center gap-2">
             <Icon name="lucide:user-round-cog" class="w-5 h-5 text-indigo-400" />
             アカウント切り替え
           </h3>
-          <button @click="emit('close')" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition">
+          <button @click="emit('close')" class="p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition">
             <Icon name="lucide:x" class="w-4 h-4" />
           </button>
         </div>
@@ -64,7 +64,7 @@ function onRemove(id: string) {
             :key="acc.id"
             @click="onSwitch(acc)"
             class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-left"
-            :class="acc.id === currentUserId ? 'bg-indigo-600/15 ring-1 ring-indigo-500/50' : 'hover:bg-slate-800/50'"
+            :class="acc.id === currentUserId ? 'bg-indigo-600/15 ring-1 ring-indigo-500/50' : 'hover:bg-surface-container/50'"
           >
             <img v-if="avatarSrc(acc.avatarUrl)" :src="avatarSrc(acc.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
             <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">
@@ -75,7 +75,7 @@ function onRemove(id: string) {
                 {{ acc.displayName }}
                 <span v-if="acc.id === currentUserId" class="text-[10px] font-bold text-indigo-300 bg-indigo-600/20 px-1.5 py-0.5 rounded-full">現在</span>
               </p>
-              <p class="text-xs text-slate-500 truncate">@{{ acc.username }}</p>
+              <p class="text-xs text-on-surface-variant truncate">@{{ acc.username }}</p>
             </div>
             <Icon v-if="switching === acc.id" name="lucide:loader-2" class="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
             <Icon v-else-if="acc.id !== currentUserId" name="lucide:repeat-2" class="w-4 h-4 text-slate-600 shrink-0" />
@@ -91,16 +91,16 @@ function onRemove(id: string) {
 
           <button
             @click="onAdd"
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800/50 transition border border-dashed border-slate-700"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-on-surface hover:bg-surface-container/50 transition border border-dashed border-outline"
           >
-            <div class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
+            <div class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center shrink-0">
               <Icon name="lucide:plus" class="w-4 h-4" />
             </div>
             <span class="text-sm font-medium">アカウントを追加</span>
           </button>
         </div>
 
-        <div class="px-5 py-3 border-t border-slate-800 text-[11px] text-slate-600">
+        <div class="px-5 py-3 border-t border-outline-variant text-[11px] text-slate-600">
           保存されたアカウントはこのブラウザ内にのみ保管されます
         </div>
       </div>

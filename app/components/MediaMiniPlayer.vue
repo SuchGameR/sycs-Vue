@@ -108,19 +108,19 @@ function onSheetUp() {
     <Transition name="mini">
       <div
         v-if="selected && !mobileFull"
-        class="w-fit fixed left-3 right-3 bottom-[4.5rem] z-[80] bg-surface-container border border-slate-700 rounded-xl shadow-2xl flex items-center gap-3 p-2"
+        class="w-fit fixed left-3 right-3 bottom-[4.5rem] z-[80] bg-surface-container border border-outline rounded-xl shadow-2xl flex items-center gap-3 p-2"
       >
         <button class="shrink-0" @click="pane.openMobileFull()">
           <img v-if="firstImage" :src="firstImage.url" class="w-11 h-11 rounded-lg object-cover" />
-          <div v-else class="w-11 h-11 rounded-lg bg-slate-800 flex items-center justify-center">
+          <div v-else class="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center">
             <Icon :name="kindIcon" class="w-5 h-5 text-indigo-400" />
           </div>
         </button>
         <button class="flex-1 min-w-0 text-left" @click="pane.openMobileFull()">
           <p class="text-sm font-bold text-white truncate">{{ selected.user?.displayName || 'メディア' }}</p>
-          <p class="text-[11px] text-slate-500 truncate">{{ selected.content || sourceLabel || 'タップして開く' }}</p>
+          <p class="text-[11px] text-on-surface-variant truncate">{{ selected.content || sourceLabel || 'タップして開く' }}</p>
         </button>
-        <button class="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition shrink-0" @click="pane.closeMobile()">
+        <button class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition shrink-0" @click="pane.closeMobile()">
           <Icon name="lucide:x" class="w-4 h-4" />
         </button>
       </div>
@@ -133,7 +133,7 @@ function onSheetUp() {
 
         <div
           class="relative flex flex-col bg-surface overflow-hidden"
-          :class="isSheet ? 'rounded-t-3xl border-t border-slate-700 shadow-2xl max-h-[92vh]' : 'inset-0 h-full'"
+          :class="isSheet ? 'rounded-t-3xl border-t border-outline shadow-2xl max-h-[92vh]' : 'inset-0 h-full'"
           :style="isSheet ? { height: '92vh', ...sheetStyle } : {}"
         >
           <!-- Grab handle (action sheet) -->
@@ -142,19 +142,19 @@ function onSheetUp() {
             class="shrink-0 flex flex-col items-center pt-2 pb-1 cursor-grab active:cursor-grabbing select-none touch-none"
             @pointerdown="onSheetDown" @pointermove="onSheetMove" @pointerup="onSheetUp" @pointercancel="onSheetUp"
           >
-            <div class="w-10 h-1 rounded-full bg-slate-700" />
+            <div class="w-10 h-1 rounded-full bg-surface-container-high" />
             <span class="text-[10px] text-slate-600 mt-1">下にドラッグして戻る</span>
           </div>
 
-          <div class="h-12 px-2 flex items-center gap-2 border-b border-slate-800 shrink-0">
-            <button class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" @click="pane.minimizeMobile()" title="戻る">
+          <div class="h-12 px-2 flex items-center gap-2 border-b border-outline-variant shrink-0">
+            <button class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" @click="pane.minimizeMobile()" title="戻る">
               <Icon :name="isSheet ? 'lucide:chevrons-down' : 'lucide:chevron-down'" class="w-5 h-5" />
             </button>
             <span class="text-sm font-bold text-white truncate flex-1">{{ selected.user?.displayName || 'メディア' }}</span>
-            <a v-if="download.href" :href="download.href" :download="download.name" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="元のファイルをダウンロード">
+            <a v-if="download.href" :href="download.href" :download="download.name" class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" title="元のファイルをダウンロード">
               <Icon name="lucide:download" class="w-5 h-5" />
             </a>
-            <button class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" @click="pane.closeMobile()" title="閉じる">
+            <button class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" @click="pane.closeMobile()" title="閉じる">
               <Icon name="lucide:x" class="w-5 h-5" />
             </button>
           </div>
@@ -177,15 +177,15 @@ function onSheetUp() {
           </div>
 
           <div class="px-3 py-3">
-            <p v-if="selected.content" class="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
-            <div class="flex items-center gap-4 mt-3 text-slate-500 text-sm">
+            <p v-if="selected.content" class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
+            <div class="flex items-center gap-4 mt-3 text-on-surface-variant text-sm">
               <span class="flex items-center gap-1.5"><Icon name="lucide:smile-plus" class="w-4 h-4" />{{ (selected.reactions || []).reduce((n: number, r: any) => n + (r.count || 0), 0) }}</span>
               <span class="flex items-center gap-1.5"><Icon name="lucide:repeat-2" class="w-4 h-4" />{{ selected.repostCount || 0 }}</span>
               <span class="ml-auto">{{ timeAgo(selected.createdAt) }}</span>
             </div>
           </div>
 
-          <div class="border-t border-slate-800 min-h-[40vh]">
+          <div class="border-t border-outline-variant min-h-[40vh]">
             <PostComments :post="selected" @update="onPatch" />
           </div>
         </div>

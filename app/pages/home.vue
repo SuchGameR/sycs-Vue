@@ -193,7 +193,7 @@ function reportPost(postId: string) { alert('報告しました') }
       <div v-if="postError" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">{{ postError }}</div>
 
       <button v-if="refreshMode === 'manual'" @click="manualRefresh" :disabled="manualRefreshing"
-        class="mx-auto flex items-center gap-2 px-6 py-2 rounded-full bg-slate-800 text-sm text-slate-300 hover:bg-slate-700 transition disabled:opacity-50">
+        class="mx-auto flex items-center gap-2 px-6 py-2 rounded-full bg-surface-container text-sm text-on-surface hover:bg-surface-container-high transition disabled:opacity-50">
         <Icon name="lucide:refresh-ccw" class="w-4 h-4" :class="{ 'animate-spin': manualRefreshing }" />
         更新
       </button>
@@ -204,22 +204,22 @@ function reportPost(postId: string) { alert('報告しました') }
         新着 {{ pending.length }} 件
       </button>
 
-      <div class="bg-slate-800/50 rounded-xl p-4 mt-4 border border-slate-800 overflow-hidden">
+      <div class="bg-surface-container/50 rounded-xl p-4 mt-4 border border-outline-variant overflow-hidden">
         <PostComposer @submit="createPost" />
       </div>
 
-      <div v-if="loading" class="text-center text-slate-500 py-8">読み込み中...</div>
+      <div v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
       <template v-else>
-        <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/20">
+        <div class="rounded-xl border border-outline-variant overflow-hidden bg-surface/20">
           <PostItem v-for="post in posts" :key="post.id" :post="post"
             :show-view-count="userSettings.showViewCount ?? true" :current-user-id="me?.user?.id"
             @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
             @delete="deletePost" @report="reportPost" @open-media="openMedia" />
-          <p v-if="!posts.length" class="text-center text-slate-500 py-8">まだ投稿がありません</p>
+          <p v-if="!posts.length" class="text-center text-on-surface-variant py-8">まだ投稿がありません</p>
         </div>
 
         <div ref="sentinel" class="h-1" aria-hidden="true"></div>
-        <div v-if="loadingMore" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
+        <div v-if="loadingMore" class="text-center text-on-surface-variant py-4 text-sm">読み込み中...</div>
         <p v-else-if="posts.length && !hasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
       </template>
     </div>
@@ -238,10 +238,10 @@ function reportPost(postId: string) { alert('報告しました') }
     <Transition name="sheet">
       <div v-if="composerOpen" class="min-[681px]:hidden fixed inset-0 z-[200] flex flex-col justify-end">
         <div class="absolute inset-0 bg-black/60" @click="composerOpen = false" />
-        <div class="relative bg-surface-container border-t border-slate-800 rounded-t-2xl p-4 pb-6 max-h-[85vh] overflow-y-auto">
+        <div class="relative bg-surface-container border-t border-outline-variant rounded-t-2xl p-4 pb-6 max-h-[85vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-3">
             <span class="font-bold text-white">新規投稿</span>
-            <button @click="composerOpen = false" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition">
+            <button @click="composerOpen = false" class="p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition">
               <Icon name="lucide:x" class="w-5 h-5" />
             </button>
           </div>

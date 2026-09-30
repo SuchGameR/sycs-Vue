@@ -107,7 +107,7 @@ function timeAgo(date: string) {
 <template>
   <aside
     class="hidden min-[1024px]:flex flex-col shrink-0 bg-surface-container h-[calc(100vh-56px-var(--app-footer-h))] sticky top-14 relative overflow-hidden"
-    :class="selected ? 'border-l border-slate-800' : 'border-l-0'"
+    :class="selected ? 'border-l border-outline-variant' : 'border-l-0'"
     :style="{
       width: (selected ? width : 0) + 'px',
       transition: resizing ? 'none' : 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -130,18 +130,18 @@ function timeAgo(date: string) {
         :style="{ width: width + 'px' }"
       >
         <!-- header -->
-        <div class="h-12 px-4 flex items-center gap-2 border-b border-slate-800 shrink-0">
-          <button @click="pane.close()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1 text-xs" title="戻る">
+        <div class="h-12 px-4 flex items-center gap-2 border-b border-outline-variant shrink-0">
+          <button @click="pane.close()" class="p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition flex items-center gap-1 text-xs" title="戻る">
             <Icon name="lucide:chevron-left" class="w-4 h-4" />
             <span class="hidden min-[1300px]:inline">戻る</span>
           </button>
           <Icon :name="kindIcon" class="w-4 h-4 text-indigo-400 shrink-0 ml-1" />
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ kindLabel }}</span>
+          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{{ kindLabel }}</span>
           <span v-if="sourceLabel" class="text-[11px] text-slate-600 truncate">· {{ sourceLabel }}</span>
-          <a v-if="download.href" :href="download.href" :download="download.name" class="ml-1 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="元のファイルをダウンロード">
+          <a v-if="download.href" :href="download.href" :download="download.name" class="ml-1 p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" title="元のファイルをダウンロード">
             <Icon name="lucide:download" class="w-4 h-4" />
           </a>
-          <button @click="pane.close()" class="ml-auto p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition" title="閉じる">
+          <button @click="pane.close()" class="ml-auto p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" title="閉じる">
             <Icon name="lucide:x" class="w-4 h-4" />
           </button>
         </div>
@@ -157,7 +157,7 @@ function timeAgo(date: string) {
             </NuxtLink>
             <div class="min-w-0">
               <p class="text-sm font-bold text-white truncate flex items-center gap-1">{{ selected.user?.displayName || '不明' }}<UserBadges :badges="selected.user?.badges" /></p>
-              <p class="text-[11px] text-slate-500 truncate">@{{ selected.user?.username }} · {{ timeAgo(selected.createdAt) }}</p>
+              <p class="text-[11px] text-on-surface-variant truncate">@{{ selected.user?.username }} · {{ timeAgo(selected.createdAt) }}</p>
             </div>
           </div>
 
@@ -202,7 +202,7 @@ function timeAgo(date: string) {
                   :key="a.id"
                   @click="mediaIndex = i"
                   class="px-2.5 py-1 rounded-lg text-xs font-bold transition"
-                  :class="i === mediaIndex ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'"
+                  :class="i === mediaIndex ? 'bg-indigo-600 text-white' : 'bg-surface-container text-on-surface-variant hover:text-white'"
                 >
                   {{ i + 1 }}
                 </button>
@@ -220,7 +220,7 @@ function timeAgo(date: string) {
                   :key="m.id"
                   @click="mediaIndex = i"
                   class="px-2.5 py-1 rounded-lg text-xs font-bold transition"
-                  :class="i === mediaIndex ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'"
+                  :class="i === mediaIndex ? 'bg-indigo-600 text-white' : 'bg-surface-container text-on-surface-variant hover:text-white'"
                 >
                   {{ i + 1 }}
                 </button>
@@ -241,10 +241,10 @@ function timeAgo(date: string) {
           </div>
 
           <!-- Text -->
-          <p v-if="selected.content" class="px-4 py-3 text-slate-200 text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
+          <p v-if="selected.content" class="px-4 py-3 text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
 
           <!-- Actions -->
-          <div class="px-4 pb-3 flex items-center gap-4 text-slate-500 border-b border-slate-800/60">
+          <div class="px-4 pb-3 flex items-center gap-4 text-on-surface-variant border-b border-outline-variant/60">
             <span class="flex items-center gap-1.5 text-sm">
               <Icon name="lucide:smile-plus" class="w-4 h-4" />
               {{ (selected.reactions || []).reduce((n: number, r: any) => n + (r.count || 0), 0) }}

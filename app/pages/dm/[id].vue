@@ -251,7 +251,7 @@ function formatDateTime(date: string) {
 
 <template>
   <div class="max-w-2xl mx-auto p-4 h-[calc(100vh-56px-32px)] flex flex-col">
-    <NuxtLink to="/dm" class="text-sm text-slate-500 hover:text-white transition mb-4 flex items-center gap-1">
+    <NuxtLink to="/dm" class="text-sm text-on-surface-variant hover:text-white transition mb-4 flex items-center gap-1">
       <Icon name="lucide:arrow-left" class="w-4 h-4" />
       DM一覧に戻る
     </NuxtLink>
@@ -267,11 +267,11 @@ function formatDateTime(date: string) {
             <span class="font-bold text-white truncate block">{{ otherMember?.displayName || 'DM' }}</span>
             <Icon v-if="blocked" name="lucide:ban" class="w-3.5 h-3.5 text-red-400 shrink-0" title="ブロック中" />
           </div>
-          <span v-if="otherMember?.username" class="text-xs text-slate-500 truncate block">@{{ otherMember.username }}</span>
+          <span v-if="otherMember?.username" class="text-xs text-on-surface-variant truncate block">@{{ otherMember.username }}</span>
           <span v-if="otherMember?.statusMessage" class="text-[11px] text-emerald-400/90 truncate block flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 inline-block"></span>{{ otherMember.statusMessage }}
           </span>
-          <span v-else-if="blockedBy" class="text-[11px] text-slate-500 truncate block">このユーザーにブロックされています</span>
+          <span v-else-if="blockedBy" class="text-[11px] text-on-surface-variant truncate block">このユーザーにブロックされています</span>
         </div>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
@@ -281,7 +281,7 @@ function formatDateTime(date: string) {
           :disabled="blockingBusy"
           :title="blocked ? 'ブロックを解除' : 'ブロック'"
           class="p-2 rounded-lg transition shrink-0 disabled:opacity-50"
-          :class="blocked ? 'text-red-400 hover:text-red-300' : 'text-slate-500 hover:text-red-400'"
+          :class="blocked ? 'text-red-400 hover:text-red-300' : 'text-on-surface-variant hover:text-red-400'"
         >
           <Icon v-if="blockingBusy" name="lucide:loader-2" class="w-4 h-4 animate-spin" />
           <Icon v-else :name="blocked ? 'lucide:shield-check' : 'lucide:ban'" class="w-4 h-4" />
@@ -298,8 +298,8 @@ function formatDateTime(date: string) {
     </div>
 
     <div class="flex-1 overflow-y-auto space-y-3 mb-4">
-      <div v-if="loading && !messages.length" class="text-center text-slate-500 py-8">読み込み中...</div>
-      <div v-else-if="!messages.length" class="text-center text-slate-500 py-8">
+      <div v-if="loading && !messages.length" class="text-center text-on-surface-variant py-8">読み込み中...</div>
+      <div v-else-if="!messages.length" class="text-center text-on-surface-variant py-8">
         <p>メッセージを送信してみましょう</p>
       </div>
       <div v-for="msg in messages" :key="msg.id" class="flex gap-3 group">
@@ -311,7 +311,7 @@ function formatDateTime(date: string) {
           <div class="flex items-center gap-2">
             <span class="font-bold text-white text-sm">{{ msg.sender?.displayName || '不明' }}</span>
             <span class="text-xs text-slate-600">{{ timeAgo(msg.createdAt) }}</span>
-            <span v-if="msg.edited" class="text-xs text-slate-500">編集済み</span>
+            <span v-if="msg.edited" class="text-xs text-on-surface-variant">編集済み</span>
             <button v-if="msg.sender?.id === me?.user?.id && editingId !== msg.id" @click="startEdit(msg)"
               class="text-slate-600 hover:text-indigo-400 transition hidden group-hover:inline-flex" title="編集">
               <Icon name="lucide:pencil" class="w-3.5 h-3.5" />
@@ -319,15 +319,15 @@ function formatDateTime(date: string) {
           </div>
           <template v-if="editingId === msg.id">
             <textarea v-model="editDraft" rows="3" @keydown="onEditKeydown"
-              class="w-full bg-slate-800 border border-indigo-500 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none resize-none"
+              class="w-full bg-surface-container border border-indigo-500 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none resize-none"
               placeholder="メッセージを編集（Enterで保存 / Shift+Enterで改行）" />
             <div class="flex gap-2 mt-1.5">
               <button @click="saveEdit" class="px-3 py-1 rounded-lg bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition">保存</button>
-              <button @click="cancelEdit" class="px-3 py-1 rounded-lg border border-slate-700 text-xs text-slate-300 hover:bg-slate-800 transition">キャンセル</button>
+              <button @click="cancelEdit" class="px-3 py-1 rounded-lg border border-outline text-xs text-on-surface hover:bg-surface-container transition">キャンセル</button>
             </div>
           </template>
           <template v-else>
-            <p class="text-slate-300 text-sm whitespace-pre-wrap break-words" v-html="renderRichText(msg.content, { custom: customEmojiMap })" />
+            <p class="text-on-surface text-sm whitespace-pre-wrap break-words" v-html="renderRichText(msg.content, { custom: customEmojiMap })" />
             <button v-if="msg.edited || msg.sender?.id === me?.user?.id" @click="showHistory(msg)"
               class="text-xs text-slate-600 hover:text-indigo-400 transition mt-0.5">
               編集履歴を見る
@@ -337,11 +337,11 @@ function formatDateTime(date: string) {
       </div>
     </div>
 
-    <div v-if="blocked || blockedBy" class="shrink-0 mb-2 text-sm text-center py-2 rounded-lg border bg-slate-900/60 border-red-800/60 text-red-300">
+    <div v-if="blocked || blockedBy" class="shrink-0 mb-2 text-sm text-center py-2 rounded-lg border bg-surface/60 border-red-800/60 text-red-300">
       {{ blockedBy ? 'ブロックされているため、このDMには送信できません' : 'ブロック中のため、このDMには送信できません' }}
     </div>
 
-    <div v-else class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 shrink-0">
+    <div v-else class="flex items-center gap-2 bg-surface border border-outline rounded-lg px-3 py-2 shrink-0">
       <div class="flex-1 min-w-0">
         <ChatEditor
           ref="chatEditor"
@@ -350,7 +350,7 @@ function formatDateTime(date: string) {
           @update="onDraftUpdate"
         />
         <Transition name="typing-fade">
-          <p v-if="typingName" class="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5">
+          <p v-if="typingName" class="text-[11px] text-on-surface-variant mt-1 flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block animate-pulse"></span>{{ typingName }}さんが入力中...
           </p>
         </Transition>
@@ -366,23 +366,23 @@ function formatDateTime(date: string) {
     </div>
 
     <div v-if="historyMessage" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]" @click.self="closeHistory">
-      <div class="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md mx-4 p-5 shadow-2xl">
+      <div class="bg-surface border border-outline rounded-xl w-full max-w-md mx-4 p-5 shadow-2xl">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-bold text-white flex items-center gap-2"><Icon name="lucide:history" class="w-4 h-4 text-indigo-400" /> 編集履歴</h3>
-          <button @click="closeHistory" class="text-slate-500 hover:text-white transition"><Icon name="lucide:x" class="w-5 h-5" /></button>
+          <button @click="closeHistory" class="text-on-surface-variant hover:text-white transition"><Icon name="lucide:x" class="w-5 h-5" /></button>
         </div>
-        <p v-if="historyLoading" class="text-sm text-slate-500">読み込み中...</p>
+        <p v-if="historyLoading" class="text-sm text-on-surface-variant">読み込み中...</p>
         <template v-else>
-          <div v-if="!historyEdits.length" class="text-sm text-slate-400 bg-slate-800/50 border border-slate-800 rounded-lg p-3 mb-2">
+          <div v-if="!historyEdits.length" class="text-sm text-on-surface-variant bg-surface-container/50 border border-outline-variant rounded-lg p-3 mb-2">
             このメッセージはまだ編集されていません。
           </div>
           <div v-for="(edit, idx) in historyEdits" :key="edit.id" class="mb-2">
-            <p class="text-[11px] text-slate-500 mb-0.5">{{ idx + 1 }}回目の編集・{{ formatDateTime(edit.editedAt) }}</p>
-            <p class="text-sm text-slate-400 bg-slate-800/50 border border-slate-800 rounded-lg p-3 whitespace-pre-wrap break-words">{{ edit.content }}</p>
+            <p class="text-[11px] text-on-surface-variant mb-0.5">{{ idx + 1 }}回目の編集・{{ formatDateTime(edit.editedAt) }}</p>
+            <p class="text-sm text-on-surface-variant bg-surface-container/50 border border-outline-variant rounded-lg p-3 whitespace-pre-wrap break-words">{{ edit.content }}</p>
           </div>
           <div>
             <p class="text-[11px] text-emerald-500 mb-0.5">現在のメッセージ</p>
-            <p class="text-sm text-slate-200 bg-indigo-900/30 border border-indigo-800/60 rounded-lg p-3 whitespace-pre-wrap break-words">{{ historyMessage.content }}</p>
+            <p class="text-sm text-on-surface bg-indigo-900/30 border border-indigo-800/60 rounded-lg p-3 whitespace-pre-wrap break-words">{{ historyMessage.content }}</p>
           </div>
         </template>
       </div>

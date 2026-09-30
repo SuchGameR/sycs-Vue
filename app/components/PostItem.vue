@@ -128,7 +128,7 @@ onMounted(ensureMe)
 <template>
   <div
     ref="rootEl"
-    class="py-4 px-3 border-b border-slate-800 last:border-b-0 hover:bg-slate-800/30 transition"
+    class="py-4 px-3 border-b border-outline-variant last:border-b-0 hover:bg-surface-container/30 transition"
     @click.self="openThread"
   >
     <div v-if="post.boostedBy" class="flex items-center gap-1.5 mb-1 text-sm text-green-400">
@@ -140,7 +140,7 @@ onMounted(ensureMe)
           <span class="font-bold">{{ post.boostedBy.user.displayName }}</span>
         </span>
       </NuxtLink>
-      <span class="text-slate-500 text-xs">がリポスト · {{ timeAgo(post.boostedBy.repostedAt || post.createdAt) }}</span>
+      <span class="text-on-surface-variant text-xs">がリポスト · {{ timeAgo(post.boostedBy.repostedAt || post.createdAt) }}</span>
     </div>
 
     <div class="flex gap-3" @click.self="openThread">
@@ -157,35 +157,35 @@ onMounted(ensureMe)
           </NuxtLink>
           <UserBadges :badges="post.user.badges" />
           <UserTitle :title="post.user.title" />
-          <span class="text-slate-500 text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
+          <span class="text-on-surface-variant text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
 
           <!-- "..." menu -->
           <div class="relative ml-auto">
-            <button @click.stop="showMenu = !showMenu" class="p-1 rounded-full text-slate-500 hover:text-white hover:bg-slate-800 transition">
+            <button @click.stop="showMenu = !showMenu" class="p-1 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container transition">
               <Icon name="lucide:ellipsis" class="w-4 h-4" />
             </button>
             <div v-if="showMenu" class="fixed inset-0 z-40" @click="showMenu = false" />
             <Transition name="menu-pop">
               <div v-if="showMenu"
-                class="absolute top-full right-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-40">
-                <div class="px-4 py-1.5 text-xs text-slate-500 border-b border-slate-800">
+                class="absolute top-full right-0 mt-1 bg-surface border border-outline-variant rounded-xl py-1.5 shadow-xl z-50 min-w-40">
+                <div class="px-4 py-1.5 text-xs text-on-surface-variant border-b border-outline-variant">
                   閲覧数 {{ post.viewCount || 0 }}
                 </div>
-                <div class="px-4 py-1.5 text-xs text-slate-500">
+                <div class="px-4 py-1.5 text-xs text-on-surface-variant">
                   公開範囲: {{ { public: '公開', followers: 'フォロワー', close_friends: '親しい友達', specific: '特定の人' }[post.visibility || 'public'] }}
                 </div>
-                <hr class="border-slate-800 my-1" />
+                <hr class="border-outline-variant my-1" />
                 <button @click.stop="openAddToPlaylist(post); showMenu = false"
-                  class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/30 transition flex items-center gap-2">
+                  class="w-full text-left px-4 py-2 text-sm text-on-surface-variant hover:text-white hover:bg-surface-container/30 transition flex items-center gap-2">
                   <Icon name="lucide:list-video" class="w-4 h-4" />
                   プレイリストに追加
                 </button>
                 <button @click.stop="emit('report', post.id); showMenu = false"
-                  class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/30 transition">
+                  class="w-full text-left px-4 py-2 text-sm text-on-surface-variant hover:text-white hover:bg-surface-container/30 transition">
                   報告
                 </button>
                 <button v-if="isMine" @click.stop="emit('delete', post.id); showMenu = false"
-                  class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800/30 transition">
+                  class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-surface-container/30 transition">
                   削除
                 </button>
               </div>
@@ -193,14 +193,14 @@ onMounted(ensureMe)
           </div>
         </div>
 
-        <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words cursor-pointer" @click.self="openThread" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
+        <p class="text-on-surface leading-relaxed whitespace-pre-wrap break-words cursor-pointer" @click.self="openThread" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
 
         <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" :post-id="post.id"
           interactive image-lightbox @open="openMedia" />
 
         <QuotedPostCard v-if="post.quotedPost" :post="post.quotedPost" class="mt-2" @open="emit('openMedia', post.quotedPost)" />
 
-        <div class="flex items-center gap-4 mt-3 text-slate-500">
+        <div class="flex items-center gap-4 mt-3 text-on-surface-variant">
           <div class="relative">
             <button @click.stop="showRepostMenu = !showRepostMenu"
               class="flex items-center gap-1.5 transition text-sm"
@@ -211,15 +211,15 @@ onMounted(ensureMe)
             <div v-if="showRepostMenu" class="fixed inset-0 z-40" @click="showRepostMenu = false" />
             <Transition name="menu-pop">
               <div v-if="showRepostMenu"
-                class="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-44">
+                class="absolute top-full left-0 mt-1 bg-surface border border-outline-variant rounded-xl py-1.5 shadow-xl z-50 min-w-44">
                 <button @click.stop="emit('toggleRepost', post.id); showRepostMenu = false"
                   class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition"
-                  :class="post.reposted ? 'text-green-400' : 'text-slate-300 hover:text-white hover:bg-slate-800/30'">
+                  :class="post.reposted ? 'text-green-400' : 'text-on-surface hover:text-white hover:bg-surface-container/30'">
                   <Icon name="lucide:repeat-2" class="w-4 h-4" />
                   {{ post.reposted ? 'リポストを取り消し' : 'リポスト' }}
                 </button>
                 <button @click.stop="quote.openQuote(post); showRepostMenu = false"
-                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/30 transition">
+                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-on-surface hover:text-white hover:bg-surface-container/30 transition">
                   <Icon name="lucide:message-square-quote" class="w-4 h-4" />
                   引用リポスト
                 </button>
@@ -253,7 +253,7 @@ onMounted(ensureMe)
             :key="r.emoji"
             @click.stop="toggleReaction(r.emoji)"
             class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition"
-            :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-500'"
+            :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-surface-container/50 border-outline text-on-surface hover:border-slate-500'"
             :title="(r.users || []).map((u: any) => u.displayName || '').filter(Boolean).join(', ')"
           >
             <EmojiIcon :emoji="r.emoji" size="sm" />

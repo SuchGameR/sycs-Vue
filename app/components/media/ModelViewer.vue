@@ -225,7 +225,7 @@ watch(() => props.src, () => { if (scene) load() })
 </script>
 
 <template>
-  <div class="relative rounded-xl overflow-hidden bg-surface border border-slate-800">
+  <div class="relative rounded-xl overflow-hidden bg-surface border border-outline-variant">
     <div
       ref="container"
       class="w-full h-[52vh] min-h-[280px] touch-none"
@@ -233,15 +233,15 @@ watch(() => props.src, () => { if (scene) load() })
 
     <div v-if="loading" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface/80">
       <Icon name="lucide:loader-2" class="w-7 h-7 text-indigo-400 animate-spin" />
-      <div class="w-40 h-1 rounded-full bg-slate-800 overflow-hidden">
+      <div class="w-40 h-1 rounded-full bg-surface-container overflow-hidden">
         <div class="h-full bg-indigo-500 transition-all" :style="{ width: progress + '%' }" />
       </div>
-      <p class="text-[11px] text-slate-500">{{ progress ? progress + '%' : '3Dモデルを読み込み中...' }}</p>
+      <p class="text-[11px] text-on-surface-variant">{{ progress ? progress + '%' : '3Dモデルを読み込み中...' }}</p>
     </div>
 
     <div v-if="error" class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface/90 p-6 text-center">
       <Icon name="lucide:box" class="w-8 h-8 text-slate-600" />
-      <p class="text-xs text-slate-400">{{ error }}</p>
+      <p class="text-xs text-on-surface-variant">{{ error }}</p>
     </div>
 
     <div class="absolute top-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur rounded-full px-1.5 py-1">

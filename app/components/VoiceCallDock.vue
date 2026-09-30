@@ -507,7 +507,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
     <!-- incoming call -->
     <Transition name="slide-up">
-      <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] w-72 bg-surface-container/95 border border-slate-700 rounded-2xl p-4 shadow-2xl backdrop-blur">
+      <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] w-72 bg-surface-container/95 border border-outline rounded-2xl p-4 shadow-2xl backdrop-blur">
         <div class="flex items-center gap-3">
           <div class="relative">
             <img v-if="avatarSrc(incoming.from.avatarUrl)" :src="avatarSrc(incoming.from.avatarUrl)" class="w-11 h-11 rounded-full object-cover" />
@@ -521,7 +521,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
           </div>
           <div class="min-w-0">
             <p class="text-white font-bold text-sm truncate">{{ incoming.from.displayName }}</p>
-            <p class="text-slate-400 text-xs">着信中...</p>
+            <p class="text-on-surface-variant text-xs">着信中...</p>
           </div>
         </div>
         <div class="flex justify-center gap-4 mt-4">
@@ -539,9 +539,9 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
     <Transition name="fade">
       <div v-if="callOpen && !minimized" data-vc-aud-root class="fixed inset-0 z-[85] bg-surface flex flex-col">
         <!-- top bar -->
-        <div class="flex items-center justify-between px-5 py-3 shrink-0 border-b border-slate-800/60">
+        <div class="flex items-center justify-between px-5 py-3 shrink-0 border-b border-outline-variant/60">
           <div class="flex items-center gap-2.5 min-w-0">
-            <Icon name="lucide:phone" class="w-4 h-4 text-slate-400 shrink-0" />
+            <Icon name="lucide:phone" class="w-4 h-4 text-on-surface-variant shrink-0" />
             <h2 class="font-bold text-white truncate">{{ roomTitle }}</h2>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -549,10 +549,10 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
               <span :class="['w-2 h-2 rounded-full', stateMeta.dot]" />
               {{ callState === 'connected' ? '通話中' : stateMeta.label }}
             </span>
-            <span v-if="status === 'active'" class="text-xs text-slate-400 tabular-nums">{{ callTime }}</span>
-            <span class="text-xs text-slate-500">{{ tiles.length + screenTiles.length }}名</span>
-            <button @click="minimized = true" class="w-8 h-8 rounded-full bg-slate-800/60 hover:bg-slate-700 transition flex items-center justify-center" title="最小化（ドラッグできる通話アイコンに）">
-              <Icon name="lucide:minus" class="w-4 h-4 text-slate-300" />
+            <span v-if="status === 'active'" class="text-xs text-on-surface-variant tabular-nums">{{ callTime }}</span>
+            <span class="text-xs text-on-surface-variant">{{ tiles.length + screenTiles.length }}名</span>
+            <button @click="minimized = true" class="w-8 h-8 rounded-full bg-surface-container/60 hover:bg-surface-container-high transition flex items-center justify-center" title="最小化（ドラッグできる通話アイコンに）">
+              <Icon name="lucide:minus" class="w-4 h-4 text-on-surface" />
             </button>
           </div>
         </div>
@@ -562,7 +562,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
           <div class="h-full grid gap-3 content-center" style="grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));">
             <!-- screen share tiles (separate from camera tiles) -->
             <div v-for="s in screenTiles" :key="'sc-' + s.userId"
-              class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
+              class="relative rounded-2xl overflow-hidden bg-surface border border-outline md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
               @click="expandedScreen = s.userId">
               <video :srcObject.prop="remoteScreenStreams[s.userId]" muted autoplay playsinline webkit-playsinline
                 class="absolute inset-0 w-full h-full object-contain bg-black" />
@@ -575,7 +575,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
             </div>
 
             <!-- member camera/avatar tiles -->
-            <div v-for="t in tiles" :key="t.userId" class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 min-h-[180px] flex flex-col items-center justify-center">
+            <div v-for="t in tiles" :key="t.userId" class="relative rounded-2xl overflow-hidden bg-surface border border-outline-variant min-h-[180px] flex flex-col items-center justify-center">
               <div v-if="!t.isSelf && hasVideo[t.userId]" class="absolute inset-0 w-full h-full">
                 <video :srcObject.prop="remoteStreams[t.userId]" muted autoplay playsinline webkit-playsinline
                   class="absolute inset-0 w-full h-full object-cover" />
@@ -598,7 +598,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
                 <span class="flex items-center gap-1.5 shrink-0">
                   <Icon v-if="!t.isSelf && speakerMuted" name="lucide:volume-x" class="w-4 h-4 text-red-300" />
                   <Icon v-if="muted && t.isSelf" name="lucide:mic-off" class="w-4 h-4 text-red-400" />
-                  <Icon v-else-if="!t.isSelf" name="lucide:mic" class="w-4 h-4 text-slate-300" />
+                  <Icon v-else-if="!t.isSelf" name="lucide:mic" class="w-4 h-4 text-on-surface" />
                 </span>
               </div>
             </div>
@@ -606,17 +606,17 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
         </div>
 
         <!-- self preview (mirrored) -->
-        <div class="absolute bottom-24 right-4 w-44 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-2xl z-[2] cursor-pointer group" @click="screenSharing ? expandedScreen = 'self' : null">
+        <div class="absolute bottom-24 right-4 w-44 rounded-xl overflow-hidden bg-surface border border-outline-variant shadow-2xl z-[2] cursor-pointer group" @click="screenSharing ? expandedScreen = 'self' : null">
           <video v-if="screenSharing && screenStream" :srcObject.prop="screenStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover" />
           <video v-else-if="cameraEnabled && localVideoStream" :srcObject.prop="localVideoStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover scale-x-[-1]" />
-          <div v-else class="aspect-video flex items-center justify-center text-slate-500">
+          <div v-else class="aspect-video flex items-center justify-center text-on-surface-variant">
             <Icon name="lucide:user" class="w-6 h-6" />
           </div>
           <button v-if="cameraEnabled" @click.stop="voice.switchCamera().catch(() => {})"
             class="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/50 hover:bg-black/75 transition flex items-center justify-center" title="カメラ切替（正面/背面）">
             <Icon name="lucide:refresh-ccw" class="w-4 h-4 text-white" />
           </button>
-          <div class="px-2 py-1 text-[11px] text-slate-300 flex items-center gap-1.5 bg-slate-900" :style="avatarPop('me', true)">
+          <div class="px-2 py-1 text-[11px] text-on-surface flex items-center gap-1.5 bg-surface" :style="avatarPop('me', true)">
             <span class="w-1.5 h-1.5 rounded-full" :class="muted ? 'bg-red-400' : 'bg-emerald-400'" />
             {{ me?.displayName }} <span v-if="muted">(ミュート)</span>
           </div>
@@ -624,31 +624,31 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
         <!-- whiteboard overlay -->
         <div v-if="whiteboardOpen" class="absolute inset-0 z-[1] flex flex-col bg-surface/98">
-          <div class="flex items-center gap-1.5 px-4 py-2 border-b border-slate-800 bg-slate-900/80 flex-wrap">
+          <div class="flex items-center gap-1.5 px-4 py-2 border-b border-outline-variant bg-surface/80 flex-wrap">
             <Icon name="lucide:presentation" class="w-4 h-4 text-indigo-400 shrink-0" />
             <span class="text-sm font-bold text-white mr-2">ホワイトボード</span>
             <button v-for="c in WB_COLORS" :key="c" @click="wbColor = c"
               class="w-5 h-5 rounded-full border-2 transition shrink-0"
               :style="{ backgroundColor: c, opacity: wbColor === c ? 1 : 0.6 }"
               :class="wbColor === c ? 'border-white scale-110' : 'border-transparent'" :title="c" />
-            <button @click="wbToggleTool" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition shrink-0" :title="wbPanMode ? '描画モード' : '移動モード'">
+            <button @click="wbToggleTool" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" :title="wbPanMode ? '描画モード' : '移動モード'">
               <Icon :name="wbPanMode ? 'lucide:pencil' : 'lucide:hand'" class="w-3.5 h-3.5" />
             </button>
-            <button @click="wbZoom(1.3)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition shrink-0" title="拡大">
+            <button @click="wbZoom(1.3)" class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" title="拡大">
               <Icon name="lucide:zoom-in" class="w-3.5 h-3.5" />
             </button>
-            <button @click="wbZoom(1 / 1.3)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition shrink-0" title="縮小">
+            <button @click="wbZoom(1 / 1.3)" class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" title="縮小">
               <Icon name="lucide:zoom-out" class="w-3.5 h-3.5" />
             </button>
-            <select v-model="wbWidth" class="bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-1 py-1 shrink-0">
+            <select v-model="wbWidth" class="bg-surface-container border border-outline rounded text-xs text-on-surface px-1 py-1 shrink-0">
               <option :value="2">細</option>
               <option :value="4">中</option>
               <option :value="10">太</option>
             </select>
-            <span class="text-[10px] text-slate-500 ml-auto">スクロールで拡大/縮小・2本指で移動</span>
-            <button @click="wbUndo" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition shrink-0" title="戻す"><Icon name="lucide:undo-2" class="w-3.5 h-3.5" /></button>
+            <span class="text-[10px] text-on-surface-variant ml-auto">スクロールで拡大/縮小・2本指で移動</span>
+            <button @click="wbUndo" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" title="戻す"><Icon name="lucide:undo-2" class="w-3.5 h-3.5" /></button>
             <button @click="wbClear" class="px-2.5 py-1 rounded bg-red-900/40 hover:bg-red-900/70 text-xs text-red-300 transition shrink-0">クリア</button>
-            <button @click="whiteboardOpen = false; wbPanMode = false" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition shrink-0">閉じる</button>
+            <button @click="whiteboardOpen = false; wbPanMode = false" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0">閉じる</button>
           </div>
           <canvas
             ref="wbCanvas"
@@ -666,25 +666,25 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
         <!-- expanded screen overlay -->
         <div v-if="expandedScreen" class="absolute inset-0 z-[3] bg-black flex flex-col p-4">
           <div class="flex items-center justify-between mb-2 shrink-0">
-            <span class="text-sm text-slate-300 flex items-center gap-2">
+            <span class="text-sm text-on-surface flex items-center gap-2">
               <Icon name="lucide:monitor-up" class="w-4 h-4" />
               {{ expandedScreen === 'self' ? 'あなたの画面' : ((screenTiles.find(s => s.userId === expandedScreen)?.name || '') + 'の画面') }}
             </span>
-            <button @click="expandedScreen = null" class="w-9 h-9 rounded-full bg-slate-700/60 hover:bg-slate-600 transition flex items-center justify-center" title="閉じる">
+            <button @click="expandedScreen = null" class="w-9 h-9 rounded-full bg-surface-container-high/60 hover:bg-surface-container-highest transition flex items-center justify-center" title="閉じる">
               <Icon name="lucide:x" class="w-5 h-5 text-white" />
             </button>
           </div>
           <div class="flex-1 min-h-0 flex items-center justify-center">
-            <video v-if="expandedScreen === 'self'" :srcObject="screenStream" muted autoplay playsinline webkit-playsinline class="max-w-full max-h-full object-contain rounded-lg bg-slate-950" />
-            <video v-else :srcObject="remoteScreenStreams[expandedScreen]" muted autoplay playsinline webkit-playsinline class="max-w-full max-h-full object-contain rounded-lg bg-slate-950" />
+            <video v-if="expandedScreen === 'self'" :srcObject="screenStream" muted autoplay playsinline webkit-playsinline class="max-w-full max-h-full object-contain rounded-lg bg-surface-dim" />
+            <video v-else :srcObject="remoteScreenStreams[expandedScreen]" muted autoplay playsinline webkit-playsinline class="max-w-full max-h-full object-contain rounded-lg bg-surface-dim" />
           </div>
         </div>
 
         <!-- control panel -->
-        <div class="shrink-0 px-4 py-4 flex items-center justify-center gap-3 border-t border-slate-800/60 relative flex-wrap z-[2]">
+        <div class="shrink-0 px-4 py-4 flex items-center justify-center gap-3 border-t border-outline-variant/60 relative flex-wrap z-[2]">
           <!-- reaction picker -->
           <Transition name="slide-up">
-            <div v-if="showReactions" class="absolute bottom-full mb-3 flex items-center gap-1 bg-surface-container border border-slate-700 rounded-full px-3 py-2 shadow-2xl">
+            <div v-if="showReactions" class="absolute bottom-full mb-3 flex items-center gap-1 bg-surface-container border border-outline rounded-full px-3 py-2 shadow-2xl">
               <button v-for="e in EMOJIS" :key="e" @click="pickReaction(e)" class="text-2xl hover:scale-125 transition">{{ e }}</button>
             </div>
           </Transition>
@@ -718,14 +718,14 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
         <!-- invite modal -->
         <div v-if="inviteOpen" class="absolute inset-0 z-[4] bg-black/60 flex items-center justify-center" @click.self="inviteOpen = false">
-          <div class="bg-surface-container border border-slate-700 rounded-2xl w-full max-w-sm mx-4 p-5 shadow-2xl">
+          <div class="bg-surface-container border border-outline rounded-2xl w-full max-w-sm mx-4 p-5 shadow-2xl">
             <div class="flex items-center justify-between mb-3">
               <h3 class="font-bold text-white flex items-center gap-2"><Icon name="lucide:user-plus" class="w-4 h-4 text-indigo-400" /> 通話に招待</h3>
-              <button @click="inviteOpen = false" class="text-slate-500 hover:text-white transition"><Icon name="lucide:x" class="w-5 h-5" /></button>
+              <button @click="inviteOpen = false" class="text-on-surface-variant hover:text-white transition"><Icon name="lucide:x" class="w-5 h-5" /></button>
             </div>
-            <p class="text-sm text-slate-400 mb-3">このリンクを送って、通話に参加してもらいましょう。</p>
-            <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
-              <span class="text-xs text-slate-300 truncate flex-1">{{ inviteLink }}</span>
+            <p class="text-sm text-on-surface-variant mb-3">このリンクを送って、通話に参加してもらいましょう。</p>
+            <div class="flex items-center gap-2 bg-surface-container border border-outline rounded-lg px-3 py-2">
+              <span class="text-xs text-on-surface truncate flex-1">{{ inviteLink }}</span>
               <button @click="copyInvite" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shrink-0">
                 {{ copied ? 'コピー済み' : 'コピー' }}
               </button>
@@ -740,7 +740,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
       <div
         v-if="callOpen && minimized"
         ref="miniEl"
-        class="fixed z-[98] w-20 h-20 rounded-2xl bg-surface-container/95 border border-slate-700 shadow-2xl backdrop-blur flex flex-col items-center justify-center gap-1 cursor-grab active:cursor-grabbing select-none touch-none"
+        class="fixed z-[98] w-20 h-20 rounded-2xl bg-surface-container/95 border border-outline shadow-2xl backdrop-blur flex flex-col items-center justify-center gap-1 cursor-grab active:cursor-grabbing select-none touch-none"
         :style="{ left: miniPos.x + 'px', top: miniPos.y + 'px' }"
         @pointerdown="onMiniDown"
         @click="expandCall"
@@ -757,7 +757,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
             <span class="relative inline-flex rounded-full w-3 h-3 bg-emerald-500" />
           </span>
         </div>
-        <span v-if="status === 'active'" class="text-[10px] text-slate-300 tabular-nums">{{ callTime }}</span>
+        <span v-if="status === 'active'" class="text-[10px] text-on-surface tabular-nums">{{ callTime }}</span>
         <Icon name="lucide:phone" class="w-3 h-3 text-emerald-400" />
       </div>
     </Transition>

@@ -79,7 +79,7 @@ const editor = useEditor({
   extensions: [Document, Paragraph, Text, HardBreak, EmojiImage],
   editorProps: {
     attributes: {
-      class: 'outline-none w-full text-sm text-slate-200 placeholder-slate-500',
+      class: 'outline-none w-full text-sm text-on-surface placeholder-slate-500',
     },
     handleKeyDown: (view, event) => {
       if (emojiOpen.value) {
@@ -156,7 +156,7 @@ onMounted(() => custom.ensure())
   <div class="relative flex-1 min-w-0">
     <div
       v-if="!hasContent"
-      class="absolute inset-0 pointer-events-none text-sm text-slate-500 select-none overflow-hidden whitespace-pre-wrap"
+      class="absolute inset-0 pointer-events-none text-sm text-on-surface-variant select-none overflow-hidden whitespace-pre-wrap"
     >
       {{ props.placeholder || '' }}
     </div>
@@ -165,9 +165,9 @@ onMounted(() => custom.ensure())
     <Transition name="emoji-pop">
       <div
         v-if="emojiOpen"
-        class="absolute bottom-full left-0 mb-1 w-72 max-h-56 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-[150]"
+        class="absolute bottom-full left-0 mb-1 w-72 max-h-56 overflow-y-auto bg-surface border border-outline rounded-xl shadow-xl z-[150]"
       >
-        <div class="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800 sticky top-0 bg-slate-900">
+        <div class="px-3 py-1.5 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant sticky top-0 bg-surface">
           絵文字
         </div>
         <button
@@ -177,11 +177,11 @@ onMounted(() => custom.ensure())
           @mousedown.prevent="applyEmoji(s)"
           @mouseenter="activeIdx = i"
           class="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition"
-          :class="i === activeIdx ? 'bg-indigo-600/30' : 'hover:bg-slate-800'"
+          :class="i === activeIdx ? 'bg-indigo-600/30' : 'hover:bg-surface-container'"
         >
           <img v-if="s.url" :src="s.url" :alt="':' + s.name + ':'" class="sycs-emoji sycs-emoji--lg shrink-0" draggable="false" />
           <span v-else class="text-lg leading-none shrink-0">{{ s.char }}</span>
-          <span class="text-xs text-slate-400 truncate">:{{ s.name }}:</span>
+          <span class="text-xs text-on-surface-variant truncate">:{{ s.name }}:</span>
           <span v-if="s.url" class="ml-auto text-[10px] text-slate-600 shrink-0">カスタム</span>
         </button>
       </div>

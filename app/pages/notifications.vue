@@ -9,5 +9,5 @@ definePageMeta({
 </script>
 
 <template>
-  <div class="text-center text-slate-500 py-12">通知を移動しました…</div>
+  <div class="text-center text-on-surface-variant py-12">通知を移動しました…</div>
 </template>

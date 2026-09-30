@@ -56,7 +56,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
               <div v-else class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">{{ profileHeader.displayName?.charAt(0) || '?' }}</div>
               <div class="min-w-0">
                 <p class="text-sm font-bold text-white truncate leading-tight flex items-center gap-1">{{ profileHeader.displayName }}<UserBadges :badges="profileHeader.badges" /></p>
-                <p class="text-[10px] text-slate-500 leading-tight">@{{ profileHeader.username }}</p>
+                <p class="text-[10px] text-on-surface-variant leading-tight">@{{ profileHeader.username }}</p>
               </div>
             </div>
           </Transition>
@@ -70,7 +70,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
               </div>
               <div class="min-w-0">
                 <p class="text-sm font-bold text-white truncate leading-tight">{{ server.name }}</p>
-                <p class="text-[10px] text-slate-500 leading-tight">サーバー</p>
+                <p class="text-[10px] text-on-surface-variant leading-tight">サーバー</p>
               </div>
             </div>
           </template>
@@ -86,13 +86,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       <!-- Right section: fixed width on desktop, home of the global search box -->
       <div class="hidden min-[1024px]:flex items-center gap-2 px-4 w-[280px] shrink-0 z-40" :class="isServerPage ? '' : 'sycs-header-fade'">
         <button
-          class="flex-1 flex items-center gap-2 bg-slate-900/70 border border-slate-800 rounded-full px-3 py-1.5 text-sm text-slate-500 hover:border-slate-600 focus-within:border-indigo-500 transition min-w-0"
+          class="flex-1 flex items-center gap-2 bg-surface/70 border border-outline-variant rounded-full px-3 py-1.5 text-sm text-on-surface-variant hover:border-slate-600 focus-within:border-indigo-500 transition min-w-0"
           @click="router.push('/search')"
           title="検索"
         >
           <Icon name="lucide:search" class="w-3.5 h-3.5 shrink-0" />
           <span class="truncate">検索</span>
-          <span class="ml-auto text-[10px] text-slate-700 border border-slate-800 rounded px-1 shrink-0">Ctrl+K</span>
+          <span class="ml-auto text-[10px] text-slate-700 border border-outline-variant rounded px-1 shrink-0">Ctrl+K</span>
         </button>
 
         <button
@@ -114,7 +114,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 
     <!-- Mobile search shortcut -->
     <button
-      class="min-[1024px]:hidden absolute right-3 top-3 z-40 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/60 transition"
+      class="min-[1024px]:hidden absolute right-3 top-3 z-40 p-2 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container/60 transition"
       @click="router.push('/search')"
       title="検索"
     >

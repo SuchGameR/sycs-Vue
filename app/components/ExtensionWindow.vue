@@ -97,30 +97,30 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed flex flex-col rounded-xl border border-slate-700 bg-surface-container/95 backdrop-blur-md shadow-2xl overflow-hidden"
+    class="fixed flex flex-col rounded-xl border border-outline bg-surface-container/95 backdrop-blur-md shadow-2xl overflow-hidden"
     :class="(dragging || resizing) ? 'select-none' : ''"
     :style="{ left: win.x + 'px', top: win.y + 'px', width: win.w + 'px', height: win.h + 'px', zIndex: win.z }"
     @pointerdown="wb.focusWindow(win.id)"
   >
     <div
-      class="h-9 px-2.5 flex items-center gap-2 border-b border-slate-800 cursor-move shrink-0 bg-slate-900/60"
+      class="h-9 px-2.5 flex items-center gap-2 border-b border-outline-variant cursor-move shrink-0 bg-surface/60"
       @pointerdown="onDragStart"
     >
-      <div class="w-5 h-5 rounded-md flex items-center justify-center shrink-0" :class="ACCENTS[win.extId] || 'bg-slate-700'">
+      <div class="w-5 h-5 rounded-md flex items-center justify-center shrink-0" :class="ACCENTS[win.extId] || 'bg-surface-container-high'">
         <Icon :name="def?.icon || 'lucide:puzzle'" class="w-3 h-3 text-white" />
       </div>
       <span class="text-xs font-bold text-white truncate flex-1">{{ def?.name || 'ウィンドウ' }}</span>
-      <button type="button" @click.stop="wb.minimizeWindow(win.id)" class="p-1 rounded-md text-slate-500 hover:text-white hover:bg-slate-700 transition" title="最小化">
+      <button type="button" @click.stop="wb.minimizeWindow(win.id)" class="p-1 rounded-md text-on-surface-variant hover:text-white hover:bg-surface-container-high transition" title="最小化">
         <Icon name="lucide:minus" class="w-3.5 h-3.5" />
       </button>
-      <button type="button" @click.stop="wb.closeWindow(win.id)" class="p-1 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition" title="閉じる">
+      <button type="button" @click.stop="wb.closeWindow(win.id)" class="p-1 rounded-md text-on-surface-variant hover:text-red-400 hover:bg-red-500/10 transition" title="閉じる">
         <Icon name="lucide:x" class="w-3.5 h-3.5" />
       </button>
     </div>
 
     <div class="flex-1 min-h-0">
       <component :is="widget" v-if="widget" />
-      <p v-else class="text-xs text-slate-500 text-center py-6">この拡張機能は利用できません</p>
+      <p v-else class="text-xs text-on-surface-variant text-center py-6">この拡張機能は利用できません</p>
     </div>
 
     <div

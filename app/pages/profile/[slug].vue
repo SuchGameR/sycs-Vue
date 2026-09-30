@@ -262,11 +262,11 @@ async function toggleBookmark(postId: string) {
 
 <template>
   <div class="max-w-2xl mx-auto">
-    <p v-if="loading" class="text-center text-slate-500 py-8">読み込み中...</p>
-    <p v-else-if="!profile" class="text-center text-slate-500 py-8">ユーザーが見つかりません</p>
+    <p v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</p>
+    <p v-else-if="!profile" class="text-center text-on-surface-variant py-8">ユーザーが見つかりません</p>
     <template v-else>
       <!-- Profile header - full width -->
-      <div class="bg-slate-800/30 border-b border-slate-800">
+      <div class="bg-surface-container/30 border-b border-outline-variant">
         <div :class="profile.user.bannerUrl ? 'aspect-[3/1]' : 'h-32'" class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50"
           :style="profile.user.bannerUrl ? `background-image: url(${profile.user.bannerUrl}); background-size: cover; background-position: center;` : ''" />
         <div class="px-5 pb-5">
@@ -283,30 +283,30 @@ async function toggleBookmark(postId: string) {
                 <h1 ref="profileNameRef" class="text-xl font-bold text-white">{{ profile.user.displayName }}</h1>
                 <UserBadges :badges="profile.user.badges" size="md" />
                 <UserTitle :title="profile.user.title" />
-                <Icon v-if="profile.isPrivate" name="lucide:lock" class="w-4 h-4 text-slate-400" title="鍵アカウント" />
+                <Icon v-if="profile.isPrivate" name="lucide:lock" class="w-4 h-4 text-on-surface-variant" title="鍵アカウント" />
               </div>
-              <p class="text-slate-500">@{{ profile.user.username }}</p>
-              <p v-if="profile.user.bio" class="mt-2 text-slate-300 text-sm">{{ profile.user.bio }}</p>
+              <p class="text-on-surface-variant">@{{ profile.user.username }}</p>
+              <p v-if="profile.user.bio" class="mt-2 text-on-surface text-sm">{{ profile.user.bio }}</p>
               <p v-if="profile.user.statusMessage" class="mt-1.5 text-[11px] text-emerald-400/90 flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 inline-block"></span>{{ profile.user.statusMessage }}
               </p>
               <div v-if="settings.website || settings.github || settings.twitter" class="flex flex-wrap gap-3 mt-2">
-                <a v-if="settings.website" :href="settings.website" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-400 transition"><Icon name="lucide:globe" class="w-3.5 h-3.5" /> {{ settings.website.replace(/^https?:\/\//, '').replace(/\/$/, '') }}</a>
-                <a v-if="settings.github" :href="`https://github.com/${settings.github}`" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-400 transition"><Icon name="lucide:github" class="w-3.5 h-3.5" /> {{ settings.github }}</a>
-                <a v-if="settings.twitter" :href="`https://x.com/${settings.twitter.replace('@', '')}`" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-400 transition"><Icon name="lucide:twitter" class="w-3.5 h-3.5" /> {{ settings.twitter }}</a>
+                <a v-if="settings.website" :href="settings.website" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-on-surface-variant hover:text-indigo-400 transition"><Icon name="lucide:globe" class="w-3.5 h-3.5" /> {{ settings.website.replace(/^https?:\/\//, '').replace(/\/$/, '') }}</a>
+                <a v-if="settings.github" :href="`https://github.com/${settings.github}`" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-on-surface-variant hover:text-indigo-400 transition"><Icon name="lucide:github" class="w-3.5 h-3.5" /> {{ settings.github }}</a>
+                <a v-if="settings.twitter" :href="`https://x.com/${settings.twitter.replace('@', '')}`" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-on-surface-variant hover:text-indigo-400 transition"><Icon name="lucide:twitter" class="w-3.5 h-3.5" /> {{ settings.twitter }}</a>
               </div>
             </div>
             <div class="flex gap-2 shrink-0 flex-wrap justify-end">
               <template v-if="isOwnProfile">
-                <button @click="showSettings = true" class="px-4 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition flex items-center gap-1.5"><Icon name="lucide:settings" class="w-4 h-4" /> 設定</button>
+                <button @click="showSettings = true" class="px-4 py-1.5 rounded-lg border border-outline text-sm text-on-surface hover:bg-surface-container transition flex items-center gap-1.5"><Icon name="lucide:settings" class="w-4 h-4" /> 設定</button>
               </template>
               <template v-else-if="me?.user">
                 <button @click="toggleFollow" :disabled="followBusy"
                   class="px-4 py-1.5 rounded-lg text-sm font-bold transition disabled:opacity-50"
-                  :class="profile.isFollowing ? 'border border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-indigo-600 text-white hover:bg-indigo-700'">
+                  :class="profile.isFollowing ? 'border border-outline text-on-surface hover:bg-surface-container' : 'bg-indigo-600 text-white hover:bg-indigo-700'">
                   {{ profile.isFollowing ? 'フォロー中' : 'フォロー' }}
                 </button>
-                <button @click="toggleCloseFriend" class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition" title="親しい友達"><Icon name="lucide:heart" class="w-4 h-4" /></button>
+                <button @click="toggleCloseFriend" class="px-3 py-1.5 rounded-lg border border-outline text-sm text-on-surface hover:bg-surface-container transition" title="親しい友達"><Icon name="lucide:heart" class="w-4 h-4" /></button>
                 <template v-if="friendStatus === 'accepted'">
                   <span class="px-3 py-1.5 rounded-lg border border-emerald-700/60 bg-emerald-500/10 text-sm text-emerald-400 font-medium"
                     title="フレンド"><Icon name="lucide:user-check" class="w-4 h-4" /></span>
@@ -315,31 +315,31 @@ async function toggleBookmark(postId: string) {
                   class="px-3 py-1.5 rounded-lg border border-emerald-600 text-sm text-emerald-400 hover:bg-emerald-600/10 transition disabled:opacity-50"
                   title="相手から申請が来ています - 承認"><Icon name="lucide:user-check" class="w-4 h-4" /></button>
                 <button v-else @click="sendFriendRequest" :disabled="friendBusy || (friendStatus === 'sent' && friendCooldown > 0)"
-                  class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm transition disabled:opacity-50"
-                  :class="friendStatus === 'sent' ? 'text-indigo-400 border-indigo-700/60 bg-indigo-500/10' : 'text-slate-300 hover:bg-slate-800'"
+                  class="px-3 py-1.5 rounded-lg border border-outline text-sm transition disabled:opacity-50"
+                  :class="friendStatus === 'sent' ? 'text-indigo-400 border-indigo-700/60 bg-indigo-500/10' : 'text-on-surface hover:bg-surface-container'"
                   :title="friendStatus === 'sent' ? `申請済み - ${friendCooldown}秒後に再送できます` : 'フレンド申請'">
                   <Icon :name="friendStatus === 'sent' ? 'lucide:check-check' : 'lucide:user-plus'" class="w-4 h-4" />
                   <span v-if="friendStatus === 'sent'" class="ml-1">{{ sentCountdown }}</span>
                 </button>
-                <button @click="startDM" :disabled="blocked || blockedBy || startingDM" class="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed" title="DMを送る"><Icon name="lucide:message-square" class="w-4 h-4" /></button>
+                <button @click="startDM" :disabled="blocked || blockedBy || startingDM" class="px-3 py-1.5 rounded-lg border border-outline text-sm text-on-surface hover:bg-surface-container transition disabled:opacity-40 disabled:cursor-not-allowed" title="DMを送る"><Icon name="lucide:message-square" class="w-4 h-4" /></button>
                 <button @click="toggleBlock" :disabled="blockingBusy"
                   class="px-3 py-1.5 rounded-lg border text-sm transition disabled:opacity-50"
-                  :class="blocked ? 'border-red-700/60 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-slate-700 text-slate-400 hover:bg-slate-800'"
+                  :class="blocked ? 'border-red-700/60 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-outline text-on-surface-variant hover:bg-surface-container'"
                   :title="blocked ? 'ブロックを解除' : 'ブロック'">
                   <Icon v-if="blockingBusy" name="lucide:loader-2" class="w-4 h-4 animate-spin" />
                   <Icon v-else :name="blocked ? 'lucide:shield-check' : 'lucide:ban'" class="w-4 h-4" />
                 </button>
-                <span v-if="blockedBy" class="px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-500" title="このユーザーにブロックされています">ブロックされています</span>
+                <span v-if="blockedBy" class="px-3 py-1.5 rounded-lg border border-outline text-xs text-on-surface-variant" title="このユーザーにブロックされています">ブロックされています</span>
               </template>
             </div>
           </div>
           <!-- Stats -->
           <div class="flex gap-5 mt-4 text-sm">
-            <span><span class="font-bold text-white">{{ profile.stats.posts }}</span> <span class="text-slate-500">投稿</span></span>
-            <span><span class="font-bold text-white">{{ profile.stats.followers }}</span> <span class="text-slate-500">フォロワー</span></span>
-            <span><span class="font-bold text-white">{{ profile.stats.following }}</span> <span class="text-slate-500">フォロー中</span></span>
+            <span><span class="font-bold text-white">{{ profile.stats.posts }}</span> <span class="text-on-surface-variant">投稿</span></span>
+            <span><span class="font-bold text-white">{{ profile.stats.followers }}</span> <span class="text-on-surface-variant">フォロワー</span></span>
+            <span><span class="font-bold text-white">{{ profile.stats.following }}</span> <span class="text-on-surface-variant">フォロー中</span></span>
           </div>
-          <div v-if="settings.birthday || settings.birthplace" class="flex gap-4 mt-3 text-xs text-slate-500">
+          <div v-if="settings.birthday || settings.birthplace" class="flex gap-4 mt-3 text-xs text-on-surface-variant">
             <span v-if="settings.birthday"><Icon name="lucide:cake" class="w-3.5 h-3.5 inline mr-1" />{{ settings.birthday }}</span>
             <span v-if="settings.birthplace"><Icon name="lucide:map-pin" class="w-3.5 h-3.5 inline mr-1" />{{ settings.birthplace }}</span>
           </div>
@@ -349,32 +349,32 @@ async function toggleBookmark(postId: string) {
       <SettingsModal v-if="isOwnProfile && showSettings" @close="showSettings = false; loadProfile()" />
 
       <!-- Tabs -->
-      <div class="flex items-center border-b border-slate-800 px-5 sticky top-0 backdrop-blur-[10px] z-40">
+      <div class="flex items-center border-b border-outline-variant px-5 sticky top-0 backdrop-blur-[10px] z-40">
         <button v-for="tab in [{ key: 'all', label: '投稿' }, { key: 'images', label: '画像' }, { key: 'videos', label: '動画' }]" :key="tab.key"
           @click="activeTab = tab.key"
           class="px-4 py-3 text-sm font-medium transition border-b-2 -mb-[1px]"
-          :class="activeTab === tab.key ? 'text-white border-indigo-500' : 'text-slate-500 border-transparent hover:text-slate-300'">
+          :class="activeTab === tab.key ? 'text-white border-indigo-500' : 'text-on-surface-variant border-transparent hover:text-on-surface'">
           {{ tab.label }}
         </button>
         <div class="relative ml-auto">
-          <button @click="showFilter = !showFilter" class="p-2 text-slate-500 hover:text-white transition"><Icon name="lucide:sliders-horizontal" class="w-4 h-4" /></button>
-          <div v-if="showFilter" class="absolute top-full right-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl py-1.5 shadow-xl z-50 min-w-40" @click.outside="showFilter = false">
-            <button class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 transition">人気順</button>
-            <button class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 transition">新しい順</button>
-            <button class="w-full text-left px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 transition">古い順</button>
+          <button @click="showFilter = !showFilter" class="p-2 text-on-surface-variant hover:text-white transition"><Icon name="lucide:sliders-horizontal" class="w-4 h-4" /></button>
+          <div v-if="showFilter" class="absolute top-full right-0 mt-1 bg-surface border border-outline-variant rounded-xl py-1.5 shadow-xl z-50 min-w-40" @click.outside="showFilter = false">
+            <button class="w-full text-left px-4 py-2 text-sm text-on-surface-variant hover:text-white hover:bg-surface-container/50 transition">人気順</button>
+            <button class="w-full text-left px-4 py-2 text-sm text-on-surface-variant hover:text-white hover:bg-surface-container/50 transition">新しい順</button>
+            <button class="w-full text-left px-4 py-2 text-sm text-on-surface-variant hover:text-white hover:bg-surface-container/50 transition">古い順</button>
           </div>
         </div>
       </div>
 
       <!-- Posts -->
       <div class="px-5 space-y-3 py-4">
-        <div v-if="profile.locked" class="text-center py-12 text-slate-400">
-          <Icon name="lucide:lock" class="w-10 h-10 mx-auto mb-3 text-slate-500" />
+        <div v-if="profile.locked" class="text-center py-12 text-on-surface-variant">
+          <Icon name="lucide:lock" class="w-10 h-10 mx-auto mb-3 text-on-surface-variant" />
           <p class="font-bold text-white">このアカウントは非公開です</p>
           <p class="text-sm mt-1">フォローすると投稿を閲覧できます。</p>
         </div>
         <template v-else-if="filteredPosts.length">
-          <div v-for="post in filteredPosts" :key="post.id" class="p-4 bg-slate-800/30 border border-slate-800 rounded-xl">
+          <div v-for="post in filteredPosts" :key="post.id" class="p-4 bg-surface-container/30 border border-outline-variant rounded-xl">
             <div class="flex gap-3">
               <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
                 <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" class="w-10 h-10 rounded-full object-cover" />
@@ -385,11 +385,11 @@ async function toggleBookmark(postId: string) {
                   <NuxtLink :to="`/profile/@${post.user.username}`" class="font-bold text-white hover:underline truncate">{{ post.user.displayName }}</NuxtLink>
                   <UserBadges :badges="post.user.badges" />
                   <UserTitle :title="post.user.title" />
-                  <span class="text-slate-500 text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
+                  <span class="text-on-surface-variant text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
                 </div>
-                <p class="text-slate-200 leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
+                <p class="text-on-surface leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
                 <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" />
-                <div class="flex items-center gap-4 mt-3 text-slate-500">
+                <div class="flex items-center gap-4 mt-3 text-on-surface-variant">
                   <button @click="toggleRepost(post.id)" class="flex items-center gap-1.5 transition text-sm" :class="post.reposted ? 'text-green-400' : 'hover:text-green-400'">
                     <Icon name="lucide:repeat-2" class="w-4 h-4" /> <span>{{ post.repostCount || 0 }}</span>
                   </button>
@@ -401,10 +401,10 @@ async function toggleBookmark(postId: string) {
             </div>
           </div>
         </template>
-        <p v-else-if="!profile.locked" class="text-center text-slate-500 py-8">まだ投稿がありません</p>
+        <p v-else-if="!profile.locked" class="text-center text-on-surface-variant py-8">まだ投稿がありません</p>
 
         <div v-if="!profile.locked" ref="postSentinel" class="h-1" aria-hidden="true"></div>
-        <div v-if="!profile.locked && loadingMorePosts" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
+        <div v-if="!profile.locked && loadingMorePosts" class="text-center text-on-surface-variant py-4 text-sm">読み込み中...</div>
         <p v-else-if="!profile.locked && userPosts.length && !postHasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
       </div>
     </template>

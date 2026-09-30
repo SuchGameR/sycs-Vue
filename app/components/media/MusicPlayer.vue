@@ -82,37 +82,37 @@ const progress = computed(() => duration.value ? (current.value / duration.value
 
       <div class="min-w-0 flex-1">
         <p class="text-sm font-bold text-white truncate">{{ title || 'オーディオ' }}</p>
-        <p class="text-[11px] text-slate-400 truncate">{{ artist || '' }}</p>
+        <p class="text-[11px] text-on-surface-variant truncate">{{ artist || '' }}</p>
 
         <div class="flex items-center gap-2 mt-2">
-          <span class="text-[10px] text-slate-400 tabular-nums w-8 text-right">{{ fmt(current) }}</span>
+          <span class="text-[10px] text-on-surface-variant tabular-nums w-8 text-right">{{ fmt(current) }}</span>
           <input
             type="range" min="0" :max="duration || 0" step="0.1" :value="current"
             @input="seek"
             class="flex-1 accent-indigo-500 h-1 cursor-pointer"
             :style="{ backgroundSize: progress + '% 100%' }"
           />
-          <span class="text-[10px] text-slate-400 tabular-nums w-8">{{ fmt(duration) }}</span>
+          <span class="text-[10px] text-on-surface-variant tabular-nums w-8">{{ fmt(duration) }}</span>
         </div>
       </div>
     </div>
 
     <div class="flex items-center justify-center gap-3 mt-3">
-      <button @click="skip(-10)" class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition" title="10秒戻す">
+      <button @click="skip(-10)" class="p-1.5 rounded-lg text-on-surface hover:text-white hover:bg-white/10 transition" title="10秒戻す">
         <Icon name="lucide:rotate-ccw" class="w-4 h-4" />
       </button>
       <button @click="toggle" class="w-11 h-11 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition shadow-lg shadow-indigo-900/40">
         <Icon :name="playing ? 'lucide:pause' : 'lucide:play'" class="w-5 h-5" :class="!playing ? 'ml-0.5' : ''" />
       </button>
-      <button @click="skip(10)" class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition" title="10秒進める">
+      <button @click="skip(10)" class="p-1.5 rounded-lg text-on-surface hover:text-white hover:bg-white/10 transition" title="10秒進める">
         <Icon name="lucide:rotate-cw" class="w-4 h-4" />
       </button>
 
       <div class="flex items-center gap-1 ml-2">
-        <button @click="toggleLoop" class="p-1.5 rounded-lg transition" :class="loop ? 'text-indigo-400 bg-white/10' : 'text-slate-300 hover:text-white hover:bg-white/10'" title="リピート">
+        <button @click="toggleLoop" class="p-1.5 rounded-lg transition" :class="loop ? 'text-indigo-400 bg-white/10' : 'text-on-surface hover:text-white hover:bg-white/10'" title="リピート">
           <Icon name="lucide:repeat" class="w-4 h-4" />
         </button>
-        <Icon name="lucide:volume-2" class="w-4 h-4 text-slate-300" />
+        <Icon name="lucide:volume-2" class="w-4 h-4 text-on-surface" />
         <input type="range" min="0" max="1" step="0.05" :value="volume" @input="setVolume" class="w-16 accent-indigo-500 h-1 cursor-pointer" />
       </div>
     </div>

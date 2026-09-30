@@ -81,39 +81,39 @@ const sortOptions = [
   { key: 'latest', label: '最新' },
   { key: 'popular', label: '人気' },
 ]
-const selectCls = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500'
+const selectCls = 'w-full bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500'
 </script>
 
 <template>
   <Teleport to="body">
     <div class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/70" @click.self="emit('close')">
-      <div class="bg-surface-container border border-slate-700 rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+      <div class="bg-surface-container border border-outline rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
           <h3 class="font-bold text-white">カスタムタイムライン</h3>
-          <button @click="emit('close')" class="text-slate-500 hover:text-white transition">
+          <button @click="emit('close')" class="text-on-surface-variant hover:text-white transition">
             <Icon name="lucide:x" class="w-5 h-5" />
           </button>
         </div>
 
-        <div class="flex p-1.5 m-4 mb-2 rounded-xl bg-slate-800/60">
+        <div class="flex p-1.5 m-4 mb-2 rounded-xl bg-surface-container/60">
           <button @click="mode = 'easy'" class="flex-1 py-1.5 rounded-lg text-sm font-bold transition"
-            :class="mode === 'easy' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'">かんたん</button>
+            :class="mode === 'easy' ? 'bg-indigo-600 text-white' : 'text-on-surface-variant hover:text-white'">かんたん</button>
           <button @click="mode = 'detail'" class="flex-1 py-1.5 rounded-lg text-sm font-bold transition"
-            :class="mode === 'detail' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'">詳細</button>
+            :class="mode === 'detail' ? 'bg-indigo-600 text-white' : 'text-on-surface-variant hover:text-white'">詳細</button>
         </div>
 
         <!-- Easy -->
         <div v-if="mode === 'easy'" class="p-4 pt-2">
-          <p class="text-xs text-slate-500 mb-3">よく使う条件から作成（タブにピン留めされます）</p>
+          <p class="text-xs text-on-surface-variant mb-3">よく使う条件から作成（タブにピン留めされます）</p>
           <div class="grid grid-cols-2 gap-2">
             <button
               v-for="p in TIMELINE_PRESETS"
               :key="p.key"
               @click="createFromPreset(p)"
-              class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-800/50 border border-slate-800 hover:border-indigo-500/60 hover:bg-slate-800 transition text-left"
+              class="flex items-center gap-2.5 p-3 rounded-xl bg-surface-container/50 border border-outline-variant hover:border-indigo-500/60 hover:bg-surface-container transition text-left"
             >
               <Icon :name="p.icon" class="w-4 h-4 text-indigo-400 shrink-0" />
-              <span class="text-sm text-slate-200">{{ p.label }}</span>
+              <span class="text-sm text-on-surface">{{ p.label }}</span>
             </button>
           </div>
         </div>
@@ -121,19 +121,19 @@ const selectCls = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 p
         <!-- Detail -->
         <div v-else class="p-4 pt-2 space-y-4">
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-1.5">名前</label>
+            <label class="block text-xs font-bold text-on-surface-variant mb-1.5">名前</label>
             <input v-model="label" :class="selectCls" placeholder="マイタイムライン" maxlength="30" />
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-slate-400 mb-1.5">範囲</label>
+              <label class="block text-xs font-bold text-on-surface-variant mb-1.5">範囲</label>
               <select v-model="conditions.scope" :class="selectCls">
                 <option v-for="o in scopeOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-400 mb-1.5">並び順</label>
+              <label class="block text-xs font-bold text-on-surface-variant mb-1.5">並び順</label>
               <select v-model="conditions.sort" :class="selectCls">
                 <option v-for="o in sortOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
               </select>
@@ -141,19 +141,19 @@ const selectCls = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 p
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-1.5">メディア種別</label>
+            <label class="block text-xs font-bold text-on-surface-variant mb-1.5">メディア種別</label>
             <div class="flex flex-wrap gap-1.5">
               <button v-for="o in mediaOptions" :key="o.key" type="button"
                 @click="conditions.mediaType = o.key as any"
                 class="px-3 py-1.5 rounded-lg text-xs font-bold transition"
-                :class="conditions.mediaType === o.key ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'">
+                :class="conditions.mediaType === o.key ? 'bg-indigo-600 text-white' : 'bg-surface-container text-on-surface-variant hover:text-white'">
                 {{ o.label }}
               </button>
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-1.5">サーバー / チャンネル指定（任意）</label>
+            <label class="block text-xs font-bold text-on-surface-variant mb-1.5">サーバー / チャンネル指定（任意）</label>
             <div class="grid grid-cols-2 gap-3">
               <select v-model="conditions.serverId" :class="selectCls">
                 <option value="">すべてのサーバー</option>
@@ -166,11 +166,11 @@ const selectCls = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 p
             </div>
           </div>
 
-          <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 cursor-pointer">
+          <label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container/40 cursor-pointer">
             <input v-model="conditions.includeRelated" type="checkbox" class="w-4 h-4 rounded border-slate-600 text-indigo-600 focus:ring-indigo-500" />
             <div>
               <p class="text-sm text-white font-medium">関連コンテンツを含める</p>
-              <p class="text-xs text-slate-500">いいねした人の投稿など、似た系統の人たちを含めます</p>
+              <p class="text-xs text-on-surface-variant">いいねした人の投稿など、似た系統の人たちを含めます</p>
             </div>
           </label>
 

@@ -74,10 +74,10 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
 <template>
   <div class="max-w-2xl mx-auto pb-24 min-[681px]:pb-6 min-h-full">
-    <div class="sticky top-14 bg-surface/95 backdrop-blur z-20 border-b border-slate-800">
+    <div class="sticky top-14 bg-surface/95 backdrop-blur z-20 border-b border-outline-variant">
       <form class="p-3 flex items-center gap-2" @submit.prevent="submit">
-        <div class="flex-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 focus-within:border-indigo-500 transition">
-          <Icon name="lucide:search" class="w-4 h-4 text-slate-500 shrink-0" />
+        <div class="flex-1 flex items-center gap-2 bg-surface border border-outline rounded-xl px-3 py-2 focus-within:border-indigo-500 transition">
+          <Icon name="lucide:search" class="w-4 h-4 text-on-surface-variant shrink-0" />
           <input
             v-model="queryStr"
             type="search"
@@ -85,7 +85,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
             class="flex-1 bg-transparent text-white placeholder-slate-500 focus:outline-none text-sm"
             autofocus
           />
-          <button v-if="queryStr" type="button" class="p-0.5 text-slate-500 hover:text-white transition" @click="queryStr = ''">
+          <button v-if="queryStr" type="button" class="p-0.5 text-on-surface-variant hover:text-white transition" @click="queryStr = ''">
             <Icon name="lucide:x" class="w-4 h-4" />
           </button>
         </div>
@@ -99,7 +99,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
           v-for="t in tabs" :key="t.key"
           @click="switchTab(t.key)"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0"
-          :class="tab === t.key ? 'bg-indigo-600/20 text-indigo-400' : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50'"
+          :class="tab === t.key ? 'bg-indigo-600/20 text-indigo-400' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'"
         >
           <Icon :name="t.icon" class="w-3.5 h-3.5" /> {{ t.label }}
         </button>
@@ -107,28 +107,28 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
     </div>
 
     <div v-if="error" class="m-3 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">{{ error }}</div>
-    <div v-if="loading" class="text-center text-slate-500 py-10">検索中...</div>
+    <div v-if="loading" class="text-center text-on-surface-variant py-10">検索中...</div>
 
-    <div v-else-if="searched" class="divide-y divide-slate-800">
+    <div v-else-if="searched" class="divide-y divide-outline-variant">
       <!-- Posts -->
       <template v-if="tab !== 'servers'">
-        <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">投稿</div>
+        <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">投稿</div>
         <button v-for="p in results.posts" :key="p.id" @click="openMedia(p)"
-          class="w-full text-left px-3 py-3 flex gap-3 hover:bg-slate-800/30 transition">
+          class="w-full text-left px-3 py-3 flex gap-3 hover:bg-surface-container/30 transition">
           <img v-if="avatarSrc(p.user?.avatarUrl)" :src="avatarSrc(p.user.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
           <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">{{ p.user?.displayName?.charAt(0) || '?' }}</div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
               <span class="font-bold text-white text-sm truncate">{{ p.user?.displayName || '不明' }}</span>
-              <span class="text-slate-500 text-xs shrink-0">@{{ p.user?.username }} · {{ timeAgo(p.createdAt) }}</span>
+              <span class="text-on-surface-variant text-xs shrink-0">@{{ p.user?.username }} · {{ timeAgo(p.createdAt) }}</span>
             </div>
-            <p class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-3"
+            <p class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-3"
               v-html="renderRichText(p.content, { custom: customEmojiMap })" />
             <div v-if="p.attachments?.length" class="flex gap-1 mt-1.5">
               <img v-for="a in p.attachments.filter((x: any) => String(x.mime || '').startsWith('image/')).slice(0, 3)" :key="a.id"
                 :src="a.url" class="w-12 h-12 rounded-lg object-cover" />
               <span v-if="p.attachments.some((x: any) => !String(x.mime || '').startsWith('image/'))"
-                class="flex items-center gap-1 text-[11px] text-slate-500 px-2 rounded-lg bg-slate-800/60">
+                class="flex items-center gap-1 text-[11px] text-on-surface-variant px-2 rounded-lg bg-surface-container/60">
                 <Icon name="lucide:paperclip" class="w-3 h-3" />{{ p.attachments.filter((x: any) => !String(x.mime || '').startsWith('image/')).length }}
               </span>
             </div>
@@ -139,14 +139,14 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
       <!-- Users -->
       <template v-if="tab !== 'posts'">
-        <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-t border-slate-800">ユーザー</div>
+        <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-t border-outline-variant">ユーザー</div>
         <NuxtLink v-for="u in results.users" :key="u.id" :to="`/profile/@${u.username}`"
-          class="w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-800/30 transition">
+          class="w-full flex items-center gap-3 px-3 py-3 hover:bg-surface-container/30 transition">
           <img v-if="avatarSrc(u.avatarUrl)" :src="avatarSrc(u.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
           <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">{{ u.displayName?.charAt(0) || '?' }}</div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-bold text-white truncate flex items-center gap-1">{{ u.displayName }}<UserBadges :badges="u.badges" /><UserTitle :title="u.title" /></p>
-            <p class="text-xs text-slate-500 truncate">@{{ u.username }}<span v-if="u.bio" class="text-slate-600"> · {{ u.bio }}</span></p>
+            <p class="text-xs text-on-surface-variant truncate">@{{ u.username }}<span v-if="u.bio" class="text-slate-600"> · {{ u.bio }}</span></p>
           </div>
           <Icon name="lucide:chevron-right" class="w-4 h-4 text-slate-600 shrink-0" />
         </NuxtLink>
@@ -155,16 +155,16 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
       <!-- Servers -->
       <template v-if="tab === 'servers' || tab === 'all'">
-        <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-t border-slate-800">サーバー</div>
+        <div v-if="tab === 'all'" class="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-t border-outline-variant">サーバー</div>
         <NuxtLink v-for="s in results.servers" :key="s.id" :to="`/servers/${s.id}`"
-          class="w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-800/30 transition">
+          class="w-full flex items-center gap-3 px-3 py-3 hover:bg-surface-container/30 transition">
           <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0 overflow-hidden">
             <img v-if="s.icon_url || s.iconUrl" :src="s.icon_url || s.iconUrl" class="w-full h-full object-cover" />
             <template v-else>{{ s.name?.charAt(0) || '?' }}</template>
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-bold text-white truncate">{{ s.name }}</p>
-            <p class="text-xs text-slate-500 line-clamp-1">{{ s.description || `メンバー ${s.member_count ?? 0} 人` }}</p>
+            <p class="text-xs text-on-surface-variant line-clamp-1">{{ s.description || `メンバー ${s.member_count ?? 0} 人` }}</p>
           </div>
           <Icon name="lucide:chevron-right" class="w-4 h-4 text-slate-600 shrink-0" />
         </NuxtLink>
@@ -177,7 +177,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
     <div v-else class="px-4 py-10 text-center">
       <Icon name="lucide:search" class="w-10 h-10 mx-auto text-slate-700 mb-3" />
-      <p class="text-slate-500 text-sm">投稿・ユーザー・サーバーを横断検索</p>
+      <p class="text-on-surface-variant text-sm">投稿・ユーザー・サーバーを横断検索</p>
       <p class="text-slate-700 text-xs mt-1">例: ゲーム、@ユーザー名、サーバー名</p>
     </div>
   </div>

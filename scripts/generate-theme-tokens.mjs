@@ -119,25 +119,21 @@ const TAILWIND = {
 }
 
 /**
- * Classic ライトは「面」と「枠線」で 别テーブルを使う。
- * bg-slate-800 (207 箇所) = 白いカード
- * border-slate-800 (94 箇所) = 淡い仕切り
+ * Classic の shade ランプは一切 invert しない。
+ * shade 番号を反転させない理由:
+ *   反転すると「bg-slate-200 がライトで暗面」になり、
+ *   クラス名から前景/背景の明暗が判定できなくなる。
+ * ライトへの切替は --md-sys-color-* ロール側だけで表現する。
  */
-const CLASSIC_LIGHT_SURFACE = {
-  slate: { 50: '#020617', 100: '#0f172a', 200: '#1e293b', 300: '#334155', 400: '#475569', 500: '#64748b', 600: '#94a3b8', 700: '#e2e8f0', 800: '#ffffff', 900: '#f1f5f9', 950: '#ffffff' },
-  zinc: { 50: '#09090b', 100: '#18181b', 200: '#27272a', 300: '#3f3f46', 400: '#52525b', 500: '#71717a', 600: '#a1a1aa', 700: '#e4e4e7', 800: '#ffffff', 900: '#f4f4f5', 950: '#ffffff' },
-}
-
-const CLASSIC_LIGHT_BORDER = {
-  slate: { 50: '#e2e8f0', 100: '#e2e8f0', 200: '#e8edf4', 300: '#e2e8f0', 400: '#cbd5e1', 500: '#94a3b8', 600: '#cbd5e1', 700: '#cbd5e1', 800: '#e2e8f0', 900: '#e8edf4', 950: '#dbe2ec' },
-  zinc: { 50: '#e4e4e7', 100: '#e4e4e7', 200: '#ececee', 300: '#e4e4e7', 400: '#d4d4d8', 500: '#a1a1aa', 600: '#d4d4d8', 700: '#d4d4d8', 800: '#e4e4e7', 900: '#ececee', 950: '#d9d9dd' },
-}
 
 /** Classic のアプリ最背面。従来ハードコードされていた値をそのまま引き継ぐ。 */
 const CLASSIC_APP_BG = { dark: '#0b0f19', light: '#f1f5f9' }
 
-/** ライトでは淡いアクセント色を 1 段以上濃くする（白背景での可読性確保） */
-const LIGHT_ACCENT_SHIFT = { 300: 500, 400: 600, 500: 700 }
+/** Classic ライトの境界線。Tailwind の淡い neutral を使う。 */
+const CLASSIC_LIGHT_BORDER = {
+  slate: { 50: '#e2e8f0', 100: '#e2e8f0', 200: '#e8edf4', 300: '#e2e8f0', 400: '#cbd5e1', 500: '#94a3b8', 600: '#cbd5e1', 700: '#cbd5e1', 800: '#e2e8f0', 900: '#e8edf4', 950: '#dbe2ec' },
+  zinc: { 50: '#e4e4e7', 100: '#e4e4e7', 200: '#ececee', 300: '#e4e4e7', 400: '#d4d4d8', 500: '#a1a1aa', 600: '#d4d4d8', 700: '#d4d4d8', 800: '#e4e4e7', 900: '#ececee', 950: '#d9d9dd' },
+}
 
 const ACCENT_FAMILIES = ['indigo', 'red', 'emerald', 'green', 'amber', 'orange', 'sky', 'cyan', 'purple', 'violet', 'fuchsia', 'pink', 'rose']
 const NEUTRAL_FAMILIES = ['slate', 'zinc']
@@ -195,22 +191,14 @@ function buildClassic(scheme) {
   const isDark = scheme === 'dark'
   const put = (k, v) => { t[k] = v }
 
+  // shade 番号の意味を保つため、ランプは一切 invert しない。
   for (const family of ALL_FAMILIES) {
-    if (isDark) {
-      for (const s of SHADES) put(`--t-${family}-${s}`, fromHex(TAILWIND[family][s]))
-    } else if (NEUTRAL_FAMILIES.includes(family)) {
-      for (const s of SHADES) put(`--t-${family}-${s}`, fromHex(CLASSIC_LIGHT_SURFACE[family][s]))
-    } else {
-      // アクセント: まず元の値を入れ、300/400/500 を濃い版に上書き
-      for (const s of SHADES) put(`--t-${family}-${s}`, fromHex(TAILWIND[family][s]))
-      for (const [from, to] of Object.entries(LIGHT_ACCENT_SHIFT)) {
-        put(`--t-${family}-${from}`, fromHex(TAILWIND[family][to]))
-      }
-    }
+    for (const s of SHADES) put(`--t-${family}-${s}`, fromHex(TAILWIND[family][s]))
   }
   put('--t-white', fromHex(TAILWIND.white))
   put('--t-black', fromHex(TAILWIND.black))
 
+  // 枠線だけはライトで淡い仕切りにする（Tailwind 本来の slate-800 は濃すぎる）
   for (const family of NEUTRAL_FAMILIES) {
     for (const s of SHADES) {
       put(`--t-b-${family}-${s}`, isDark ? fromHex(TAILWIND[family][s]) : fromHex(CLASSIC_LIGHT_BORDER[family][s]))
@@ -349,28 +337,34 @@ function applySystemRoles(t, style, isDark, role, m3) {
     R('on-error', T('--t-white'))
     R('error-container', T('--t-red-900'))
     R('on-error-container', T('--t-red-200'))
+
+    // Classic の面。ダークは Tailwind の slate をそのまま、ライトは淡い面に差し替える。
+    const S = isDark
+      ? { dim: '#020617', lowest: '#020617', low: '#0f172a', surface: '#0b0f19', container: '#1e293b', high: '#334155', highest: '#334155', bright: '#1e293b', on: '#e2e8f0', onVariant: '#94a3b8', outline: '#64748b', outlineVariant: '#1e293b' }
+      : { dim: '#e2e8f0', lowest: '#ffffff', low: '#f8fafc', surface: '#f1f5f9', container: '#ffffff', high: '#e2e8f0', highest: '#cbd5e1', bright: '#ffffff', on: '#1e293b', onVariant: '#475569', outline: '#94a3b8', outlineVariant: '#e2e8f0' }
+
     R('surface', fromHex(CLASSIC_APP_BG[isDark ? 'dark' : 'light']))
-    R('on-surface', T('--t-slate-200'))
-    R('surface-variant', T('--t-slate-800'))
-    R('on-surface-variant', T('--t-slate-400'))
-    R('surface-dim', T('--t-slate-950'))
-    R('surface-bright', T('--t-slate-800'))
-    R('surface-container-lowest', T(isDark ? '--t-slate-950' : '--t-slate-800'))
-    R('surface-container-low', T(isDark ? '--t-slate-900' : '--t-slate-800'))
-    R('surface-container', T('--t-slate-800'))
-    R('surface-container-high', T('--t-slate-700'))
-    R('surface-container-highest', T(isDark ? '--t-slate-700' : '--t-slate-700'))
-    R('outline', T('--t-slate-500'))
-    R('outline-variant', T('--t-b-slate-800'))
-    R('inverse-surface', T('--t-slate-200'))
-    R('inverse-on-surface', T('--t-slate-900'))
-    R('inverse-primary', T('--t-indigo-400'))
+    R('on-surface', fromHex(S.on))
+    R('surface-variant', fromHex(S.container))
+    R('on-surface-variant', fromHex(S.onVariant))
+    R('surface-dim', fromHex(S.dim))
+    R('surface-bright', fromHex(S.bright))
+    R('surface-container-lowest', fromHex(S.lowest))
+    R('surface-container-low', fromHex(S.low))
+    R('surface-container', fromHex(S.container))
+    R('surface-container-high', fromHex(S.high))
+    R('surface-container-highest', fromHex(S.highest))
+    R('outline', fromHex(S.outline))
+    R('outline-variant', fromHex(S.outlineVariant))
+    R('inverse-surface', fromHex(isDark ? '#e2e8f0' : '#0b0f19'))
+    R('inverse-on-surface', fromHex(isDark ? '#0b0f19' : '#e2e8f0'))
+    R('inverse-primary', fromHex(isDark ? '#a5b4fc' : '#312e81'))
     R('scrim', fromHex('#000000'))
     R('shadow', fromHex('#000000'))
     R('surface-tint', T('--t-indigo-600'))
-    R('primary-dim', T('--t-indigo-700'))
+    R('primary-dim', fromHex(isDark ? '#3730a3' : '#312e81'))
     R('background', fromHex(CLASSIC_APP_BG[isDark ? 'dark' : 'light']))
-    R('on-background', T('--t-slate-200'))
+    R('on-background', fromHex(S.on))
 
     R('success', T('--t-emerald-500'))
     R('on-success', T('--t-white'))

@@ -38,23 +38,23 @@ export interface SeedDefinition {
 export const THEME_STYLES: ThemeDefinition[] = [
   {
     id: 'classic',
-    label: 'Classic',
-    description: '従来の SYCS デザイン',
+    label: '従来のテーマ',
+    description: '今の SYCS のデザイン（ダーク / ライト）',
     icon: 'lucide:palette',
     seeded: false,
   },
   {
-    id: 'material3',
-    label: 'Material 3',
-    description: '本家の HCT トーンとロール',
-    icon: 'lucide:shapes',
+    id: 'liquid-glass',
+    label: 'Liquid Glass',
+    description: 'Apple 風の透明ガラスとスペキュラ',
+    icon: 'lucide:droplets',
     seeded: true,
   },
   {
-    id: 'liquid-glass',
-    label: 'Liquid Glass',
-    description: '透過とスペキュラのガラス表現',
-    icon: 'lucide:droplets',
+    id: 'material3',
+    label: 'Material 3',
+    description: 'Google 風の配色と波打つアニメーション',
+    icon: 'lucide:shapes',
     seeded: true,
   },
 ]

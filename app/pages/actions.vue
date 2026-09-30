@@ -159,7 +159,7 @@ function timeAgo(date: string) {
     <button
       @click="selectTab('notifications')"
       class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition"
-      :class="activeTab === 'notifications' ? 'bg-indigo-600/20 border-indigo-500/50 text-white' : 'bg-slate-800/30 border-slate-800 text-slate-400 hover:text-slate-200'"
+      :class="activeTab === 'notifications' ? 'bg-indigo-600/20 border-indigo-500/50 text-white' : 'bg-surface-container/30 border-outline-variant text-on-surface-variant hover:text-on-surface'"
     >
       <Icon name="lucide:bell" class="w-5 h-5" />
       <span class="font-medium">通知</span>
@@ -172,23 +172,23 @@ function timeAgo(date: string) {
         :key="cat.key"
         @click="selectTab(cat.key)"
         class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition border"
-        :class="activeTab === cat.key ? 'bg-slate-800 border-slate-600 text-white' : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:text-slate-300'"
+        :class="activeTab === cat.key ? 'bg-surface-container border-slate-600 text-white' : 'bg-surface/40 border-outline-variant text-on-surface-variant hover:text-on-surface'"
       >
         <Icon :name="cat.icon" class="w-4 h-4 shrink-0" />
         <span class="truncate">{{ cat.label }}</span>
       </button>
     </div>
 
-    <div v-if="loading" class="text-center text-slate-500 py-8">読み込み中...</div>
+    <div v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
     <template v-else>
       <!-- Notifications list -->
       <div v-if="activeTab === 'notifications'">
-        <div v-if="!items.length" class="text-center text-slate-500 py-8">通知はまだありません</div>
-        <div v-else class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/20">
+        <div v-if="!items.length" class="text-center text-on-surface-variant py-8">通知はまだありません</div>
+        <div v-else class="rounded-xl border border-outline-variant overflow-hidden bg-surface/20">
           <div
             v-for="n in items"
             :key="n.id"
-            class="w-full flex items-start gap-3 px-4 py-3 border-b border-slate-800 last:border-b-0 text-left cursor-pointer hover:bg-slate-800/30 transition"
+            class="w-full flex items-start gap-3 px-4 py-3 border-b border-outline-variant last:border-b-0 text-left cursor-pointer hover:bg-surface-container/30 transition"
             @click="openNotification(n)"
           >
             <NuxtLink
@@ -202,18 +202,18 @@ function timeAgo(date: string) {
               <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                 {{ n.actor?.displayName?.charAt(0) || '?' }}
               </div>
-              <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
-                <Icon :name="notifMeta[n.type]?.icon || 'lucide:bell'" class="w-3 h-3" :class="notifMeta[n.type]?.color || 'text-slate-400'" />
+              <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-surface border border-outline-variant flex items-center justify-center">
+                <Icon :name="notifMeta[n.type]?.icon || 'lucide:bell'" class="w-3 h-3" :class="notifMeta[n.type]?.color || 'text-on-surface-variant'" />
               </span>
             </NuxtLink>
             <div v-else class="relative shrink-0">
               <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">?</div>
-              <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
-                <Icon :name="notifMeta[n.type]?.icon || 'lucide:bell'" class="w-3 h-3" :class="notifMeta[n.type]?.color || 'text-slate-400'" />
+              <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-surface border border-outline-variant flex items-center justify-center">
+                <Icon :name="notifMeta[n.type]?.icon || 'lucide:bell'" class="w-3 h-3" :class="notifMeta[n.type]?.color || 'text-on-surface-variant'" />
               </span>
             </div>
             <div class="min-w-0 flex-1">
-              <p class="text-sm text-slate-300">
+              <p class="text-sm text-on-surface">
                 <NuxtLink
                   v-if="n.actor"
                   :to="`/profile/@${n.actor.username}`"
@@ -224,10 +224,10 @@ function timeAgo(date: string) {
                 {{ notifMeta[n.type]?.text || 'がアクティビティをしました' }}
                 <EmojiIcon v-if="n.type === 'reaction' && n.emoji" :emoji="n.emoji" size="sm" class="inline-block align-text-bottom" />
               </p>
-              <p v-if="n.type === 'comment' && n.content" class="text-xs text-slate-500 truncate mt-0.5">{{ n.content }}</p>
+              <p v-if="n.type === 'comment' && n.content" class="text-xs text-on-surface-variant truncate mt-0.5">{{ n.content }}</p>
               <button
                 v-else-if="n.post?.content"
-                class="text-xs text-slate-400 hover:text-indigo-300 transition truncate mt-0.5 block max-w-full text-left"
+                class="text-xs text-on-surface-variant hover:text-indigo-300 transition truncate mt-0.5 block max-w-full text-left"
                 title="投稿を開く"
                 @click.stop="openPost(n.post)"
               >{{ n.post.content }}</button>
@@ -239,10 +239,10 @@ function timeAgo(date: string) {
 
       <!-- Category post lists -->
       <div v-else>
-        <div v-if="!items.length" class="text-center text-slate-500 py-8">
+        <div v-if="!items.length" class="text-center text-on-surface-variant py-8">
           {{ { reactions: 'リアクションした投稿がありません', bookmarks: 'ブックマークがありません', reposts: 'リポストした投稿がありません', history: '閲覧履歴がありません' }[activeTab] }}
         </div>
-        <div v-else class="rounded-xl border border-slate-800 overflow-hidden bg-slate-900/20">
+        <div v-else class="rounded-xl border border-outline-variant overflow-hidden bg-surface/20">
           <PostItem
             v-for="post in items"
             :key="post.id"
@@ -256,7 +256,7 @@ function timeAgo(date: string) {
       </div>
 
       <div ref="sentinel" class="h-1" aria-hidden="true"></div>
-      <div v-if="loadingMore" class="text-center text-slate-500 py-4 text-sm">読み込み中...</div>
+      <div v-if="loadingMore" class="text-center text-on-surface-variant py-4 text-sm">読み込み中...</div>
       <p v-else-if="items.length && !hasMore" class="text-center text-slate-600 py-4 text-xs">すべて表示しました</p>
     </template>
 
@@ -267,23 +267,23 @@ function timeAgo(date: string) {
           <Icon name="lucide:list-video" class="w-5 h-5 text-indigo-400" />
           プレイリスト
         </h2>
-        <button @click="fetchPlaylists(true)" class="text-xs text-slate-500 hover:text-slate-300 transition">更新</button>
+        <button @click="fetchPlaylists(true)" class="text-xs text-on-surface-variant hover:text-on-surface transition">更新</button>
       </div>
-      <p class="text-xs text-slate-500 mb-3">動画や投稿をまとめて整理できます。</p>
+      <p class="text-xs text-on-surface-variant mb-3">動画や投稿をまとめて整理できます。</p>
       <div class="grid grid-cols-2 min-[681px]:grid-cols-3 gap-3">
         <NuxtLink
           v-for="list in playlists"
           :key="list.id"
           :to="`/playlists/${list.id}`"
-          class="group relative rounded-xl overflow-hidden border border-slate-800 bg-slate-800/40 hover:border-indigo-500/60 transition"
+          class="group relative rounded-xl overflow-hidden border border-outline-variant bg-surface-container/40 hover:border-indigo-500/60 transition"
         >
-          <div class="aspect-video bg-slate-800 flex items-center justify-center">
+          <div class="aspect-video bg-surface-container flex items-center justify-center">
             <img v-if="list.coverUrl" :src="list.coverUrl" class="w-full h-full object-cover" />
             <Icon v-else name="lucide:list-video" class="w-7 h-7 text-slate-600" />
           </div>
           <div class="p-2">
             <p class="text-sm text-white truncate">{{ list.name }}</p>
-            <p class="text-[11px] text-slate-500">{{ list.count }} 件</p>
+            <p class="text-[11px] text-on-surface-variant">{{ list.count }} 件</p>
           </div>
         </NuxtLink>
       </div>

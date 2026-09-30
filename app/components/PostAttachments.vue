@@ -186,7 +186,7 @@ onUnmounted(() => {
   <div ref="el" v-if="attachments.length" class="mt-2 grid gap-1.5"
     :class="gridClass(attachments.length)">
     <div v-for="(att, i) in attachments" :key="att.id"
-      class="relative group rounded-lg overflow-hidden bg-slate-900/50">
+      class="relative group rounded-lg overflow-hidden bg-surface/50">
       <template v-if="isImage(att.mime)">
         <img :src="displayUrl(att)" loading="lazy"
           :class="['w-full object-cover cursor-pointer transition duration-300', imageClass(attachments.length)]"
@@ -218,7 +218,7 @@ onUnmounted(() => {
           <audio :src="att.url" controls class="flex-1 h-12" />
           <button v-if="props.interactive" type="button"
             @click.stop="emit('open', i)"
-            class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition shrink-0" title="詳細を開く">
+            class="p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition shrink-0" title="詳細を開く">
             <Icon name="lucide:maximize-2" class="w-4 h-4" />
           </button>
         </div>
@@ -228,7 +228,7 @@ onUnmounted(() => {
         <div class="relative">
           <div class="h-32 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-fuchsia-900/40 to-slate-900">
             <Icon name="lucide:box" class="w-8 h-8 text-fuchsia-400" />
-            <span class="text-[11px] text-slate-400">3Dモデル</span>
+            <span class="text-[11px] text-on-surface-variant">3Dモデル</span>
           </div>
           <button v-if="props.interactive" type="button"
             @click.stop="emit('open', i)"

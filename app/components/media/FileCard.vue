@@ -25,7 +25,7 @@ const meta = computed(() => {
   if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(e)) return { icon: 'lucide:music', color: 'text-pink-400', label: 'オーディオ' }
   if (['mp4', 'webm', 'mov', 'mkv'].includes(e)) return { icon: 'lucide:video', color: 'text-indigo-400', label: '動画' }
   if (['js', 'ts', 'json', 'html', 'css', 'py', 'rs', 'go'].includes(e)) return { icon: 'lucide:file-code', color: 'text-cyan-400', label: 'コード' }
-  return { icon: 'lucide:file', color: 'text-slate-400', label: e ? e.toUpperCase() : 'ファイル' }
+  return { icon: 'lucide:file', color: 'text-on-surface-variant', label: e ? e.toUpperCase() : 'ファイル' }
 })
 
 const sizeLabel = computed(() => {
@@ -42,20 +42,20 @@ const downloadable = computed(() => props.url.startsWith('/uploads/') || props.u
 </script>
 
 <template>
-  <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition">
-    <div class="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
+  <div class="flex items-center gap-3 p-3 rounded-xl bg-surface-container/50 border border-outline hover:border-slate-600 transition">
+    <div class="w-11 h-11 rounded-xl bg-surface flex items-center justify-center shrink-0">
       <Icon :name="meta.icon" class="w-5 h-5" :class="meta.color" />
     </div>
     <div class="min-w-0 flex-1">
       <p class="text-sm text-white font-medium truncate" :title="displayName">{{ displayName }}</p>
-      <p class="text-[11px] text-slate-500">
+      <p class="text-[11px] text-on-surface-variant">
         {{ meta.label }}<template v-if="sizeLabel"> · {{ sizeLabel }}</template>
       </p>
     </div>
-    <a v-if="downloadable" :href="url" :download="displayName" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition shrink-0" title="ダウンロード">
+    <a v-if="downloadable" :href="url" :download="displayName" class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container-high transition shrink-0" title="ダウンロード">
       <Icon name="lucide:download" class="w-4 h-4" />
     </a>
-    <a v-if="downloadable" :href="url" target="_blank" rel="noopener noreferrer" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition shrink-0" title="新しいタブで開く">
+    <a v-if="downloadable" :href="url" target="_blank" rel="noopener noreferrer" class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container-high transition shrink-0" title="新しいタブで開く">
       <Icon name="lucide:external-link" class="w-4 h-4" />
     </a>
   </div>

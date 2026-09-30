@@ -44,24 +44,24 @@ onMounted(load)
 
 <template>
   <div class="min-h-full flex items-center justify-center p-4">
-    <div v-if="loading" class="text-slate-500">読み込み中...</div>
+    <div v-if="loading" class="text-on-surface-variant">読み込み中...</div>
 
-    <div v-else-if="error && !data" class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-8 text-center">
+    <div v-else-if="error && !data" class="bg-surface border border-outline-variant rounded-2xl max-w-md w-full p-8 text-center">
       <Icon name="lucide:link-off" class="w-10 h-10 text-slate-600 mx-auto mb-3" />
       <h1 class="text-lg font-bold text-white">招待が無効です</h1>
-      <p class="text-sm text-slate-500 mt-1">{{ error }}</p>
+      <p class="text-sm text-on-surface-variant mt-1">{{ error }}</p>
       <NuxtLink to="/servers" class="mt-6 inline-block px-5 py-2 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition">
         サーバー一覧へ
       </NuxtLink>
     </div>
 
-    <div v-else-if="data" class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-8 text-center">
+    <div v-else-if="data" class="bg-surface border border-outline-variant rounded-2xl max-w-md w-full p-8 text-center">
       <div class="w-20 h-20 rounded-2xl bg-indigo-600 flex items-center justify-center text-3xl font-bold text-white mx-auto overflow-hidden">
         <img v-if="data.server.iconUrl" :src="data.server.iconUrl" class="w-full h-full object-cover" />
         <template v-else>{{ data.server.name?.charAt(0) }}</template>
       </div>
       <h1 class="text-xl font-bold text-white mt-4">{{ data.server.name }}</h1>
-      <p class="text-sm text-slate-500 mt-1">{{ data.server.description || 'このサーバーに参加しませんか？' }}</p>
+      <p class="text-sm text-on-surface-variant mt-1">{{ data.server.description || 'このサーバーに参加しませんか？' }}</p>
       <p class="text-xs text-slate-600 mt-2 flex items-center justify-center gap-1">
         <Icon name="lucide:users" class="w-3.5 h-3.5" />
         {{ data.server.memberCount }} 人のメンバーがいます
