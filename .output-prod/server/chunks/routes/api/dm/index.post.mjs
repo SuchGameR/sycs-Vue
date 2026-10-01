@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, e as db, o as users, a3 as hasBlockEitherWay, W as dmChannels, V as dmChannelMembers } from '../../../_/nitro.mjs';
+import { d as defineEventHandler, r as requireAuth, j as readBody, h as createError, a as db, u as users, Z as hasBlockEitherWay, Q as dmChannels, P as dmChannelMembers } from '../../../nitro/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
 const index_post = defineEventHandler(async (event) => {
   const user = await requireAuth(event);

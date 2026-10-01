@@ -1,0 +1,1 @@
+import{$ as e,D as t,F as n,O as r,Zt as i}from"./CfxEBaZd.js";var a={key:0,class:`px-1.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-[10px] font-bold text-indigo-300 shrink-0 align-middle`},o=Object.assign(n({__name:`UserTitle`,props:{title:{}},setup(n){return(o,s)=>n.title?(e(),r(`span`,a,i(n.title),1)):t(``,!0)}}),{__name:`UserTitle`});export{o as t};

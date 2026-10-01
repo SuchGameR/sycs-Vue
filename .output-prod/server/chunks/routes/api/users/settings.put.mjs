@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, q as readBody, e as db, o as users } from '../../../_/nitro.mjs';
+import { d as defineEventHandler, r as requireAuth, j as readBody, a as db, u as users } from '../../../nitro/nitro.mjs';
 import { eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,21 +12,40 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
+const THEME_STYLES = ["classic", "material3", "liquid-glass"];
+const THEME_SCHEMES = ["light", "dark", "system"];
+function normalizeTheme(merged) {
+  var _a, _b;
+  if (!THEME_STYLES.includes(merged.themeStyle)) delete merged.themeStyle;
+  if (!THEME_SCHEMES.includes(merged.themeScheme)) delete merged.themeScheme;
+  if (typeof merged.themeSeed !== "string" || merged.themeSeed.length > 32) {
+    delete merged.themeSeed;
+  }
+  if (merged.theme === "light" || merged.theme === "dark") {
+    if (!merged.themeScheme) merged.themeScheme = merged.theme;
+  }
+  delete merged.theme;
+  if (THEME_STYLES.includes(merged.themeStyle) || merged.themeScheme) {
+    (_a = merged.themeStyle) != null ? _a : merged.themeStyle = "classic";
+    (_b = merged.themeScheme) != null ? _b : merged.themeScheme = "dark";
+  }
+  return merged;
+}
 const settings_put = defineEventHandler(async (event) => {
   const user = await requireAuth(event);
   const body = await readBody(event);
   const existing = JSON.parse(user.settings || "{}");
-  const merged = { ...existing, ...body };
+  const merged = normalizeTheme({ ...existing, ...body });
   await db.update(users).set({ settings: JSON.stringify(merged) }).where(eq(users.id, user.id));
   return { settings: merged };
 });

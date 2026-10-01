@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, e as db, V as dmChannelMembers, o as users, W as dmChannels, Y as pickPublicSummary } from '../../../_/nitro.mjs';
+import { d as defineEventHandler, r as requireAuth, a as db, P as dmChannelMembers, u as users, Q as dmChannels, S as pickPublicSummary } from '../../../nitro/nitro.mjs';
 import { eq, inArray, sql } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
 const index_get = defineEventHandler(async (event) => {
   const user = await requireAuth(event);
@@ -43,7 +43,7 @@ const index_get = defineEventHandler(async (event) => {
   const lastRows = await db.execute(sql`
     SELECT DISTINCT ON (channel_id) channel_id, id, sender_id, content, created_at, edited
     FROM dm_messages
-    WHERE channel_id IN (${sql.join(channelIds.map((id) => sql`${id}`), ",")})
+    WHERE channel_id IN (${sql.join(channelIds.map((id) => sql.param(id)), sql.raw(","))})
     ORDER BY channel_id, created_at DESC
   `);
   const lastMessageMap = /* @__PURE__ */ new Map();

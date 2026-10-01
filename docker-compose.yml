@@ -4,12 +4,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: sycs-nuxt-app
-    command: sh -c "bun run dev & ([ -d .output-prod ] && PORT=3001 NITRO_PORT=3001 node .output-prod/server/index.mjs > /tmp/prod.log 2>&1); tail -f /dev/null"
+    command: sh -c "PORT=3000 NITRO_PORT=3000 node .output-prod/server/index.mjs"
     ports:
       - "3000:3000"
       - "3001:3001"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
       - DATABASE_URL=postgres://sycs:sycs_password@db:5432/sycs

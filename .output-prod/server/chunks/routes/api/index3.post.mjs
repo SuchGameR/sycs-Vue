@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, as as isServerMember, e as db, au as serverChannels, f as posts, a9 as urlToFilePath, av as saveFileWithWatermark, ao as postAttachments, ar as emit } from '../../_/nitro.mjs';
+import { d as defineEventHandler, r as requireAuth, j as readBody, h as createError, au as isServerMember, a as db, av as serverChannels, b as posts, aw as syncPostHashtags, a3 as urlToFilePath, ax as saveFileWithWatermark, ao as postAttachments, at as emit } from '../../nitro/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { extname } from 'path';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
 const IMAGE_EXTENSIONS = [".png", ".jpeg", ".jpg", ".gif", ".webp"];
 const index_post = defineEventHandler(async (event) => {
@@ -56,6 +56,11 @@ const index_post = defineEventHandler(async (event) => {
     serverId,
     channelId
   }).returning();
+  try {
+    await syncPostHashtags(post.id, post.content);
+  } catch (e) {
+    console.warn("[hashtags] Failed to index post", post.id, ":", (e == null ? void 0 : e.message) || e);
+  }
   const values = [];
   if ((_c = body.attachments) == null ? void 0 : _c.length) {
     for (const [i, a] of body.attachments.entries()) {

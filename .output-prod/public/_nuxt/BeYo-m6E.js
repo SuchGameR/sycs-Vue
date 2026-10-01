@@ -1,0 +1,1 @@
+import{St as e,xt as t}from"./CfxEBaZd.js";var n=e(!1);function r(){return{compact:t(n),setCompact(e){n.value=e}}}export{r as t};

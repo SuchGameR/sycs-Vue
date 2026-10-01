@@ -1,0 +1,1 @@
+import{$ as e,F as t,O as n}from"./CfxEBaZd.js";import{u as r}from"./DImwaFar.js";import{t as i}from"./CNs_Ozdc2.js";var a={class:`text-center text-on-surface-variant py-12`},o=t({__name:`notifications`,setup(t){return i({middleware:[function(){return r(`/actions`,{redirectCode:302})}]}),(t,r)=>(e(),n(`div`,a,`通知を移動しました…`))}});export{o as default};

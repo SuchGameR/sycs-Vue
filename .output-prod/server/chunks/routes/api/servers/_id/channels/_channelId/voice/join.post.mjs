@@ -1,4 +1,4 @@
-import { c as defineEventHandler, n as getRouterParam, ay as requireServerMember, e as db, au as serverChannels, m as createError, a4 as joinRoom } from '../../../../../../../_/nitro.mjs';
+import { d as defineEventHandler, i as getRouterParam, aA as requireServerMember, a as db, av as serverChannels, h as createError, j as readBody, _ as joinRoom } from '../../../../../../../nitro/nitro.mjs';
 import { and, eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
 const join_post = defineEventHandler(async (event) => {
   const serverId = getRouterParam(event, "id");
@@ -34,12 +34,14 @@ const join_post = defineEventHandler(async (event) => {
   });
   if (!channel) throw createError({ statusCode: 404, message: "\u30C1\u30E3\u30F3\u30CD\u30EB\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093" });
   if (channel.type !== "voice") throw createError({ statusCode: 400, message: "\u3053\u306E\u30C1\u30E3\u30F3\u30CD\u30EB\u306F\u97F3\u58F0\u30C1\u30E3\u30F3\u30CD\u30EB\u3067\u306F\u3042\u308A\u307E\u305B\u3093" });
+  const body = await readBody(event).catch(() => ({}));
+  const sessionId = typeof (body == null ? void 0 : body.sessionId) === "string" ? body.sessionId : void 0;
   const existing = joinRoom(`server:${serverId}:${channelId}`, {
     userId: ctx.user.id,
     username: ctx.user.username,
     displayName: ctx.user.displayName,
     avatarUrl: ctx.user.avatarUrl
-  });
+  }, sessionId);
   return { roomKey: `server:${serverId}:${channelId}`, members: existing };
 });
 

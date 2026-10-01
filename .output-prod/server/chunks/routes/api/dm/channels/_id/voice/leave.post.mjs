@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, n as getRouterParam, e as db, V as dmChannelMembers, m as createError, a5 as leaveRoom } from '../../../../../../_/nitro.mjs';
+import { d as defineEventHandler, r as requireAuth, i as getRouterParam, a as db, P as dmChannelMembers, h as createError, j as readBody, $ as leaveRoom } from '../../../../../../nitro/nitro.mjs';
 import { and, eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
 const leave_post = defineEventHandler(async (event) => {
   const user = await requireAuth(event);
@@ -32,7 +32,9 @@ const leave_post = defineEventHandler(async (event) => {
     )
   });
   if (!membership) throw createError({ statusCode: 403, message: "\u3053\u306E\u30C1\u30E3\u30F3\u30CD\u30EB\u306B\u30A2\u30AF\u30BB\u30B9\u3067\u304D\u307E\u305B\u3093" });
-  leaveRoom(`dm:${channelId}`, user.id);
+  const body = await readBody(event).catch(() => ({}));
+  const sessionId = typeof (body == null ? void 0 : body.sessionId) === "string" ? body.sessionId : void 0;
+  leaveRoom(`dm:${channelId}`, user.id, sessionId);
   return { success: true };
 });
 

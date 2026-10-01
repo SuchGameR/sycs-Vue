@@ -1,4 +1,4 @@
-import { u as useRuntimeConfig, aJ as encodePath, aK as buildAssetsURL, aL as publicAssetsURL, aM as defineRenderHandler, g as getQuery, m as createError, d as destr, aN as getRouteRules, aO as relative, aP as joinURL, aQ as getResponseStatusText, aR as getResponseStatus, b as useNitroApp } from '../_/nitro.mjs';
+import { aL as useRuntimeConfig, aM as encodePath, aN as buildAssetsURL, aO as publicAssetsURL, aP as defineRenderHandler, g as getQuery, h as createError, aQ as destr, aR as getRouteRules, aS as relative, aT as joinURL, aU as getResponseStatusText, aV as getResponseStatus, aW as useNitroApp } from '../nitro/nitro.mjs';
 import { createHead as createHead$1, propsToString, renderSSRHead } from 'unhead/server';
 import { hasInjectionContext, inject, isRef, toValue } from 'vue';
 import { DeprecationsPlugin } from 'unhead/legacy';
@@ -128,7 +128,7 @@ function lazyCachedFunction(fn) {
 	};
 }
 
-const appHead = {"meta":[{"charset":"utf-8"},{"name":"viewport","content":"width=device-width, initial-scale=1"}],"link":[{"rel":"preconnect","href":"https://fonts.googleapis.com"},{"rel":"preconnect","href":"https://fonts.gstatic.com","crossorigin":""},{"rel":"stylesheet","href":"https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap"}],"style":[],"script":[],"noscript":[],"title":"SYCS - Ultra Modern Chat & SNS"};
+const appHead = {"meta":[{"charset":"utf-8"},{"name":"viewport","content":"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"}],"link":[{"rel":"preconnect","href":"https://fonts.googleapis.com"},{"rel":"preconnect","href":"https://fonts.gstatic.com","crossorigin":""},{"rel":"stylesheet","href":"https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap"}],"style":[],"script":[{"innerHTML":"(function(){try{var s=localStorage.getItem('sycs:theme-style');var q=localStorage.getItem('sycs:theme-scheme');var d=localStorage.getItem('sycs:theme-seed');var r=/^(classic|material3|liquid-glass)$/.test(s)?s:'classic';var m=q==='light'||q==='dark'?q:(q==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):'dark');var u=/^(tonal-spot|vibrant|expressive|content|fruit-salad|rainbow|sky|indigo|teal)$/.test(d)?d:(r==='liquid-glass'?'sky':'tonal-spot');var e=document.documentElement;e.dataset.style=r;e.dataset.scheme=m;e.dataset.seed=u;e.dataset.theme=r+':'+m}catch(_){}})()","tagPosition":"head","tagPriority":"critical"}],"noscript":[],"title":"SYCS - Ultra Modern Chat & SNS"};
 
 const appRootTag = "div";
 
@@ -149,7 +149,7 @@ globalThis.__buildAssetsURL = buildAssetsURL;
 globalThis.__publicAssetsURL = publicAssetsURL;
 const APP_ROOT_OPEN_TAG = `<${appRootTag}${propsToString(appRootAttrs)}>`;
 const APP_ROOT_CLOSE_TAG = `</${appRootTag}>`;
-const getServerEntry = () => import('../virtual/entry.mjs').then(function (n) { return n.s; }).then((r) => r.default || r);
+const getServerEntry = () => import('../virtual/entry.mjs').then(function (n) { return n.t; }).then((r) => r.default || r);
 const getPrecomputedDependencies = () => import('../virtual/precomputed.mjs').then((r) => "default" in r ? r.default : r).then((r) => typeof r === "function" ? r() : r);
 const getSSRRenderer = lazyCachedFunction(async () => {
 	const createSSRApp = await getServerEntry();
@@ -237,7 +237,7 @@ const renderSSRHeadOptions = {"omitLineBreaks":true};
 
 const entryIds = [];
 
-const entryFileName = "C1NTDrV2.js";
+const entryFileName = "D9zUjr5M.js";
 
 //#region src/runtime/handlers/renderer.ts
 globalThis.__buildAssetsURL = buildAssetsURL;

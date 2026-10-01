@@ -1,0 +1,1 @@
+import{t as e}from"./u_HAoCEj.js";var t=`sycs:media-open-mode`;function n(){let n=e(`app-preferences:media-open-mode`,()=>{{let e=localStorage.getItem(t);if(e===`sheet`||e===`page`||e===`mini`)return e}return`sheet`});function r(e){n.value=e,localStorage.setItem(t,e)}return{mediaOpenMode:n,setMediaOpenMode:r}}export{n as t};

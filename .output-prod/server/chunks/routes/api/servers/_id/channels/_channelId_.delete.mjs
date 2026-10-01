@@ -1,4 +1,4 @@
-import { c as defineEventHandler, n as getRouterParam, aw as requireServerPermission, e as db, au as serverChannels, m as createError, U as broadcast, ax as PERMISSIONS } from '../../../../../_/nitro.mjs';
+import { d as defineEventHandler, i as getRouterParam, ay as requireServerPermission, a as db, av as serverChannels, h as createError, O as broadcast, az as PERMISSIONS } from '../../../../../nitro/nitro.mjs';
 import { and, eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,15 +12,15 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
 const _channelId__delete = defineEventHandler(async (event) => {
   const serverId = getRouterParam(event, "id");

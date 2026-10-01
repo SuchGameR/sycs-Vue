@@ -1,4 +1,4 @@
-import { c as defineEventHandler, n as getRouterParam, e as db, ak as follows, o as users } from '../../../../_/nitro.mjs';
+import { d as defineEventHandler, i as getRouterParam, a as db, ab as follows, u as users, A as enrichUsers, S as pickPublicSummary } from '../../../../nitro/nitro.mjs';
 import { eq, inArray } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -12,24 +12,32 @@ import 'node:http';
 import 'node:https';
 import 'node:events';
 import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
-import 'node:fs';
 import 'node:url';
 import '@iconify/utils';
-import 'node:crypto';
 import 'consola';
-import 'node:path';
 
 const following_get = defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
   const follows$1 = await db.query.follows.findMany({
     where: eq(follows.followerId, id),
-    columns: { followingId: true }
+    columns: { followingId: true },
+    orderBy: (f, { desc }) => [desc(f.createdAt)]
   });
-  const followingIds = follows$1.map((f) => f.followingId);
-  const following = followingIds.length ? await db.query.users.findMany({ where: inArray(users.id, followingIds) }) : [];
+  const ids = follows$1.map((f) => f.followingId);
+  if (!ids.length) return { following: [] };
+  const users$1 = await db.query.users.findMany({ where: inArray(users.id, ids) });
+  const byId = new Map(users$1.map((u) => [u.id, u]));
+  const extras = await enrichUsers(users$1);
+  const following = ids.map((uid) => byId.get(uid)).filter(Boolean).map((u) => {
+    const e = extras[u.id];
+    return { ...pickPublicSummary(u), badges: (e == null ? void 0 : e.badges) || [], title: (e == null ? void 0 : e.title) || null };
+  });
   return { following };
 });
 
