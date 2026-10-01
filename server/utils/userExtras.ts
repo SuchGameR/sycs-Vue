@@ -97,9 +97,22 @@ export async function enrichUsers(users: any[]): Promise<Record<string, UserExtr
   return out
 }
 
+/**
+ * Strip secrets from a user row.
+ *
+ * Handles BOTH key casings on purpose. Drizzle rows use the schema's camelCase
+ * properties, but rows from a raw `SELECT` come back snake_case -- and a
+ * camelCase-only destructure silently passes `password_hash` straight through
+ * to the client. Dropping both is the cheap, permanent guard.
+ */
 export function publicUser(u: any, extras?: UserExtras) {
   if (!u) return null
-  const { passwordHash, email, settings, ...rest } = u
+  const {
+    passwordHash, password_hash,
+    email,
+    settings,
+    ...rest
+  } = u
   return {
     ...rest,
     badges: extras?.badges || [],

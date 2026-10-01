@@ -67,6 +67,8 @@ const activeFilterCount = computed(() =>
 const { compact, setCompact } = useScrollCompact()
 const scroller = ref<HTMLElement | null>(null)
 const searchFieldRef = ref<HTMLElement | null>(null)
+/** Wraps the input, the filter button and both dropdown panels. */
+const chromeRef = ref<HTMLElement | null>(null)
 
 function onScroll() {
   const el = scroller.value
@@ -233,9 +235,16 @@ function onBoxContextMenu(e: MouseEvent) {
   if (suppressNextClick) e.preventDefault()
 }
 
-/** Clicking outside the field closes whichever panel is open. */
+/**
+ * Clicking outside the whole search chrome closes any open panel.
+ *
+ * The scope has to include the filter button and both panels, not just the input.
+ * Those are separate elements, and they sit inside this root's click handler --
+ * so a handler scoped to the input alone would treat the filter button's own
+ * click as "outside", re-closing the panel it just opened.
+ */
 function onPageClick(e: MouseEvent) {
-  const el = searchFieldRef.value
+  const el = chromeRef.value
   if (el && !el.contains(e.target as Node)) {
     filtersOpen.value = false
     advancedOpen.value = false
@@ -284,6 +293,7 @@ function tryExample(q: string) {
   <div class="h-full flex flex-col" @click="onPageClick">
     <!-- ===== 検索ヘッダー: スクロールで縮む ===== -->
     <div
+      ref="chromeRef"
       class="sticky top-0 z-30 shrink-0 border-b transition-colors duration-300"
       :class="compact
         ? 'bg-surface/70 backdrop-blur-xl border-outline-variant/30'

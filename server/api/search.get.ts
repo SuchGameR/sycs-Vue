@@ -129,8 +129,24 @@ const qRaw = String(query.q || '').trim()
   }
 
   if (wantUsers) {
+    // Explicit column list, aliased to camelCase. `SELECT *` returns raw
+    // snake_case keys here, which publicUser() cannot strip (it destructures
+    // `passwordHash`), so the hash was serialized straight to the client -- and
+    // `displayName`/`avatarUrl` came back undefined, breaking the UI and
+    // computeTitles' account-age calculation.
     const res = await db.execute(sql`
-      SELECT * FROM users
+      SELECT
+        id,
+        username,
+        display_name AS "displayName",
+        avatar_url AS "avatarUrl",
+        banner_url AS "bannerUrl",
+        bio,
+        is_private AS "isPrivate",
+        status_message AS "statusMessage",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+      FROM users
       WHERE username ILIKE ${like} OR display_name ILIKE ${like}
       ORDER BY
         (username ILIKE ${prefix})::int DESC,
