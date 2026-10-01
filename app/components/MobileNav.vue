@@ -73,6 +73,25 @@ const V_PAD = 6      // py-1.5
 const RAIL_H = ITEM + V_PAD * 2
 
 const railRef = ref<HTMLElement | null>(null)
+const navRef = ref<HTMLElement | null>(null)
+
+/**
+ * Report how much of the page the pill covers, so lists can pad past it.
+ *
+ * Only below 681px. On desktop the pill floats in the gap that <main>'s height
+ * already reserves via --app-nav-reserve, so it never overlaps content and
+ * registering it would add a pointless gap there.
+ */
+const { report: reportBottomOverlap } = useBottomInsetReporter(
+  'pill',
+  () => navRef.value,
+  () => typeof window !== 'undefined' && window.matchMedia('(max-width: 680px)').matches
+)
+
+// ResizeObserver ignores transform changes, and the compact state is applied as
+// a scale, so the pill's real overlap is only correct once the 300ms transition
+// has finished.
+watch(scrollCompact, () => { setTimeout(reportBottomOverlap, 320) })
 
 /** { centerX relative to the rail's left edge, width } per item. */
 const metrics = ref<{ cx: number; w: number }[]>([])
@@ -349,6 +368,7 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
       dropping it to wherever this div happens to sit in the flow.
     -->
     <nav
+      ref="navRef"
       class="sycs-floatnav fixed inset-x-0 bottom-[calc(var(--app-footer-h)+0.75rem)] min-[681px]:bottom-[calc(var(--app-footer-h)+1.25rem)] z-[70] flex justify-center px-4 origin-bottom transition-transform duration-300 ease-out"
       :class="[
         desktopNav === 'pill' ? '' : 'min-[681px]:hidden',

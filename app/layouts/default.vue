@@ -29,13 +29,21 @@ const navReserveStyle = computed(() => {
   const style: Record<string, string> = {}
   // Only --app-nav-reserve needs overriding: it is 5.25rem on desktop to make
   // room for the pill, and must drop to 0 when the sidebar is the active nav.
-  // --app-nav-clear needs no override because its desktop value is already 0
-  // (main's height is what absorbs the pill there) and on mobile the pill is
-  // shown regardless of the desktop preference.
+  // On mobile the pill is always shown, so it needs no override there -- that
+  // case is covered by --app-bottom-inset below.
   if (desktopNav.value !== 'pill') style['--app-nav-reserve'] = '0px'
   if (isSearchPage.value) style['--app-header-h'] = '0px'
   return Object.keys(style).length ? style : undefined
 })
+
+/**
+ * Real height currently taken by bottom-anchored overlays, published as a CSS
+ * var so scrolling lists can pad past whichever one is tallest. Measured rather
+ * than guessed: the pill, the media mini player and the call dock each sit at a
+ * different height and any of them can appear at any time.
+ */
+const { inset: bottomInset } = useBottomInset()
+const bottomInsetStyle = computed(() => ({ '--app-bottom-inset': `${bottomInset.value}px` }))
 
 const serverCache = ref<any>(null)
 
@@ -117,7 +125,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px] [--app-header-h:56px]" :style="navReserveStyle">
+  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px] [--app-header-h:56px]" :style="[navReserveStyle, bottomInsetStyle]">
     <div v-if="clientError" class="fixed inset-x-3 top-[4.5rem] z-[300] mx-auto max-w-md rounded-xl border border-red-500/40 bg-red-950/90 p-3 text-sm text-red-200 shadow-2xl backdrop-blur">
       <div class="flex items-start gap-2">
         <Icon name="lucide:alert-triangle" class="w-4 h-4 shrink-0 mt-0.5" />

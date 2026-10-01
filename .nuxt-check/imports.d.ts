@@ -35,6 +35,7 @@ export { definePageMeta, PageMeta } from '#app/composables/pages';
 export { defineLazyHydrationComponent } from '#app/composables/lazy-hydration';
 export { useAccounts, SavedAccount } from '../app/composables/useAccounts';
 export { useAppPreferences, MediaOpenMode } from '../app/composables/useAppPreferences';
+export { useBottomInset, bottomOverlapOf, useBottomInsetReporter } from '../app/composables/useBottomInset';
 export { useMediaQuery, useIsDesktop, useIsMobileNav } from '../app/composables/useBreakpoint';
 export { useCustomEmojis, CustomEmoji } from '../app/composables/useCustomEmojis';
 export { TIMELINE_PRESETS, useCustomTimelines, TimelineConditions, TimelineTab } from '../app/composables/useCustomTimelines';

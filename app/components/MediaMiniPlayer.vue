@@ -12,6 +12,19 @@ const MODEL_EXT = /\.(glb|gltf|obj|fbx|stl|3ds)(\?|$)/i
 const pane = useMediaPane()
 const { selected, sourceLabel, mobileFull, kind } = pane
 
+const miniRef = ref<HTMLElement | null>(null)
+/**
+ * This bar is 72px off the bottom edge on mobile -- taller than the pill's slot
+ * and sitting *inside* the clearance a page reserves for the pill, so lists were
+ * still being covered while media played. Registering its real height makes the
+ * page pad past whichever overlay is currently tallest.
+ */
+useBottomInsetReporter(
+  'mini-player',
+  () => miniRef.value,
+  () => !!selected.value && !mobileFull.value
+)
+
 const mediaIndex = ref(0)
 watch(() => selected.value?.id, () => { mediaIndex.value = 0 })
 
@@ -108,6 +121,7 @@ function onSheetUp() {
     <Transition name="mini">
       <div
         v-if="selected && !mobileFull"
+        ref="miniRef"
         class="w-fit max-w-[300px] fixed left-3 right-3 bottom-[4.5rem] z-[80] bg-surface-container border border-outline rounded-xl shadow-2xl flex items-center gap-3 p-2"
       >
         <button class="shrink-0" @click="pane.openMobileFull()">

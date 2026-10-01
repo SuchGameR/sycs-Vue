@@ -457,12 +457,12 @@ function tryExample(q: string) {
     </div>
 
     <!-- ===== リールモード: 検索枠が空ならメディアがランダムに流れる ===== -->
-    <div v-if="isReelMode" class="flex-1 min-h-0 pb-[var(--app-nav-clear)]">
+    <div v-if="isReelMode" class="flex-1 min-h-0 pb-[var(--app-bottom-inset)]">
       <MediaReelFeed :media="media" :sort="sort" />
     </div>
 
     <!-- ===== 検索結果 ===== -->
-    <div v-else ref="scroller" class="flex-1 min-h-0 overflow-y-auto pb-[calc(var(--app-nav-clear)+1rem)]" @scroll.passive="onScroll">
+    <div v-else ref="scroller" class="flex-1 min-h-0 overflow-y-auto pb-[calc(var(--app-bottom-inset)+1rem)]" @scroll.passive="onScroll">
       <div v-if="error" class="m-3 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">{{ error }}</div>
       <div v-if="loading" class="text-center text-on-surface-variant py-10">検索中...</div>
 

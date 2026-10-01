@@ -18,6 +18,7 @@ declare global {
   const abortNavigation: typeof import('../../node_modules/nuxt/dist/app/composables/router').abortNavigation
   const addRouteMiddleware: typeof import('../../node_modules/nuxt/dist/app/composables/router').addRouteMiddleware
   const avatarSrc: typeof import('../../app/utils/avatar').avatarSrc
+  const bottomOverlapOf: typeof import('../../app/composables/useBottomInset').bottomOverlapOf
   const callOnce: typeof import('../../node_modules/nuxt/dist/app/composables/once').callOnce
   const cancelIdleCallback: typeof import('../../node_modules/nuxt/dist/app/compat/idle-callback').cancelIdleCallback
   const clearError: typeof import('../../node_modules/nuxt/dist/app/composables/error').clearError
@@ -134,6 +135,8 @@ declare global {
   const useAppPreferences: typeof import('../../app/composables/useAppPreferences').useAppPreferences
   const useAsyncData: typeof import('../../node_modules/nuxt/dist/app/composables/asyncData').useAsyncData
   const useAttrs: typeof import('vue').useAttrs
+  const useBottomInset: typeof import('../../app/composables/useBottomInset').useBottomInset
+  const useBottomInsetReporter: typeof import('../../app/composables/useBottomInset').useBottomInsetReporter
   const useCookie: typeof import('../../node_modules/nuxt/dist/app/composables/cookie').useCookie
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
@@ -317,6 +320,7 @@ declare module 'vue' {
     readonly abortNavigation: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/router')['abortNavigation']>
     readonly addRouteMiddleware: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/router')['addRouteMiddleware']>
     readonly avatarSrc: UnwrapRef<typeof import('../../app/utils/avatar')['avatarSrc']>
+    readonly bottomOverlapOf: UnwrapRef<typeof import('../../app/composables/useBottomInset')['bottomOverlapOf']>
     readonly callOnce: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/once')['callOnce']>
     readonly cancelIdleCallback: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/compat/idle-callback')['cancelIdleCallback']>
     readonly clearError: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/error')['clearError']>
@@ -433,6 +437,8 @@ declare module 'vue' {
     readonly useAppPreferences: UnwrapRef<typeof import('../../app/composables/useAppPreferences')['useAppPreferences']>
     readonly useAsyncData: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/asyncData')['useAsyncData']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
+    readonly useBottomInset: UnwrapRef<typeof import('../../app/composables/useBottomInset')['useBottomInset']>
+    readonly useBottomInsetReporter: UnwrapRef<typeof import('../../app/composables/useBottomInset')['useBottomInsetReporter']>
     readonly useCookie: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/cookie')['useCookie']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>

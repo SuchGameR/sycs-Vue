@@ -10,7 +10,7 @@ export default defineNuxtConfig({
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   // DevTools adds runtime hooks + client code to every page load.
   // Opt in with NUXT_DEVTOOLS=true when needed.
-  devtools: { enabled: process.env.NUXT_DEVTOOLS === 'true' },
+  devtools: { enabled: process.env.NUXT_DEVTOOLS === 'false' },
 
   runtimeConfig: {
     phpApiBase: process.env.PHP_API_BASE || '',

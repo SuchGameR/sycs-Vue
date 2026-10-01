@@ -1,15 +1,10 @@
-/* Room for the floating pill nav so page content is never hidden behind it.
-   mobile: the pill is always shown and pages pad themselves, so this is the
-   clearance a scrolling list needs. desktop: <main> already subtracts
-   --app-nav-reserve from its own height, so no extra padding is required. */
+/* --app-bottom-inset is published by app/layouts/default.vue from the live
+   measurements in app/composables/useBottomInset.ts: it is the height actually
+   taken by the tallest bottom-anchored overlay (pill nav / media mini player /
+   call dock). Lists pad by it so their last row is never covered.
+   Defaults to 0 so nothing overlaps before the overlays have mounted. */
 :root {
-  --app-nav-clear: 5.5rem;
-}
-
-@media (min-width: 681px) {
-  :root {
-    --app-nav-clear: 0px;
-  }
+  --app-bottom-inset: 0px;
 }
 
 /* The floating pill nav sits *above* the footer, so it floats over the bottom

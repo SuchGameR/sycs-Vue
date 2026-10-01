@@ -16,6 +16,7 @@ export interface PublicBadge {
  */
 export const BADGE_ASSIGNMENTS: Record<string, PublicBadge[]> = {
   '@suchgamer': [{ kind: 'icon', value: 'lucide:badge-check', label: '運営' }],
+  '@Akinobu': [{ kind: 'icon', value: 'lucide:badge-check', label: '運営' }],
   '@sub2': [{ kind: 'icon', value: 'lucide:shield', label: 'メンバー' }],
 }
 
