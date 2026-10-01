@@ -12,7 +12,7 @@ const items = computed<Item[]>(() => {
   return [
     { key: 'home', to: '/home', icon: 'lucide:house', match: p => p === '/home' || p === '/' },
     { key: 'search', to: '/search', icon: 'lucide:search', match: p => p.startsWith('/search') || p.startsWith('/hashtag') },
-    { key: 'dm', to: '/dm', icon: 'lucide:send', match: p => p.startsWith('/dm') },
+    { key: 'social', to: '/social', icon: 'lucide:users-round', match: p => p.startsWith('/social') },
     { key: 'actions', to: '/actions', icon: 'lucide:heart', match: p => p.startsWith('/actions') || p.startsWith('/notifications') },
     uid
       ? {
@@ -35,7 +35,7 @@ const activeIndex = computed(() => {
 })
 
 function badgeFor(key: string) {
-  if (key === 'dm') return dmUnread.value
+  if (key === 'social') return dmUnread.value
   if (key === 'actions') return activityUnread.value
   return 0
 }
@@ -59,24 +59,29 @@ function badgeFor(key: string) {
    finger position back to an item index.
    ========================================================================== */
 const railRef = ref<HTMLElement | null>(null)
-const linkRefs = ref<HTMLElement[]>([])
 
 /** { centerX relative to the rail's left edge, width } per item. */
 const metrics = ref<{ cx: number; w: number }[]>([])
 const count = computed(() => items.value.length)
 
-function setLinkRef(el: any, i: number) {
-  if (el) linkRefs.value[i] = el.$el ?? el
-}
-
+/**
+ * Read the real slot geometry from the rendered <a> children.
+ *
+ * Deliberately queries the DOM instead of collecting `:ref` values: a `:ref`
+ * on a NuxtLink hands back the *component* instance, and unwrapping `$el` for
+ * it is fragile. If that ever silently yields nothing then `metrics` stays
+ * empty, which disables BOTH the plate and the swipe at once with no error --
+ * exactly the failure this gesture must not have. A DOM query cannot fail
+ * that way.
+ */
 function measure() {
   const rail = railRef.value
   if (!rail) return
+  const links = rail.querySelectorAll<HTMLElement>(':scope > a')
+  if (!links.length) return
   const base = rail.getBoundingClientRect().left
   const next: { cx: number; w: number }[] = []
-  for (let i = 0; i < count.value; i++) {
-    const el = linkRefs.value[i]
-    if (!el) { next.length = i; break }
+  for (const el of links) {
     const r = el.getBoundingClientRect()
     next.push({ cx: r.left - base + r.width / 2, w: r.width })
   }
@@ -168,16 +173,13 @@ function onPointerMove(e: PointerEvent) {
   const dx = e.clientX - startX
   const dy = e.clientY - startY
 
-  // Axis lock: let a vertical flick scroll the page instead of being stolen
-  // by the rail.
   if (axisLocked === 'none') {
-    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
     axisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
     if (axisLocked === 'x') armed.value = true
   }
   if (axisLocked !== 'x') return
 
-  // Keep the gesture to the rail even if the browser tries to pan.
   if (e.cancelable) e.preventDefault()
   dragDx.value = dx
 }
@@ -185,9 +187,12 @@ function onPointerMove(e: PointerEvent) {
 function endDrag(e: PointerEvent) {
   if (!dragging.value || (pointerId !== null && e.pointerId !== pointerId)) return
   ;(e.currentTarget as HTMLElement)?.releasePointerCapture?.(e.pointerId)
+
   const wasDrag = armed.value
-  const target = wasDrag
-    ? nearestIndex(metrics.value[dragFrom.value].cx + dragDx.value)
+  const m = metrics.value
+  const cur = m[dragFrom.value]
+  const targetIndex = wasDrag && cur
+    ? nearestIndex(cur.cx + dragDx.value)
     : dragFrom.value
 
   dragging.value = false
@@ -196,15 +201,18 @@ function endDrag(e: PointerEvent) {
   pointerId = null
   axisLocked = 'none'
 
-  if (wasDrag) {
-    // Swallow the click the browser synthesises after a drag, otherwise the
-    // release also activates the link the gesture started on.
-    suppressClick.value = true
-    setTimeout(() => { suppressClick.value = false }, 0)
-    if (target !== activeIndex.value) {
-      const it = items.value[target]
-      if (it) navigateTo(it.to)
-    }
+  if (!wasDrag) return
+
+  // Swallow the click the browser synthesises after a drag, otherwise the
+  // release ALSO activates the link the gesture started on. Without this the
+  // swipe commits to the nearest item and the synthetic click immediately
+  // navigates back to the one you pressed, so the item "doesn't change".
+  suppressClick.value = true
+  setTimeout(() => { suppressClick.value = false }, 350)
+
+  const it = items.value[targetIndex]
+  if (it && targetIndex !== activeIndex.value) {
+    navigateTo(it.to)
   }
 }
 
@@ -273,7 +281,6 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
         <NuxtLink
           v-for="(it, i) in items"
           :key="it.key"
-          :ref="el => setLinkRef(el, i)"
           :to="it.to"
           class="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[9999px] transition-transform duration-200 active:scale-90"
           :class="activeIndex === i ? 'text-on-surface' : 'text-on-surface-variant'"
@@ -281,7 +288,7 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
           :aria-label="it.key"
         >
           <img
-            v-if="it.key === 'dm' && dmLatest?.avatarUrl"
+            v-if="it.key === 'social' && dmLatest?.avatarUrl"
             :src="avatarSrc(dmLatest.avatarUrl)"
             alt=""
             class="h-6 w-6 rounded-full object-cover"

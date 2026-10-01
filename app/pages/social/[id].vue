@@ -251,9 +251,9 @@ function formatDateTime(date: string) {
 
 <template>
   <div class="max-w-2xl mx-auto p-4 h-[calc(100vh-56px-32px)] flex flex-col">
-    <NuxtLink to="/dm" class="text-sm text-on-surface-variant hover:text-white transition mb-4 flex items-center gap-1">
+    <NuxtLink to="/social" class="text-sm text-on-surface-variant hover:text-white transition mb-4 flex items-center gap-1">
       <Icon name="lucide:arrow-left" class="w-4 h-4" />
-      DM一覧に戻る
+      ソーシャル一覧に戻る
     </NuxtLink>
 
     <div class="flex items-center justify-between mb-4 shrink-0">

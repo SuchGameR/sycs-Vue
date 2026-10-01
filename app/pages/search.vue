@@ -21,9 +21,11 @@ const tabs = [
   { key: 'servers', label: 'サーバー', icon: 'lucide:server' },
 ] as const
 
-// A legal `#tag` query is a hashtag lookup; hide the other tabs so the result
-// list doesn't render empty "no posts" / "no users" sections.
-const isTagQuery = computed(() => /^#?[A-Za-z0-9_\u3040-\u30FF]+$/.test(queryStr.value.trim()))
+// A `#tag` query is a hashtag lookup; hide the other tabs so the result list
+// doesn't render empty "no posts" / "no users" sections. A bare word is NOT a
+// tag query -- the tag grammar accepts plain words, so matching `#?` here
+// would blank the tab bar whenever someone searched for a username.
+const isTagQuery = computed(() => /^#[A-Za-z0-9_\u3040-\u30FF]+$/.test(queryStr.value.trim()))
 
 function tagHref(tag: string) {
   return '/hashtag/' + encodeURIComponent(tag)
@@ -49,6 +51,7 @@ async function runSearch(silent = false) {
 
 function submit() {
   const q = queryStr.value.trim()
+  if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null }
   router.replace({ path: '/search', query: { q, type: tab.value } })
   if (q) runSearch()
 }
@@ -79,35 +82,44 @@ watch(queryStr, (v) => {
   debounceTimer = setTimeout(() => { if (v.trim()) runSearch(true) }, 400)
 })
 onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
+
+const examples = [
+  { q: '#ゲーム', icon: 'lucide:hash' },
+  { q: 'お知らせ', icon: 'lucide:megaphone' },
+  { q: '画像', icon: 'lucide:image' },
+]
+
+function tryExample(q: string) {
+  queryStr.value = q
+  submit()
+}
 </script>
 
 <template>
   <div class="max-w-2xl mx-auto pb-24 min-[681px]:pb-6 min-h-full">
     <div class="sticky top-14 bg-surface/95 backdrop-blur z-20 border-b border-outline-variant">
-      <form class="p-3 flex items-center gap-2" @submit.prevent="submit">
-        <div class="flex-1 flex items-center gap-2 bg-surface border border-outline rounded-xl px-3 py-2 focus-within:border-indigo-500 transition">
-          <Icon name="lucide:search" class="w-4 h-4 text-on-surface-variant shrink-0" />
+      <form class="p-3" @submit.prevent="submit">
+        <div class="flex items-center gap-3 h-12 px-4 rounded-full bg-surface-container/70 border border-transparent focus-within:border-indigo-500/60 transition">
+          <Icon name="lucide:search" class="w-[18px] h-[18px] text-on-surface-variant shrink-0" />
           <input
             v-model="queryStr"
             type="search"
             placeholder="投稿・ユーザー・サーバーを検索"
-            class="flex-1 bg-transparent text-white placeholder-slate-500 focus:outline-none text-sm"
+            class="flex-1 min-w-0 bg-transparent text-on-surface placeholder-on-surface-variant focus:outline-none text-[15px]"
             autofocus
           />
-          <button v-if="queryStr" type="button" class="p-0.5 text-on-surface-variant hover:text-white transition" @click="queryStr = ''">
-            <Icon name="lucide:x" class="w-4 h-4" />
+          <button v-if="queryStr" type="button" class="w-6 h-6 flex items-center justify-center rounded-full bg-on-surface/10 text-on-surface-variant hover:text-on-surface hover:bg-on-surface/20 transition shrink-0"
+            @click="queryStr = ''" title="クリア">
+            <Icon name="lucide:x" class="w-3.5 h-3.5" />
           </button>
         </div>
-        <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition shrink-0">
-          検索
-        </button>
       </form>
 
-      <div class="flex gap-1 px-3 pb-2 overflow-x-auto">
+      <div class="flex gap-1.5 px-3 pb-3 overflow-x-auto">
         <button
           v-for="t in tabs" :key="t.key"
           @click="switchTab(t.key)"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0"
+          class="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition shrink-0"
           :class="tab === t.key ? 'bg-indigo-600/20 text-indigo-400' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'"
         >
           <Icon :name="t.icon" class="w-3.5 h-3.5" /> {{ t.label }}
@@ -128,7 +140,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
           <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">{{ p.user?.displayName?.charAt(0) || '?' }}</div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <span class="font-bold text-white text-sm truncate">{{ p.user?.displayName || '不明' }}</span>
+              <span class="font-bold text-on-surface text-sm truncate">{{ p.user?.displayName || '不明' }}</span>
               <span class="text-on-surface-variant text-xs shrink-0">@{{ p.user?.username }} · {{ timeAgo(p.createdAt) }}</span>
             </div>
             <p class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-3"
@@ -143,7 +155,7 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
             </div>
           </div>
         </button>
-        <div v-if="tab !== 'all' && !results.posts.length" class="px-3 py-8 text-center text-slate-600 text-sm">投稿が見つかりません</div>
+        <div v-if="tab !== 'all' && !results.posts.length" class="px-3 py-8 text-center text-on-surface-variant text-sm">投稿が見つかりません</div>
       </template>
 
       <!-- Hashtags -->
@@ -158,9 +170,9 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
             <p class="text-sm font-bold text-on-surface truncate">#{{ h.displayTag }}</p>
             <p class="text-xs text-on-surface-variant">{{ h.postCount }} 件の投稿</p>
           </div>
-          <Icon name="lucide:chevron-right" class="w-4 h-4 text-slate-600 shrink-0" />
+          <Icon name="lucide:chevron-right" class="w-4 h-4 text-on-surface-variant shrink-0" />
         </NuxtLink>
-        <div v-if="tab === 'hashtags' && !results.hashtags.length" class="px-3 py-8 text-center text-slate-600 text-sm">ハッシュタグが見つかりません</div>
+        <div v-if="tab === 'hashtags' && !results.hashtags.length" class="px-3 py-8 text-center text-on-surface-variant text-sm">ハッシュタグが見つかりません</div>
       </template>
 
       <!-- Users -->
@@ -171,12 +183,12 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
           <img v-if="avatarSrc(u.avatarUrl)" :src="avatarSrc(u.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" />
           <div v-else class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shrink-0">{{ u.displayName?.charAt(0) || '?' }}</div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold text-white truncate flex items-center gap-1">{{ u.displayName }}<UserBadges :badges="u.badges" /><UserTitle :title="u.title" /></p>
-            <p class="text-xs text-on-surface-variant truncate">@{{ u.username }}<span v-if="u.bio" class="text-slate-600"> · {{ u.bio }}</span></p>
+            <p class="text-sm font-bold text-on-surface truncate flex items-center gap-1">{{ u.displayName }}<UserBadges :badges="u.badges" /><UserTitle :title="u.title" /></p>
+            <p class="text-xs text-on-surface-variant truncate">@{{ u.username }}<span v-if="u.bio"> · {{ u.bio }}</span></p>
           </div>
-          <Icon name="lucide:chevron-right" class="w-4 h-4 text-slate-600 shrink-0" />
+          <Icon name="lucide:chevron-right" class="w-4 h-4 text-on-surface-variant shrink-0" />
         </NuxtLink>
-        <div v-if="tab === 'users' && !results.users.length" class="px-3 py-8 text-center text-slate-600 text-sm">ユーザーが見つかりません</div>
+        <div v-if="tab === 'users' && !results.users.length" class="px-3 py-8 text-center text-on-surface-variant text-sm">ユーザーが見つかりません</div>
       </template>
 
       <!-- Servers -->
@@ -189,22 +201,31 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
             <template v-else>{{ s.name?.charAt(0) || '?' }}</template>
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold text-white truncate">{{ s.name }}</p>
+            <p class="text-sm font-bold text-on-surface truncate">{{ s.name }}</p>
             <p class="text-xs text-on-surface-variant line-clamp-1">{{ s.description || `メンバー ${s.member_count ?? 0} 人` }}</p>
           </div>
-          <Icon name="lucide:chevron-right" class="w-4 h-4 text-slate-600 shrink-0" />
+          <Icon name="lucide:chevron-right" class="w-4 h-4 text-on-surface-variant shrink-0" />
         </NuxtLink>
-        <div v-if="tab === 'servers' && !results.servers.length" class="px-3 py-8 text-center text-slate-600 text-sm">サーバーが見つかりません</div>
+        <div v-if="tab === 'servers' && !results.servers.length" class="px-3 py-8 text-center text-on-surface-variant text-sm">サーバーが見つかりません</div>
       </template>
 
       <div v-if="!results.users.length && !results.posts.length && !results.servers.length && !results.hashtags.length"
-        class="px-3 py-10 text-center text-slate-600 text-sm">「{{ queryStr }}」に一致する結果はありませんでした</div>
+        class="px-3 py-10 text-center text-on-surface-variant text-sm">「{{ queryStr }}」に一致する結果はありませんでした</div>
     </div>
 
-    <div v-else class="px-4 py-10 text-center">
-      <Icon name="lucide:search" class="w-10 h-10 mx-auto text-slate-700 mb-3" />
-      <p class="text-on-surface-variant text-sm">投稿・ユーザー・サーバーを横断検索</p>
-      <p class="text-slate-700 text-xs mt-1">例: ゲーム、@ユーザー名、サーバー名</p>
+    <div v-else class="px-4 py-12 text-center">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-surface-container flex items-center justify-center mb-4">
+        <Icon name="lucide:search" class="w-6 h-6 text-on-surface-variant" />
+      </div>
+      <p class="font-bold text-on-surface">何を探しますか？</p>
+      <p class="text-on-surface-variant text-sm mt-1">投稿・ユーザー・サーバー・ハッシュタグを横断して探せます</p>
+      <div class="mt-5 flex flex-wrap items-center justify-center gap-2">
+        <button v-for="ex in examples" :key="ex.q" @click="tryExample(ex.q)"
+          class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container/70 text-sm text-on-surface hover:bg-surface-container transition">
+          <Icon :name="ex.icon" class="w-4 h-4 text-on-surface-variant" />
+          {{ ex.q }}
+        </button>
+      </div>
     </div>
   </div>
 </template>

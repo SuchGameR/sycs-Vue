@@ -210,8 +210,8 @@ const startingDM = ref(false)
 async function startDM() {
   if (startingDM.value || blocked.value || blockedBy.value) return
   startingDM.value = true
-  try { const data = await $fetch('/api/dm/channels', { method: 'POST', body: { participantId: resolvedId.value } }); await navigateTo(`/dm/${data.channel.id}`) }
-  catch { alert('DMを作成できませんでした') }
+  try { const data = await $fetch('/api/dm/channels', { method: 'POST', body: { participantId: resolvedId.value } }); await navigateTo(`/social/${data.channel.id}`) }
+  catch { alert('会話を開始できませんでした') }
   finally { startingDM.value = false }
 }
 

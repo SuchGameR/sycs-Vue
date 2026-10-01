@@ -26,14 +26,14 @@ async function handleSignout() {
       <Icon name="lucide:home" class="w-5 h-5 shrink-0" />
       <span class="text-sm truncate">ホーム</span>
     </NuxtLink>
-    <NuxtLink to="/dm" class="relative px-2 py-2 rounded-lg flex items-center gap-3 transition text-on-surface-variant hover:bg-surface-container/30 hover:text-on-surface"
-      :class="route.path.startsWith('/dm') ? 'bg-surface-container/50 text-white font-medium' : ''">
+    <NuxtLink to="/social" class="relative px-2 py-2 rounded-lg flex items-center gap-3 transition text-on-surface-variant hover:bg-surface-container/30 hover:text-on-surface"
+      :class="route.path.startsWith('/social') ? 'bg-surface-container/50 text-white font-medium' : ''">
       <span class="relative shrink-0">
         <img v-if="dmLatest?.avatarUrl" :src="avatarSrc(dmLatest.avatarUrl)" class="w-5 h-5 rounded-full object-cover" />
-        <Icon v-else name="lucide:message-square" class="w-5 h-5" />
+        <Icon v-else name="lucide:users-round" class="w-5 h-5" />
         <span v-if="dmUnread > 0" class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{{ dmUnread }}</span>
       </span>
-      <span class="text-sm truncate">DM</span>
+      <span class="text-sm truncate">ソーシャル</span>
     </NuxtLink>
     <NuxtLink to="/actions" class="relative px-2 py-2 rounded-lg flex items-center gap-3 transition text-on-surface-variant hover:bg-surface-container/30 hover:text-on-surface"
       :class="route.path.startsWith('/actions') || route.path.startsWith('/notifications') ? 'bg-surface-container/50 text-white font-medium' : ''">

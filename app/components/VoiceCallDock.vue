@@ -151,7 +151,7 @@ async function accept() {
   await voice.acceptCall()
   const room = voice.activeRoom.value
   if (room?.kind === 'dm' && room.roomKey.startsWith('dm:')) {
-    navigateTo(`/dm/${room.roomKey.slice(3)}`)
+    navigateTo(`/social/${room.roomKey.slice(3)}`)
   }
 }
 function decline() {
@@ -294,7 +294,7 @@ const inviteLink = computed(() => {
   const room = activeRoom.value
   if (!room) return ''
   if (room.kind === 'dm' && room.roomKey.startsWith('dm:')) {
-    return `${location.origin}/dm/${room.roomKey.slice(3)}`
+    return `${location.origin}/social/${room.roomKey.slice(3)}`
   }
   return location.origin + (room.roomKey.includes(':') ? '/' + room.roomKey.slice(room.roomKey.lastIndexOf(':') + 1) : '')
 })

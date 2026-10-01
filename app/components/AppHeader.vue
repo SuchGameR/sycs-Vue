@@ -18,8 +18,13 @@ function onKey(e: KeyboardEvent) {
     router.push('/search')
   }
 }
-onMounted(() => window.addEventListener('keydown', onKey))
+const isMac = ref(false)
+onMounted(() => {
+  window.addEventListener('keydown', onKey)
+  isMac.value = /Mac|iPhone|iPad/.test(navigator.userAgent)
+})
 onUnmounted(() => window.removeEventListener('keydown', onKey))
+const shortcut = computed(() => (isMac.value ? '⌘K' : 'Ctrl K'))
 </script>
 
 <template>
@@ -92,7 +97,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         >
           <Icon name="lucide:search" class="w-3.5 h-3.5 shrink-0" />
           <span class="truncate">検索</span>
-          <span class="ml-auto text-[10px] text-slate-700 border border-outline-variant rounded px-1 shrink-0">Ctrl+K</span>
+          <span class="ml-auto text-[10px] text-on-surface-variant border border-outline-variant rounded px-1 shrink-0">{{ shortcut }}</span>
         </button>
 
         <button

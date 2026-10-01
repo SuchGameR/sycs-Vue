@@ -145,11 +145,11 @@ async function startDM(participantId: string) {
   startingDmId.value = participantId
   try {
     const data = await $fetch('/api/dm/channels', { method: 'POST', body: { participantId } })
-    await navigateTo(`/dm/${data.channel.id}`)
+    await navigateTo(`/social/${data.channel.id}`)
   } catch (e: any) {
     const status = e?.statusCode ?? e?.response?.status
     if (status === 401) {
-      await navigateTo(`/signin?redirect=${encodeURIComponent('/dm')}`)
+      await navigateTo(`/signin?redirect=${encodeURIComponent('/social')}`)
     } else {
       alert(e?.data?.message || 'DMを作成できませんでした')
     }
@@ -309,7 +309,7 @@ watch(isMobileNav, (v) => {
       <NuxtLink
         v-for="ch in channels"
         :key="ch.id"
-        :to="`/dm/${ch.id}`"
+        :to="`/social/${ch.id}`"
         class="flex items-center gap-3 p-3 bg-surface-container/30 rounded-xl hover:bg-surface-container/50 transition"
       >
         <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">

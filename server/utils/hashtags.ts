@@ -33,7 +33,7 @@ const TAG_LAST_CHARS = 'A-Za-z0-9_\\u3040-\\u30FB\\u30FD-\\u30FF'
 // A hashtag may not start right after one of these.
 const TAG_NOT_PRECEDED_BY = 'A-Za-z0-9_\\u3040-\\u30FF/#'
 
-const MAX_TAG_LENGTH = 30
+const MAX_TAG_LENGTH = 20
 const PROLONGED = '\u30FC'
 
 export const HASHTAG_RE = new RegExp(

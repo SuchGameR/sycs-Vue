@@ -19,15 +19,20 @@ const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]}"'])/g
  * same tags the server indexed — if these two drift, a tag shows as a link on
  * one side and inert text on the other.
  *
- * Same rules: 1-30 chars of [A-Za-z0-9_ \u3040-\u30FF], no leading or trailing
+ * Same rules: 1-20 chars of [A-Za-z0-9_ \u3040-\u30FF], no leading or trailing
  * \u30FC, and a lookbehind that rejects `##foo`, `a#b` and URL fragments
  * (`https://x.com/a#b`).
+ *
+ * MAX_TAG_LENGTH lives here as a literal because this module runs in the client
+ * bundle and cannot import from server/. Keep it equal to MAX_TAG_LENGTH in
+ * server/utils/hashtags.ts.
  */
+const MAX_TAG_LENGTH = 20
 const TAG_CHARS = 'A-Za-z0-9_\\u3040-\\u30FF'
 const TAG_LAST_CHARS = 'A-Za-z0-9_\\u3040-\\u30FB\\u30FD-\\u30FF'
 const TAG_NOT_PRECEDED_BY = 'A-Za-z0-9_\\u3040-\\u30FF/#'
 const HASHTAG_RE = new RegExp(
-  `(?<![${TAG_NOT_PRECEDED_BY}])#([${TAG_CHARS}]{0,29}[${TAG_LAST_CHARS}])`,
+  `(?<![${TAG_NOT_PRECEDED_BY}])#([${TAG_CHARS}]{0,${MAX_TAG_LENGTH - 1}}[${TAG_LAST_CHARS}])`,
   'g',
 )
 

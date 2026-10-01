@@ -32,6 +32,23 @@ let offRealtime: (() => void)[] = []
 const { switcherOpen, closeSwitcher } = useAccounts()
 
 const customEmojis = useCustomEmojis()
+
+/**
+ * Surfaces uncaught client errors instead of letting them vanish into the
+ * console. A render-time throw used to blank the page with no explanation,
+ * which is indistinguishable from "the route doesn't work".
+ */
+const clientError = ref('')
+function showClientError(label: string, err: any) {
+  const msg = err?.message || err?.data?.message || String(err)
+  clientError.value = label + ': ' + msg
+  console.error('[layout]', label, err)
+}
+onMounted(() => {
+  window.addEventListener('error', ev => showClientError('エラー', ev.error || ev.message))
+  window.addEventListener('unhandledrejection', ev => showClientError('未処理のPromise', ev.reason))
+})
+
 onMounted(() => {
   customEmojis.ensure()
   useUnread().init()
@@ -69,6 +86,19 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px]">
+    <div v-if="clientError" class="fixed inset-x-3 top-[4.5rem] z-[300] mx-auto max-w-md rounded-xl border border-red-500/40 bg-red-950/90 p-3 text-sm text-red-200 shadow-2xl backdrop-blur">
+      <div class="flex items-start gap-2">
+        <Icon name="lucide:alert-triangle" class="w-4 h-4 shrink-0 mt-0.5" />
+        <div class="flex-1 min-w-0">
+          <p class="font-bold">読み込みに失敗しました</p>
+          <p class="mt-0.5 text-xs break-words opacity-90">{{ clientError }}</p>
+        </div>
+        <button class="p-1 rounded hover:bg-white/10" @click="clientError = ''">
+          <Icon name="lucide:x" class="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+
     <AppHeader
       :is-server-page="isServerPage"
       :server="serverCache"

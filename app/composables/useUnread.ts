@@ -35,10 +35,10 @@ function isReadingActivity() {
 }
 function isChannelOpen(channelId?: string | null) {
   if (!channelId) return false
-  return window.location.pathname === `/dm/${channelId}`
+  return window.location.pathname === `/social/${channelId}`
 }
 function onDmIndex() {
-  return window.location.pathname === '/dm'
+  return window.location.pathname === '/social'
 }
 
 function playChime() {

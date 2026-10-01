@@ -25,13 +25,20 @@ export default defineEventHandler(async (event) => {
   const q = qRaw.toLowerCase()
   const currentUser = await getCurrentUser(event)
 
-  // `#tag` (or a bare legal tag) is a hashtag lookup, not a text search. Routing
-  // it to the indexed link table is both exact and far cheaper than ILIKE over
-  // post content, and it means "#foo" in the search box behaves like tapping a
-  // hashtag link in the feed.
+  // An explicit leading '#' is a hashtag lookup, not a text search: routing it to
+  // the indexed link table is both exact and far cheaper than ILIKE over post
+  // content, and it makes "#foo" in the search box behave like tapping a hashtag
+  // link in the feed.
+  //
+  // A *bare* word must NOT be tag-only in the `all` tab. The tag grammar accepts
+  // plain words, so `normalizeTag('sub2')` succeeds, which used to swallow every
+  // cross-type query -- searching a username returned zero users. In the
+  // `hashtags` tab a bare word is still an exact tag lookup, since that is the
+  // only thing that tab can show.
   const tagKey = normalizeTag(qRaw)
+  const hasHashPrefix = qRaw.startsWith('#')
   const wantHashtags = type === 'all' || type === 'hashtags'
-  const tagOnly = !!tagKey && wantHashtags
+  const tagOnly = !!tagKey && wantHashtags && (hasHashPrefix || type === 'hashtags')
   const wantUsers = !tagOnly && (type === 'all' || type === 'users')
   const wantPosts = !tagOnly && (type === 'all' || type === 'posts')
   const wantServers = !tagOnly && (type === 'all' || type === 'servers')
