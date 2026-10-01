@@ -131,7 +131,7 @@ onMounted(ensureMe)
     class="py-4 px-3 border-b border-outline-variant last:border-b-0 hover:bg-surface-container/30 transition"
     @click.self="openThread"
   >
-    <div v-if="post.boostedBy" class="flex items-center gap-1.5 mb-1 text-sm text-green-400">
+    <div v-if="post.boostedBy" class="flex items-center gap-1.5 mb-1 text-sm text-green-400 py-2 px-3">
       <Icon name="lucide:repeat-2" class="w-3.5 h-3.5" />
       <NuxtLink :to="`/profile/@${post.boostedBy.user?.username || ''}`" class="hover:underline truncate">
         <span v-if="post.boostedBy.user" class="flex items-center gap-1">

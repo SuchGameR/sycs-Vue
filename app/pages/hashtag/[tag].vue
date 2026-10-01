@@ -113,7 +113,7 @@ useBadgeReload(() => load(true))
     <p v-if="loading" class="text-center text-on-surface-variant py-10">読み込み中...</p>
 
     <template v-else-if="posts.length">
-      <div class="divide-y divide-outline-variant">
+      <div class="divide-y divide-outline-variant tp">
         <button v-for="p in posts" :key="p.id" @click="openMedia(p)"
           class="w-full text-left px-4 py-3 flex gap-3 hover:bg-surface-container/30 transition">
           <img v-if="avatarSrc(p.user?.avatarUrl)" :src="avatarSrc(p.user.avatarUrl)" class="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
@@ -142,3 +142,9 @@ useBadgeReload(() => load(true))
     </p>
   </div>
 </template>
+
+<style setup>
+  .tp {
+    padding-top: 55px !important;
+  }
+</style>

@@ -398,10 +398,10 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
           :key="it.key"
           :to="it.to"
           draggable="false"
-          class="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[9999px] transition-transform duration-200"
+          class="sycs-floatnav-item group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[9999px] transition-transform duration-200"
           :class="[
             armed && previewIndex === i ? 'scale-110' : '',
-            activeIndex === i ? '' : 'active:scale-90',
+            activeIndex === i || (armed && previewIndex === i) ? 'is-active' : 'active:scale-90',
           ]"
           :style="{ transitionDuration: armed && previewIndex === i ? '120ms' : undefined }"
           :aria-current="activeIndex === i ? 'page' : undefined"

@@ -236,6 +236,56 @@ body {
     0 20px 40px -12px rgb(0 0 0 / 0.38);
 }
 
+/*
+  個々の項目: ピルに重ねてガラスを一層足し、各ボタンの下まで投稿が透き通る
+  ようにする。ピル側の backdrop-filter だけでは縁付近のぼかしが弱く、項目側にも
+  同等のぼかしを掛けることで隣接する面どうしで光が溜まり、Liquid Glass として
+  読める。色は半透明の層だけに留め、色相は持ち込まない。
+*/
+.sycs-floatnav-item {
+  background:
+    linear-gradient(
+      180deg,
+      rgb(var(--md-sys-color-on-surface) / 0.07) 0%,
+      rgb(var(--md-sys-color-on-surface) / 0.03) 100%
+    ),
+    rgb(var(--md-sys-color-surface) / 0.34);
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  box-shadow:
+    0 1px 0 0 rgb(var(--md-sys-color-on-surface) / 0.07) inset,
+    0 2px 6px -3px rgb(0 0 0 / 0.22);
+  border: 1px solid rgb(var(--md-sys-color-outline-variant) / 0.28);
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+}
+
+/* 選択中は面の厚みを上げる。色ではなく厚みでハイライトする。 */
+.sycs-floatnav-item.is-active {
+  background:
+    linear-gradient(
+      180deg,
+      rgb(var(--md-sys-color-on-surface) / 0.12) 0%,
+      rgb(var(--md-sys-color-on-surface) / 0.05) 100%
+    ),
+    rgb(var(--md-sys-color-surface) / 0.5);
+  box-shadow:
+    0 1px 0 0 rgb(var(--md-sys-color-on-surface) / 0.1) inset,
+    0 3px 10px -4px rgb(0 0 0 / 0.3);
+}
+
+/* ホバーは濃さのみ。 */
+@media (hover: hover) {
+  .sycs-floatnav-item:hover:not(.is-active) {
+    background:
+      linear-gradient(
+        180deg,
+        rgb(var(--md-sys-color-on-surface) / 0.1) 0%,
+        rgb(var(--md-sys-color-on-surface) / 0.04) 100%
+      ),
+      rgb(var(--md-sys-color-surface) / 0.44);
+  }
+}
+
 /* サイドバーの端 8px 帯。カーソルを寄せるまで透明、光ると「押せる」合図になる。
    `group` はホバー中の祖先。帯自身は常に透明のままで、色は group-hover だけが作る。 */
 .sidebar-grip {
@@ -249,9 +299,11 @@ aside:hover > .sidebar-grip {
 }
 
 /* 選択中のプレート: 常時表示の丸いハイライト。
-   ドラッグ中はポインタに追従し、指を離すと確定スロットへ弾簧する。 */
+   ドラッグ中はポインタに追従し、指を離すと確定スロットへ弾簧する。
+   各項目が自前のガラスを持つようになったので、塗りつぶしは薄くし
+   輪郭だけを残す(面の厚みは項目側の is-active が受け持つ)。 */
 .sycs-floatnav-plate {
-  background: rgb(var(--md-sys-color-on-surface) / 0.16);
+  background: rgb(var(--md-sys-color-on-surface) / 0.07);
   box-shadow:
     0 1px 2px 0 rgb(0 0 0 / 0.2),
     0 0 0 0.5px rgb(var(--md-sys-color-outline-variant) / 0.65);

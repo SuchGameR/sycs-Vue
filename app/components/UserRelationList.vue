@@ -60,7 +60,7 @@ useBadgeReload(() => {
       <ul v-else class="space-y-0.5">
         <li v-for="u in users" :key="u.id">
           <NuxtLink
-            :to="`/profile/${u.username}`"
+            :to="`/profile/@${u.username}`"
             class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-container/60 transition"
             @click="emit('close')"
           >
