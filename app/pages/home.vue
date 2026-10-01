@@ -94,10 +94,14 @@ async function pollTop() {
 function startPolling() {
   stopPolling()
   if (refreshMode.value !== 'auto') return
+  // The feed already rides on SSE for new posts; this poll only exists to pick up
+  // edits/deletes to posts that are already on screen. Those are rare, so backing
+  // off to 15s keeps the top of the feed fresh without re-fetching a whole page
+  // of posts every 5 seconds on every open tab.
   pollTimer = setTimeout(async function tick() {
     try { await pollTop() } catch {}
-    if (refreshMode.value === 'auto') pollTimer = setTimeout(tick, 5000)
-  }, 5000)
+    if (refreshMode.value === 'auto') pollTimer = setTimeout(tick, 15000)
+  }, 15000)
 }
 
 function stopPolling() {

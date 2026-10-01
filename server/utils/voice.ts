@@ -19,7 +19,19 @@ interface VoiceRoom {
 
 const rooms = new Map<string, VoiceRoom>()
 const expiry = new Map<string, Map<string, ReturnType<typeof setTimeout>>>()
-const PRESENCE_TTL_MS = 45_000
+
+/**
+ * Presence TTL.
+ *
+ * The client's heartbeat runs every 15s, so this needs to stay comfortably
+ * above that: a browser throttles `setInterval` to roughly once per minute when
+ * the tab is backgrounded (and stops it entirely when suspended), and a mobile
+ * tab that is throttled past the TTL used to get silently dropped from the room
+ * by `leaveRoomInternal` -- which is what made calls drop while both parties
+ * were still there. The heartbeat now also fails loudly (see `touchRoom`) so a
+ * dropped client re-joins for real instead of lingering as a ghost.
+ */
+const PRESENCE_TTL_MS = 90_000
 
 export function getRoomMembers(roomKey: string): VoiceMember[] {
   return [...(rooms.get(roomKey)?.members.values() || [])].map(e => e.member)
@@ -42,6 +54,7 @@ function clearExpiry(roomKey: string, userId: string) {
   const roomExpiry = expiry.get(roomKey)
   const t = roomExpiry?.get(userId)
   if (t) clearTimeout(t)
+  if (roomExpiry) roomExpiry.delete(userId)
 }
 
 function broadcastUpdate(roomKey: string, room?: VoiceRoom) {
@@ -97,6 +110,29 @@ function leaveRoomInternal(roomKey: string, userId: string, quiet: boolean, sess
     expiry.delete(roomKey)
   }
   broadcastUpdate(roomKey, room)
+}
+
+/**
+ * Refresh presence without announcing anything.
+ *
+ * Re-using `joinRoom` as a keep-alive was the source of the call instability:
+ * every 30s each participant re-joined, and `joinRoom` unconditionally
+ * broadcasts the member list to EVERY subscriber plus re-runs peer setup on all
+ * of them. A heartbeating member also raced `callerId` ownership, so a participant
+ * whose refresh landed while the caller had left would be promoted to caller and
+ * the other side would see a new ring.
+ *
+ * Returns false when the member is unknown or the session has been displaced --
+ * the caller must then do a real `joinRoom`, since this only extends an existing
+ * presence.
+ */
+export function touchRoom(roomKey: string, userId: string, sessionId?: string): boolean {
+  const room = rooms.get(roomKey)
+  const entry = room?.members.get(userId)
+  if (!room || !entry) return false
+  if (sessionId && entry.sessionId !== sessionId) return false
+  scheduleExpiry(roomKey, userId)
+  return true
 }
 
 export function relaySignal(roomKey: string, from: VoiceMember, to: string, signal: any) {

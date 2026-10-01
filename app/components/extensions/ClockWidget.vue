@@ -26,7 +26,11 @@ onMounted(async () => {
     const savedAccent = localStorage.getItem(CLOCK_ACCENT_KEY)
     if (savedAccent && /^#[0-9a-fA-F]{6}$/.test(savedAccent)) accent.value = savedAccent
   }
-  timer = setInterval(() => { now.value = new Date() }, 200)
+  // 200ms は「秒針を 5 段階に刻む」ためだったが、秒針の角度は `secDeg` で
+  // 1/5 秒に丸められている。描画される異なる姿勢は毎秒5回だけなので、
+  // 200ms タイマーは 4/5 のティックで何も変えていない。
+  // デジタル表示も秒までなので 1000ms なら十分で、CPU 負荷は 1/5 になる。
+  timer = setInterval(() => { now.value = new Date() }, 1000)
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -114,19 +118,27 @@ const sub6Indices = Array.from({ length: 12 }, (_, i) => ({ i, major: i % 3 === 
       <!-- アナログ時計 -->
       <div v-else class="analog-clock">
         <div class="clock-face">
-          <!-- 目盛り -->
+          <!--
+            目盛り: 静的なので v-memo で更新を丸ごと飛ばす。`now` は 200ms ごとに
+            変わるため、これを書かないと約300ノードを毎回 diff することになり、
+            tick だけで重い。約300ノード × 5回/秒 = 毎秒1500ノードのパッチ成型が
+            発生していた。依存は無いので [] で固定。
+          -->
           <span
             v-for="v in hourIndices" :key="'h' + v"
+            v-memo="[]"
             class="clock-index hour"
             :style="{ '--i': v }"
           />
           <span
             v-for="v in minuteIndices" :key="'m' + v"
+            v-memo="[]"
             class="clock-index minute"
             :style="{ '--i': v }"
           />
           <span
             v-for="v in fifthIndices" :key="'f' + v"
+            v-memo="[]"
             class="clock-index fifth"
             :style="{ '--i': v }"
           />

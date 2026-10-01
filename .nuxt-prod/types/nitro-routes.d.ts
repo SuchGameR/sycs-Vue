@@ -82,6 +82,9 @@ declare module "nitropack/types" {
     '/api/dm/channels/:id/typing': {
       'post': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/dm/channels/[id]/typing.post').default>>>>
     }
+    '/api/dm/channels/:id/voice/heartbeat': {
+      'post': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/dm/channels/[id]/voice/heartbeat.post').default>>>>
+    }
     '/api/dm/channels/:id/voice/join': {
       'post': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/dm/channels/[id]/voice/join.post').default>>>>
     }

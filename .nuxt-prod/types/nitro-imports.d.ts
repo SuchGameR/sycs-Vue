@@ -193,6 +193,7 @@ declare global {
   const toPlainHandler: typeof import('../../node_modules/h3').toPlainHandler
   const toWebHandler: typeof import('../../node_modules/h3').toWebHandler
   const toWebRequest: typeof import('../../node_modules/h3').toWebRequest
+  const touchRoom: typeof import('../../server/utils/voice').touchRoom
   const unregisterPlugin: typeof import('../../server/utils/pluginRegistry').unregisterPlugin
   const unsealSession: typeof import('../../node_modules/h3').unsealSession
   const unsubscribeRealtime: typeof import('../../server/utils/realtime').unsubscribeRealtime
@@ -287,4 +288,4 @@ export { subscribeRealtime, unsubscribeRealtime, broadcast, broadcastToUsers } f
 export { rolePermissionsMask, getServerContext, isServerMember, requireServerMember, requireServerOwner, requireServerPermission } from 'C:/Users/owner/Desktop/開発フォルダ/SYCS/SGR/remake-buildSYCS/server/utils/serverAuth';
 export { urlToFilePath, ensureDir, validateFile, saveFile, validateEmojiFile, saveEmoji, saveFileWithWatermark, saveAvatar, saveCover } from 'C:/Users/owner/Desktop/開発フォルダ/SYCS/SGR/remake-buildSYCS/server/utils/upload';
 export { BADGE_ASSIGNMENTS, configBadges, pickTitle, computeTitles, enrichUsers, publicUser, pickPublicSummary } from 'C:/Users/owner/Desktop/開発フォルダ/SYCS/SGR/remake-buildSYCS/server/utils/userExtras';
-export { getRoomMembers, isInRoom, joinRoom, leaveRoom, relaySignal } from 'C:/Users/owner/Desktop/開発フォルダ/SYCS/SGR/remake-buildSYCS/server/utils/voice';
+export { getRoomMembers, isInRoom, joinRoom, leaveRoom, touchRoom, relaySignal } from 'C:/Users/owner/Desktop/開発フォルダ/SYCS/SGR/remake-buildSYCS/server/utils/voice';

@@ -576,20 +576,29 @@ function startWatchdog() {
     }
     tick++
     recoverPeers(room)
-    // Periodically re-join to refresh the member list and detect new participants
-    if (tick % 10 === 0) {
-      $fetch(room.joinPath, { method: 'POST' })
+    // Presence keep-alive. This deliberately does NOT re-join: a re-join
+    // broadcasts the member list to everyone and re-runs peer setup on every
+    // client, which churned connections and made calls unstable. The heartbeat
+    // endpoint refreshes the server-side TTL silently and only re-joins for real
+    // when it reports the member is unknown (expired / never joined).
+    if (tick % 5 === 0) {
+      $fetch(heartbeatPath(room), { method: 'POST' })
         .then((res: any) => {
-          if (res?.members) {
-            members.value = res.members || []
-            for (const m of members.value) {
-              if (m.userId !== me.value?.userId) ensurePeer(room, m)
-            }
+          if (!res?.known) return
+          if (!res.members?.length) return
+          members.value = res.members || []
+          for (const m of members.value) {
+            if (m.userId !== me.value?.userId) ensurePeer(room, m)
           }
         })
         .catch(() => {})
     }
   }, 3000)
+}
+
+/** The join/leave paths live beside the channel; heartbeat is its sibling. */
+function heartbeatPath(room: VoiceRoomConfig) {
+  return room.joinPath.replace(/\/join$/, '/heartbeat')
 }
 
 function stopWatchdog() {
