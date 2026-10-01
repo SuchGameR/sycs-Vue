@@ -62,14 +62,16 @@ const activeFilterCount = computed(() =>
    The 56px app header is hidden on this page (see the layout), so the search UI
    owns the top of the screen. Past a small scroll threshold it shrinks and
    goes translucent, keeping the input reachable without eating the results.
+   This feeds the same shared flag the pill nav reads, so both stay in sync.
    ========================================================================== */
-const compact = ref(false)
+const { compact, setCompact } = useScrollCompact()
 const scroller = ref<HTMLElement | null>(null)
+const searchFieldRef = ref<HTMLElement | null>(null)
 
 function onScroll() {
   const el = scroller.value
   if (!el) return
-  compact.value = el.scrollTop > 24
+  setCompact(el.scrollTop > 24)
 }
 
 /** Empty query switches the whole page into the Reels feed. */
@@ -239,8 +241,6 @@ function onPageClick(e: MouseEvent) {
     advancedOpen.value = false
   }
 }
-
-const searchFieldRef = ref<HTMLElement | null>(null)
 
 function openMedia(post: any) {
   mediaPane.openSmart(post, '検索')
