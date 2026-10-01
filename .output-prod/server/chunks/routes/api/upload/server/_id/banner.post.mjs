@@ -1,4 +1,4 @@
-import { c as defineEventHandler, n as getRouterParam, aE as requireServerPermission, aa as readMultipartFormData, m as createError, aK as validateFile, aO as saveCover, e as db, ao as servers, U as broadcast, aF as PERMISSIONS } from '../../../../../_/nitro.mjs';
+import { c as defineEventHandler, n as getRouterParam, aF as requireServerPermission, ab as readMultipartFormData, m as createError, aL as validateFile, aP as saveCover, e as db, ap as servers, U as broadcast, aG as PERMISSIONS } from '../../../../../_/nitro.mjs';
 import { eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';

@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, e as db, aQ as whiteboardStates } from '../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, e as db, aR as whiteboardStates } from '../../_/nitro.mjs';
 import 'crypto';
 import 'drizzle-orm';
 import 'jose';

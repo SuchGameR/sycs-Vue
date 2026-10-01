@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, n as getRouterParam, e as db, V as dmChannelMembers, m as createError, q as readBody, a4 as joinRoom } from '../../../../../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, n as getRouterParam, e as db, V as dmChannelMembers, m as createError, q as readBody, a5 as joinRoom } from '../../../../../../_/nitro.mjs';
 import { and, eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';

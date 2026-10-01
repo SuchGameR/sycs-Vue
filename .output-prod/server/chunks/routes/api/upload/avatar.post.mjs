@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, aa as readMultipartFormData, m as createError, aK as validateFile, aM as saveAvatar, e as db, o as users } from '../../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, ab as readMultipartFormData, m as createError, aL as validateFile, aN as saveAvatar, e as db, o as users } from '../../../_/nitro.mjs';
 import { eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';

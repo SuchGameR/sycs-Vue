@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, g as getQuery, e as db, as as playlists, at as playlistItems, au as postAttachments } from '../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, g as getQuery, e as db, at as playlists, au as playlistItems, av as postAttachments } from '../../_/nitro.mjs';
 import { desc, eq, inArray } from 'drizzle-orm';
 import 'crypto';
 import 'jose';

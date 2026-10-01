@@ -1,4 +1,4 @@
-import { c as defineEventHandler, n as getRouterParam, aG as requireServerMember, q as readBody, a5 as leaveRoom } from '../../../../../../../_/nitro.mjs';
+import { c as defineEventHandler, n as getRouterParam, aH as requireServerMember, q as readBody, a6 as leaveRoom } from '../../../../../../../_/nitro.mjs';
 import 'crypto';
 import 'drizzle-orm';
 import 'jose';

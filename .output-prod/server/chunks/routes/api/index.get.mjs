@@ -1,4 +1,4 @@
-import { c as defineEventHandler, e as db, a8 as customEmojis } from '../../_/nitro.mjs';
+import { c as defineEventHandler, e as db, a9 as customEmojis } from '../../_/nitro.mjs';
 import { desc } from 'drizzle-orm';
 import 'crypto';
 import 'jose';

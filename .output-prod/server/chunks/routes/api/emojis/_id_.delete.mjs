@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, n as getRouterParam, m as createError, e as db, a8 as customEmojis, a9 as urlToFilePath, U as broadcast } from '../../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, n as getRouterParam, m as createError, e as db, a9 as customEmojis, aa as urlToFilePath, U as broadcast } from '../../../_/nitro.mjs';
 import { unlink } from 'fs/promises';
 import { eq } from 'drizzle-orm';
 import 'crypto';

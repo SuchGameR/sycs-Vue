@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, n as getRouterParam, q as readBody, ay as normalizeAttachments, m as createError, e as db, f as posts, aq as postComments, G as enrichUsers, a0 as publicUser, U as broadcast } from '../../../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, n as getRouterParam, q as readBody, az as normalizeAttachments, m as createError, e as db, f as posts, ar as postComments, G as enrichUsers, a0 as publicUser, U as broadcast } from '../../../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import 'jose';

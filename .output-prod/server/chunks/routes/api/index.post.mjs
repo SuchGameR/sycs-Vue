@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, aa as readMultipartFormData, m as createError, e as db, a8 as customEmojis, ab as validateEmojiFile, ac as saveEmoji, U as broadcast } from '../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, ab as readMultipartFormData, m as createError, e as db, a9 as customEmojis, ac as validateEmojiFile, ad as saveEmoji, U as broadcast } from '../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import 'jose';

@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, aA as isServerMember, e as db, aB as serverChannels, f as posts, aC as syncPostHashtags, a9 as urlToFilePath, aD as saveFileWithWatermark, au as postAttachments, az as emit } from '../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, q as readBody, m as createError, aB as isServerMember, e as db, aC as serverChannels, f as posts, aD as syncPostHashtags, aa as urlToFilePath, aE as saveFileWithWatermark, av as postAttachments, aA as emit } from '../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { extname } from 'path';

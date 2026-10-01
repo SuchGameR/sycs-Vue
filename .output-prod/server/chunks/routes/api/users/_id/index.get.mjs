@@ -1,4 +1,4 @@
-import { c as defineEventHandler, r as requireAuth, n as getRouterParam, e as db, ai as closeFriends, o as users } from '../../../../_/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, n as getRouterParam, e as db, aj as closeFriends, o as users } from '../../../../_/nitro.mjs';
 import { eq, inArray } from 'drizzle-orm';
 import 'crypto';
 import 'jose';

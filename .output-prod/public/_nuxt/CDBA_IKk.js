@@ -1,0 +1,1 @@
+import{Q as e,Z as t}from"./C1q9in6h.js";import{t as n}from"./BZ4Qb0rE.js";function r(r){let{on:i}=n(),a=null;t(()=>{a=i(`badge.update`,()=>{r()})}),e(()=>{a?.(),a=null})}export{r as t};

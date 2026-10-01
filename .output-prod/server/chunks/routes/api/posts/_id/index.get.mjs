@@ -1,4 +1,4 @@
-import { c as defineEventHandler, n as getRouterParam, g as getQuery, E as getCurrentUser, e as db, aq as postComments, o as users, G as enrichUsers, a0 as publicUser, ax as parseAttachments } from '../../../../_/nitro.mjs';
+import { c as defineEventHandler, n as getRouterParam, g as getQuery, E as getCurrentUser, e as db, ar as postComments, o as users, G as enrichUsers, a0 as publicUser, ay as parseAttachments } from '../../../../_/nitro.mjs';
 import { eq, inArray } from 'drizzle-orm';
 import 'crypto';
 import 'jose';

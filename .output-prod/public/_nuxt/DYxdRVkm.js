@@ -1,0 +1,1 @@
+import{Ct as e,St as t}from"./C1q9in6h.js";var n=e(!1);function r(){return{compact:t(n),setCompact(e){n.value=e}}}export{r as t};
