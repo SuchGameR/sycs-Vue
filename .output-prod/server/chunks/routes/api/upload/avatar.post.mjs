@@ -1,4 +1,4 @@
-import { d as defineEventHandler, r as requireAuth, a4 as readMultipartFormData, h as createError, aE as validateFile, aG as saveAvatar, a as db, u as users } from '../../../nitro/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, aa as readMultipartFormData, m as createError, aK as validateFile, aM as saveAvatar, e as db, o as users } from '../../../_/nitro.mjs';
 import { eq } from 'drizzle-orm';
 import 'crypto';
 import 'jose';
@@ -13,13 +13,14 @@ import 'node:https';
 import 'node:events';
 import 'node:buffer';
 import 'node:fs';
+import 'node:fs/promises';
 import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
 
 const avatar_post = defineEventHandler(async (event) => {

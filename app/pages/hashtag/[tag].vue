@@ -71,6 +71,8 @@ function openMedia(post: any) {
 
 watch(tag, () => { load(true) })
 onMounted(() => { load(true) })
+
+useBadgeReload(() => load(true))
 </script>
 
 <template>

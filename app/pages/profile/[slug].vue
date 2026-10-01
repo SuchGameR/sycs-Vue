@@ -72,6 +72,15 @@ function onScroll() {
   profileHeaderState.value = top < 58 ? { displayName: profile.value.user.displayName, username: profile.value.user.username, avatarUrl: profile.value.user.avatarUrl, bannerUrl: profile.value.user.bannerUrl, badges: profile.value.user.badges, title: profile.value.user.title } : null
 }
 
+useBadgeReload(() => {
+  if (!resolvedId.value) return
+  // Only the header carries the profile's own badges; re-running loadProfile
+  // would also reset the infinite-scroll list and lose the reader's position.
+  return $fetch(`/api/users/${resolvedId.value}/profile`)
+    .then((data: any) => { profile.value = data })
+    .catch(() => {})
+})
+
 onMounted(() => {
   loadProfile()
   const container = document.querySelector('main')

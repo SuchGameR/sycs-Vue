@@ -38,6 +38,8 @@ function stopTrendingPolling() {
   if (trendingTimer) { clearTimeout(trendingTimer); trendingTimer = null }
 }
 
+useBadgeReload(() => loadTrending())
+
 onMounted(() => {
   loadTrending().then(startTrendingPolling)
 })

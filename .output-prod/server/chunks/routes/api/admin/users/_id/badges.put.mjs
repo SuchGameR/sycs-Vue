@@ -1,4 +1,4 @@
-import { d as defineEventHandler, f as getHeader, h as createError, i as getRouterParam, a as db, u as users, j as readBody, k as userBadges } from '../../../../../nitro/nitro.mjs';
+import { c as defineEventHandler, k as getHeader, m as createError, n as getRouterParam, e as db, o as users, q as readBody, v as userBadges } from '../../../../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import 'jose';
@@ -13,13 +13,14 @@ import 'node:https';
 import 'node:events';
 import 'node:buffer';
 import 'node:fs';
+import 'node:fs/promises';
 import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
 
 const badges_put = defineEventHandler(async (event) => {

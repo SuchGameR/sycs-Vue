@@ -13,8 +13,7 @@ const loaded = ref(false)
 
 const title = computed(() => (props.kind === 'followers' ? 'フォロワー' : 'フォロー中'))
 
-watch(() => [props.open, props.kind, props.userId] as const, async ([open]) => {
-  if (!open) return
+async function load() {
   users.value = []
   loaded.value = false
   loading.value = true
@@ -28,7 +27,16 @@ watch(() => [props.open, props.kind, props.userId] as const, async ([open]) => {
   } finally {
     loading.value = false
   }
+}
+
+watch(() => [props.open, props.kind, props.userId] as const, async ([open]) => {
+  if (!open) return
+  await load()
 }, { immediate: true })
+
+useBadgeReload(() => {
+  if (props.open) return load()
+})
 </script>
 
 <template>

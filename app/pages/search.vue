@@ -138,6 +138,11 @@ async function runSearch(silent = false) {
   }
 }
 
+// Silent so a badge change never replaces the visible results with a spinner.
+useBadgeReload(() => {
+  if (searched.value) return runSearch(true)
+})
+
 function syncUrl() {
   router.replace({
     path: '/search',

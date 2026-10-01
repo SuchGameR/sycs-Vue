@@ -1,31 +1,27 @@
 import { db } from '../db'
 import * as schema from '../db/schema'
 import { count, inArray } from 'drizzle-orm'
-
-export interface PublicBadge {
-  kind: 'icon' | 'image'
-  value: string
-  label?: string | null
-}
+import { getBatchBadges } from './batchBadges'
+import type { PublicBadge } from './batchBadges'
 
 /**
- * Server-side badge assignments.
- * Key by user id, or by `@username`. Example:
- *   '@suchgamer': [{ kind: 'icon', value: 'lucide:crown', label: '創設者' }]
- *   'user-uuid': [{ kind: 'image', value: '/uploads/badge.png', label: '公式' }]
+ * Config badges live in `data/batch.json`:
+ *   {
+ *     "@suchgamer": [{ "kind": "icon", "value": "lucide:crown", "label": "創設者" }],
+ *     "user-uuid":  [{ "kind": "image", "value": "/uploads/badge.png", "label": "公式" }]
+ *   }
+ * Keys are an exact match -- case sensitive, no normalisation -- because a
+ * lookup miss silently shows no badge at all.
  */
-export const BADGE_ASSIGNMENTS: Record<string, PublicBadge[]> = {
-  '@suchgamer': [{ kind: 'icon', value: 'lucide:badge-check', label: '運営' }],
-  '@Akinobu': [{ kind: 'icon', value: 'lucide:badge-check', label: '運営' }],
-  '@sub2': [{ kind: 'icon', value: 'lucide:shield', label: 'メンバー' }],
-}
+export const BADGE_ASSIGNMENTS = getBatchBadges
 
 export function configBadges(user: { id: string; username?: string | null }): PublicBadge[] {
+  const assignments = getBatchBadges()
   const badges: PublicBadge[] = []
-  if (user.username && BADGE_ASSIGNMENTS[`@${user.username}`]) {
-    badges.push(...BADGE_ASSIGNMENTS[`@${user.username}`])
+  if (user.username && assignments[`@${user.username}`]) {
+    badges.push(...assignments[`@${user.username}`])
   }
-  if (BADGE_ASSIGNMENTS[user.id]) badges.push(...BADGE_ASSIGNMENTS[user.id])
+  if (assignments[user.id]) badges.push(...assignments[user.id])
   return badges
 }
 

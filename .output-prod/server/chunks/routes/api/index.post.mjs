@@ -1,4 +1,4 @@
-import { d as defineEventHandler, r as requireAuth, a4 as readMultipartFormData, h as createError, a as db, a2 as customEmojis, a5 as validateEmojiFile, a6 as saveEmoji, O as broadcast } from '../../nitro/nitro.mjs';
+import { c as defineEventHandler, r as requireAuth, aa as readMultipartFormData, m as createError, e as db, a8 as customEmojis, ab as validateEmojiFile, ac as saveEmoji, U as broadcast } from '../../_/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import 'jose';
@@ -13,13 +13,14 @@ import 'node:https';
 import 'node:events';
 import 'node:buffer';
 import 'node:fs';
+import 'node:fs/promises';
 import 'node:path';
-import 'node:crypto';
 import 'drizzle-orm/node-postgres';
 import 'pg';
 import 'drizzle-orm/pg-core';
 import 'node:url';
 import '@iconify/utils';
+import 'node:crypto';
 import 'consola';
 
 const NAME_RE = /^[a-z0-9_]{2,32}$/;

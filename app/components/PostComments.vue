@@ -117,6 +117,8 @@ async function ensureMe() {
 let offComment: (() => void) | null = null
 let offReaction: (() => void) | null = null
 
+useBadgeReload(() => loadComments(false))
+
 onMounted(() => {
   loadComments()
   ensureMe()
