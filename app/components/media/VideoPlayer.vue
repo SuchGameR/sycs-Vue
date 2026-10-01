@@ -340,8 +340,10 @@ onUnmounted(() => {
 }
 .vp-stage:fullscreen,
 .vp-stage:-webkit-full-screen {
-  width: 100vw;
-  height: 100vh;
+  /* dvh/vw, not vh/vw: mobile browsers keep the URL bar height reserved in
+     100vh, which leaves the fullscreen stage taller than the visible area. */
+  width: 100dvw;
+  height: 100dvh;
   max-width: none;
   max-height: none;
   aspect-ratio: auto;

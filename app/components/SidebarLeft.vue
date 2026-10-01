@@ -50,7 +50,7 @@ const bodyOpacity = computed(() => (sidebarCollapsed.value ? (peeking.value ? 'o
     @mouseleave="peeking = false"
   >
     <aside
-      class="sidebar-shell group/sidebar relative flex flex-col border-r border-outline-variant bg-surface h-[calc(100vh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve))] sticky top-[var(--app-header-h)] overflow-hidden"
+      class="sidebar-shell group/sidebar relative flex flex-col border-r border-outline-variant bg-surface h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve))] sticky top-[var(--app-header-h)] overflow-hidden"
       :class="['transition-opacity duration-300', bodyOpacity]"
     >
       <!-- 端の 8px 帯: カーソルを寄せると光り、押すと開閉する -->
@@ -64,7 +64,7 @@ const bodyOpacity = computed(() => (sidebarCollapsed.value ? (peeking.value ? 'o
       />
 
       <!-- 中身は常にフル幅。親でクリップするので、ラベルが折り返さずそのまま覗く -->
-      <div class="flex min-w-[13.5rem] flex-1 flex-col overflow-y-auto px-3 py-4">
+      <div class="flex min-w-[13.5rem] flex-1 flex-col overflow-y-auto overscroll-contain px-3 py-4 min-h-0">
         <div class="mb-1 flex items-center justify-between gap-2">
           <span class="px-2 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">メニュー</span>
           <button

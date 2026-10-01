@@ -250,7 +250,7 @@ function formatDateTime(date: string) {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 h-[calc(100vh-56px-32px)] flex flex-col">
+  <div class="max-w-2xl mx-auto p-4 h-full flex flex-col pb-[calc(var(--app-bottom-inset)+1rem)]">
     <NuxtLink to="/social" class="text-sm text-on-surface-variant hover:text-white transition mb-4 flex items-center gap-1">
       <Icon name="lucide:arrow-left" class="w-4 h-4" />
       ソーシャル一覧に戻る
@@ -280,7 +280,7 @@ function formatDateTime(date: string) {
           @click="toggleBlock"
           :disabled="blockingBusy"
           :title="blocked ? 'ブロックを解除' : 'ブロック'"
-          class="p-2 rounded-lg transition shrink-0 disabled:opacity-50"
+          class="w-11 h-11 min-[681px]:w-9 min-[681px]:h-9 -mr-2 rounded-lg flex items-center justify-center transition shrink-0 disabled:opacity-50"
           :class="blocked ? 'text-red-400 hover:text-red-300' : 'text-on-surface-variant hover:text-red-400'"
         >
           <Icon v-if="blockingBusy" name="lucide:loader-2" class="w-4 h-4 animate-spin" />
@@ -289,7 +289,7 @@ function formatDateTime(date: string) {
         <button
           v-if="voiceStatus === 'idle' && !voiceIncoming"
           @click="startCall"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition shrink-0"
+          class="flex items-center gap-1.5 px-4 py-2.5 min-[681px]:py-1.5 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition shrink-0"
         >
           <Icon name="lucide:phone" class="w-4 h-4" />
           通話
@@ -297,7 +297,7 @@ function formatDateTime(date: string) {
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto space-y-3 mb-4">
+    <div class="flex-1 min-h-0 overflow-y-auto space-y-3 mb-4 overscroll-contain">
       <div v-if="loading && !messages.length" class="text-center text-on-surface-variant py-8">読み込み中...</div>
       <div v-else-if="!messages.length" class="text-center text-on-surface-variant py-8">
         <p>メッセージを送信してみましょう</p>
@@ -313,7 +313,7 @@ function formatDateTime(date: string) {
             <span class="text-xs text-slate-600">{{ timeAgo(msg.createdAt) }}</span>
             <span v-if="msg.edited" class="text-xs text-on-surface-variant">編集済み</span>
             <button v-if="msg.sender?.id === me?.user?.id && editingId !== msg.id" @click="startEdit(msg)"
-              class="text-slate-600 hover:text-indigo-400 transition hidden group-hover:inline-flex" title="編集">
+              class="w-8 h-8 -m-1 inline-flex items-center justify-center rounded hover:bg-accent/50 text-slate-600 hover:text-indigo-400 transition" title="編集" aria-label="編集">
               <Icon name="lucide:pencil" class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -356,7 +356,7 @@ function formatDateTime(date: string) {
         </Transition>
       </div>
       <div class="flex flex-col items-end shrink-0">
-        <button @click="sendMessage()" :disabled="!messageDraft.trim()" class="text-indigo-400 hover:text-indigo-300 transition disabled:opacity-50 shrink-0">
+        <button @click="sendMessage()" :disabled="!messageDraft.trim()" class="w-11 h-11 min-[681px]:w-8 min-[681px]:h-8 flex items-center justify-center rounded-lg hover:bg-indigo-500/10 transition disabled:opacity-50 shrink-0 text-indigo-400 hover:text-indigo-300" aria-label="送信">
           <Icon name="lucide:send" class="w-4 h-4" />
         </button>
         <Transition name="typing-fade">

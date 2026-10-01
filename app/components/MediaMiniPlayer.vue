@@ -134,7 +134,7 @@ function onSheetUp() {
           <p class="text-sm font-bold text-white truncate">{{ selected.user?.displayName || 'メディア' }}</p>
           <p class="text-[11px] text-on-surface-variant truncate">{{ selected.content || sourceLabel || 'タップして開く' }}</p>
         </button>
-        <button class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition shrink-0" @click="pane.closeMobile()">
+        <button class="min-w-10 min-h-10 min-[681px]:min-w-8 min-[681px]:min-h-8 p-2 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-container transition shrink-0" @click="pane.closeMobile()" title="閉じる" aria-label="ミニプレイヤーを閉じる">
           <Icon name="lucide:x" class="w-4 h-4" />
         </button>
       </div>
@@ -161,14 +161,14 @@ function onSheetUp() {
           </div>
 
           <div class="h-12 px-2 flex items-center gap-2 border-b border-outline-variant shrink-0">
-            <button class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" @click="pane.minimizeMobile()" title="戻る">
+            <button class="min-w-10 min-h-10 min-[681px]:min-w-9 min-[681px]:min-h-9 p-2 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-container transition" @click="pane.minimizeMobile()" title="戻る">
               <Icon :name="isSheet ? 'lucide:chevrons-down' : 'lucide:chevron-down'" class="w-5 h-5" />
             </button>
             <span class="text-sm font-bold text-white truncate flex-1">{{ selected.user?.displayName || 'メディア' }}</span>
-            <a v-if="download.href" :href="download.href" :download="download.name" class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" title="元のファイルをダウンロード">
+            <a v-if="download.href" :href="download.href" :download="download.name" class="min-w-10 min-h-10 min-[681px]:min-w-9 min-[681px]:min-h-9 p-2 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-container transition" title="元のファイルをダウンロード">
               <Icon name="lucide:download" class="w-5 h-5" />
             </a>
-            <button class="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition" @click="pane.closeMobile()" title="閉じる">
+            <button class="min-w-10 min-h-10 min-[681px]:min-w-9 min-[681px]:min-h-9 p-2 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-container transition" @click="pane.closeMobile()" title="閉じる">
               <Icon name="lucide:x" class="w-5 h-5" />
             </button>
           </div>

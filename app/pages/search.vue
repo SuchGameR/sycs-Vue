@@ -280,6 +280,11 @@ watch(queryStr, () => {
 onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
   cancelPress()
+  // useScrollCompact holds module-level state shared with MobileNav, so leaving
+  // /search while scrolled would otherwise keep the pill shrunken on every
+  // page that follows. MediaReelFeed resets on its own unmount; results mode
+  // is the one path that has to do it here.
+  setCompact(false)
 })
 
 const examples = [

@@ -275,7 +275,7 @@ async function toggleBookmark(postId: string) {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto">
+  <div class="max-w-2xl mx-auto pb-[calc(var(--app-bottom-inset)+1rem)]">
     <p v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</p>
     <p v-else-if="!profile" class="text-center text-on-surface-variant py-8">ユーザーが見つかりません</p>
     <template v-else>

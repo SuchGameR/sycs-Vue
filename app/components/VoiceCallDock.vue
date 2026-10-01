@@ -494,12 +494,17 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
 <template>
   <div>
+    <!-- Both panels sit on --app-bottom-inset instead of a fixed offset, so they
+         clear the mini player and the pill whichever one is showing. The dock
+         deliberately does NOT register itself in useBottomInset: it consumes
+         that value to place itself, and registering would feed its own height
+         back into the measurement and push it further away on every update. -->
     <!-- error toast -->
     <Transition name="slide-up">
-      <div v-if="showError" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] bg-red-950/90 border border-red-800/60 rounded-xl px-4 py-3 text-sm text-red-200 flex items-center gap-3 max-w-xs shadow-2xl">
+      <div v-if="showError" class="fixed bottom-[calc(var(--app-bottom-inset)+1rem)] right-4 z-[95] bg-red-950/90 border border-red-800/60 rounded-xl pl-4 pr-2 py-3 text-sm text-red-200 flex items-center gap-3 max-w-xs shadow-2xl">
         <Icon name="lucide:phone-missed" class="w-4 h-4 shrink-0" />
         <span class="flex-1">{{ errorMsg }}</span>
-        <button @click="dismissError" class="text-red-400 hover:text-white transition shrink-0">
+        <button @click="dismissError" class="w-9 h-9 -mr-1 shrink-0 flex items-center justify-center rounded-full text-red-400 hover:text-white hover:bg-red-900/40 transition" title="閉じる" aria-label="閉じる">
           <Icon name="lucide:x" class="w-4 h-4" />
         </button>
       </div>
@@ -507,7 +512,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
     <!-- incoming call -->
     <Transition name="slide-up">
-      <div v-if="incoming" class="fixed bottom-20 min-[681px]:bottom-[38px] right-4 z-[95] w-72 bg-surface-container/95 border border-outline rounded-2xl p-4 shadow-2xl backdrop-blur">
+      <div v-if="incoming" class="fixed bottom-[calc(var(--app-bottom-inset)+1rem)] right-4 z-[95] w-[min(18rem,calc(100vw-2rem))] bg-surface-container/95 border border-outline rounded-2xl p-4 shadow-2xl backdrop-blur">
         <div class="flex items-center gap-3">
           <div class="relative">
             <img v-if="avatarSrc(incoming.from.avatarUrl)" :src="avatarSrc(incoming.from.avatarUrl)" class="w-11 h-11 rounded-full object-cover" />
@@ -551,7 +556,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
             </span>
             <span v-if="status === 'active'" class="text-xs text-on-surface-variant tabular-nums">{{ callTime }}</span>
             <span class="text-xs text-on-surface-variant">{{ tiles.length + screenTiles.length }}名</span>
-            <button @click="minimized = true" class="w-8 h-8 rounded-full bg-surface-container/60 hover:bg-surface-container-high transition flex items-center justify-center" title="最小化（ドラッグできる通話アイコンに）">
+            <button @click="minimized = true" class="w-11 h-11 min-[681px]:w-8 min-[681px]:h-8 rounded-full bg-surface-container/60 hover:bg-surface-container-high transition flex items-center justify-center" title="最小化（ドラッグできる通話アイコンに）">
               <Icon name="lucide:minus" class="w-4 h-4 text-on-surface" />
             </button>
           </div>
@@ -613,7 +618,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
             <Icon name="lucide:user" class="w-6 h-6" />
           </div>
           <button v-if="cameraEnabled" @click.stop="voice.switchCamera().catch(() => {})"
-            class="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/50 hover:bg-black/75 transition flex items-center justify-center" title="カメラ切替（正面/背面）">
+            class="absolute top-0.5 right-0.5 w-9 h-9 min-[681px]:w-7 min-[681px]:h-7 rounded-full bg-black/50 hover:bg-black/75 transition flex items-center justify-center" title="カメラ切替（正面/背面）">
             <Icon name="lucide:refresh-ccw" class="w-4 h-4 text-white" />
           </button>
           <div class="px-2 py-1 text-[11px] text-on-surface flex items-center gap-1.5 bg-surface" :style="avatarPop('me', true)">
@@ -670,7 +675,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
               <Icon name="lucide:monitor-up" class="w-4 h-4" />
               {{ expandedScreen === 'self' ? 'あなたの画面' : ((screenTiles.find(s => s.userId === expandedScreen)?.name || '') + 'の画面') }}
             </span>
-            <button @click="expandedScreen = null" class="w-9 h-9 rounded-full bg-surface-container-high/60 hover:bg-surface-container-highest transition flex items-center justify-center" title="閉じる">
+            <button @click="expandedScreen = null" class="w-11 h-11 min-[681px]:w-9 min-[681px]:h-9 rounded-full bg-surface-container-high/60 hover:bg-surface-container-highest transition flex items-center justify-center" title="閉じる">
               <Icon name="lucide:x" class="w-5 h-5 text-white" />
             </button>
           </div>

@@ -148,7 +148,7 @@ onUnmounted(() => {
     <div class="flex">
       <!-- サイドバーはdesktopのみ。閉じる場合はピル_navが引き継ぐ。 -->
       <SidebarLeft v-if="layout.sidebar && desktopNav === 'sidebar'" />
-      <main class="flex-1 min-w-0 h-[calc(100vh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve))] overflow-y-auto">
+      <main class="flex-1 min-w-0 h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve))] overflow-y-auto overscroll-contain">
         <slot />
       </main>
       <MediaDetailPane v-if="isDesktop && layout.mediaPane" />

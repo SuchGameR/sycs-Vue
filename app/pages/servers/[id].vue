@@ -16,6 +16,10 @@ const loading = ref(true)
 const loadError = ref<string | null>(null)
 const activeChannelId = ref<string | null>(null)
 const showMemberList = ref(false)
+// The channel rail is a fixed 14rem column. On a phone that leaves under 8rem
+// for the conversation, so below 1024px it becomes an overlay drawer instead,
+// mirroring the member list drawer further down this template.
+const showChannels = ref(false)
 const showSettings = ref(false)
 const settingsTab = ref('overview')
 const settingsChannelId = ref<string | null>(null)
@@ -144,9 +148,10 @@ async function loadPosts(reset = true) {
 }
 
 function selectChannel(ch: any) {
-  if (activeChannelId.value === ch.id) return
+  if (activeChannelId.value === ch.id) { showChannels.value = false; return }
   activeChannelId.value = ch.id
   posts.value = []
+  showChannels.value = false
   loadPosts(true)
 }
 
@@ -275,8 +280,16 @@ onUnmounted(() => {
 
 <template>
   <div class="h-full flex bg-surface text-on-surface overflow-hidden">
-    <!-- Channel Sidebar -->
-    <aside class="w-56 bg-surface/60 flex flex-col shrink-0 border-r border-outline-variant">
+    <!-- Channel rail: static column on desktop, overlay drawer below 1024px -->
+    <div
+      v-if="showChannels"
+      class="max-[1023px]:fixed max-[1023px]:inset-0 max-[1023px]:z-[80] bg-black/50"
+      @click="showChannels = false"
+    />
+    <aside
+      class="w-56 bg-surface/60 flex flex-col shrink-0 border-r border-outline-variant max-[1023px]:fixed max-[1023px]:inset-y-0 max-[1023px]:left-0 max-[1023px]:z-[85] max-[1023px]:shadow-2xl"
+      :class="showChannels ? '' : 'max-[1023px]:hidden'"
+    >
       <div class="h-12 px-3 flex items-center justify-between border-b border-outline-variant shrink-0">
         <h2 class="font-bold text-white truncate text-sm flex items-center gap-2 min-w-0">
           <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
@@ -285,12 +298,20 @@ onUnmounted(() => {
           </div>
           <span class="truncate">{{ server?.name || 'サーバー' }}</span>
         </h2>
-        <button v-if="canManage" @click="openSettings('overview')" class="text-on-surface-variant hover:text-white transition">
+        <button
+          v-if="showChannels"
+          @click="showChannels = false"
+          class="max-[1023px]:w-9 max-[1023px]:h-9 max-[1023px]:-mr-1 max-[1023px]:flex max-[1023px]:items-center max-[1023px]:justify-center text-on-surface-variant hover:text-white transition shrink-0"
+          title="閉じる" aria-label="チャンネル一覧を閉じる"
+        >
+          <Icon name="lucide:x" class="w-4 h-4" />
+        </button>
+        <button v-if="canManage" @click="openSettings('overview')" class="w-9 h-9 -mr-1 flex items-center justify-center text-on-surface-variant hover:text-white transition shrink-0" title="設定">
           <Icon name="lucide:settings" class="w-4 h-4" />
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2 space-y-0.5 pb-[var(--app-bottom-inset)]">
         <template v-for="group in groupedChannels" :key="group.type">
           <div class="flex items-center justify-between px-2 py-1 mt-2 first:mt-0">
             <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">{{ group.label }}</span>
@@ -351,6 +372,13 @@ onUnmounted(() => {
     <!-- Main Content -->
     <div class="flex-1 flex flex-col min-w-0">
       <div class="h-12 px-4 flex items-center border-b border-outline-variant shrink-0 gap-2">
+        <button
+          @click="showChannels = true"
+          class="max-[1023px]:w-9 max-[1023px]:h-9 max-[1023px]:-ml-1 max-[1023px]:flex max-[1023px]:items-center max-[1023px]:justify-center text-on-surface-variant hover:text-white transition shrink-0"
+          title="チャンネル" aria-label="チャンネル一覧を開く"
+        >
+          <Icon name="lucide:menu" class="w-5 h-5" />
+        </button>
         <Icon :name="channelIcon(activeChannel?.type)" class="w-4 h-4 text-on-surface-variant shrink-0" />
         <span class="font-bold text-white text-sm truncate">{{ activeChannel?.name || 'チャンネルを選択' }}</span>
         <span v-if="activeChannel?.description" class="text-xs text-on-surface-variant truncate hidden sm:inline">— {{ activeChannel.description }}</span>
@@ -363,7 +391,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Posts -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-3 pb-[calc(var(--app-bottom-inset)+1rem)]">
         <div v-if="!activeChannelId" class="flex items-center justify-center h-full text-on-surface-variant">
           チャンネルを選択してください
         </div>
@@ -404,7 +432,7 @@ onUnmounted(() => {
               <Icon name="lucide:x" class="w-4 h-4" />
             </button>
           </div>
-          <div class="flex-1 overflow-y-auto p-3 space-y-1">
+          <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-1 pb-[calc(var(--app-bottom-inset)+1rem)]">
             <div v-for="member in members" :key="member.id" class="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-surface-container/50 transition">
               <img v-if="avatarSrc(member.user?.avatarUrl)" :src="avatarSrc(member.user.avatarUrl)" class="w-8 h-8 rounded-full object-cover" />
               <div v-else class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-white font-bold text-xs">

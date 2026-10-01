@@ -152,7 +152,7 @@ function timeAgo(date: string) {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 space-y-4">
+  <div class="max-w-2xl mx-auto p-4 space-y-4 pb-[calc(var(--app-bottom-inset)+1rem)]">
     <h1 class="text-2xl font-bold text-white hidden min-[681px]:block">アクティビティ</h1>
 
     <!-- Notifications (primary) -->

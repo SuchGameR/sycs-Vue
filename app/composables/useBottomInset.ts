@@ -3,14 +3,18 @@ import { computed, ref } from 'vue'
 /**
  * Shared bottom-of-viewport inset.
  *
- * Every bottom-anchored overlay (the floating pill, the media mini player, the
- * call dock) is `position: fixed` and sits at a different height. Pages cannot
- * know how much of their last row will be covered, and a hard-coded guess is
- * wrong twice: too small and content hides behind an overlay, too large and
- * there is a dead gap whenever nothing is playing.
+ * Persistent bottom-anchored overlays (the floating pill and the media mini
+ * player) are `position: fixed` and sit at different heights. Pages cannot know
+ * how much of their last row will be covered, and a hard-coded guess is wrong
+ * twice: too small and content hides behind an overlay, too large and there is
+ * a dead gap whenever nothing is playing.
  *
  * So overlays register how far their own top edge is from the viewport bottom,
  * and pages pad by the largest of those. Nothing registers -> no padding.
+ *
+ * Transient panels (the call dock) are consumers, not registrars: they position
+ * themselves from this value, so adding their own height back into the pool
+ * would chase their own tail on every measurement.
  *
  * Deliberately measured with getBoundingClientRect rather than offsetTop: the
  * pill is scaled down while the page is scrolled, and that transform changes
