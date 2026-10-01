@@ -5,6 +5,7 @@ import { getCurrentUser } from '../utils/auth'
 import { serializePosts } from '../utils/postQuery'
 import { enrichUsers, publicUser } from '../utils/userExtras'
 import { normalizeTag } from '../utils/hashtags'
+import { attachmentKindFilter, isMediaKind, type MediaKind } from '../utils/mediaFilter'
 
 /**
  * Cross-type search: users, posts, servers, hashtags.
@@ -16,9 +17,23 @@ import { normalizeTag } from '../utils/hashtags'
  */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const qRaw = String(query.q || '').trim()
+const qRaw = String(query.q || '').trim()
   const type = String(query.type || 'all')
   const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 50)
+
+  // --- advanced filters (long-press panel on /search) ------------------------
+  // `sort` / `since` apply to posts. `media` filters posts to those carrying an
+  // attachment of that kind. All three are validated against fixed allowlists
+  // rather than interpolated raw into the ORDER BY / WHERE text.
+  const SORTS = ['relevance', 'new', 'old', 'popular'] as const
+  const sort = (SORTS as readonly string[]).includes(String(query.sort))
+    ? String(query.sort) as typeof SORTS[number]
+    : 'relevance'
+
+  const SINCE = { day: 1, week: 7, month: 30, year: 365 } as const
+  const sinceDays = SINCE[String(query.since) as keyof typeof SINCE] ?? 0
+
+  const media: MediaKind | '' = isMediaKind(query.media) ? query.media : ''
 
   if (!qRaw) return { users: [], posts: [], servers: [], hashtags: [], query: '' }
 
@@ -146,6 +161,25 @@ export default defineEventHandler(async (event) => {
 
   if (wantPosts) {
     // Pre-rank by engagement, then apply visibility in code (same rules as feeds).
+    // ORDER BY is chosen from a fixed map rather than interpolated from the
+    // request, so `sort` can never inject SQL.
+    const ORDER_BY: Record<typeof sort, ReturnType<typeof sql>> = {
+      relevance: sql`(p.view_count + p.repost_count + p.like_count) DESC NULLS LAST, p.created_at DESC`,
+      popular: sql`(p.like_count * 3 + p.repost_count * 5 + p.view_count) DESC NULLS LAST, p.created_at DESC`,
+      new: sql`p.created_at DESC`,
+      old: sql`p.created_at ASC`,
+    }
+
+    // Both extra predicates are optional, so each is spliced in as a fragment
+    // only when the caller actually asked for that filter.
+    const sinceFilter = sinceDays ? sql`AND p.created_at > NOW() - (${sinceDays} * INTERVAL '1 day')` : undefined
+    const mediaFilter = media
+      ? sql`AND EXISTS (
+            SELECT 1 FROM post_attachments pa
+            WHERE pa.post_id = p.id AND ${attachmentKindFilter(media, sql`pa.mime`, sql`pa.url`)}
+          )`
+      : undefined
+
     const res = await db.execute(sql`
       SELECT
         p.id, p.content, p.image_url AS "imageUrl", p.visibility, p.visible_to AS "visibleTo",
@@ -156,9 +190,9 @@ export default defineEventHandler(async (event) => {
       FROM posts p
       JOIN users u ON u.id = p.user_id
       WHERE p.content ILIKE ${like}
-      ORDER BY
-        (p.view_count + p.repost_count + p.like_count) DESC NULLS LAST,
-        p.created_at DESC
+        ${sinceFilter}
+        ${mediaFilter}
+      ORDER BY ${ORDER_BY[sort]}
       LIMIT ${Math.min(limit * 3, 60)}
     `)
     const candidates: any[] = (res as any).rows

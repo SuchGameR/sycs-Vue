@@ -32,6 +32,13 @@ const {
   scheme: themeScheme,
   seed: themeSeed,
 } = useTheme();
+
+// デスクトップのナビ（ピル / サイドバー）。スマホは常にピルなので影響しない。
+const { desktopNav, setDesktopNav } = useNavLayout();
+const navOptions: Array<{ value: "pill" | "sidebar"; label: string; icon: string }> = [
+  { value: "pill", label: "下部ナビ", icon: "lucide:panel-bottom" },
+  { value: "sidebar", label: "サイドバー", icon: "lucide:panel-left" },
+];
 const github = ref(s.value.github || "");
 const twitter = ref(s.value.twitter || "");
 const website = ref(s.value.website || "");
@@ -647,6 +654,27 @@ async function save() {
                 <option value="zh">中文</option>
                 <option value="ko">한국어</option>
               </select>
+            </div>
+            <div>
+              <label class="block text-sm text-on-surface-variant mb-2">デスクトップのナビ表示</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  v-for="opt in navOptions"
+                  :key="opt.value"
+                  type="button"
+                  @click="setDesktopNav(opt.value)"
+                  class="flex items-center gap-2.5 p-3 rounded-lg border transition text-left"
+                  :class="desktopNav === opt.value
+                    ? 'border-indigo-500 bg-indigo-500/15 text-white'
+                    : 'border-outline bg-surface-container/30 text-on-surface-variant hover:border-outline-variant hover:text-on-surface'"
+                >
+                  <Icon :name="opt.icon" class="w-4 h-4 shrink-0" />
+                  <span class="text-sm font-medium">{{ opt.label }}</span>
+                </button>
+              </div>
+              <p class="text-xs text-on-surface-variant mt-2">
+                スマホは常に下部ナビ（スワイプで切り替え）が使えます。デスクトップはここで選べます。
+              </p>
             </div>
           </div>
 

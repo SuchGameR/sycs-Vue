@@ -106,7 +106,7 @@ function timeAgo(date: string) {
 
 <template>
   <aside
-    class="hidden min-[1024px]:flex flex-col shrink-0 bg-surface-container h-[calc(100vh-56px-var(--app-footer-h))] sticky top-14 relative overflow-hidden"
+    class="hidden min-[1024px]:flex flex-col shrink-0 bg-surface-container h-[calc(100vh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve))] sticky top-[var(--app-header-h)] relative overflow-hidden"
     :class="selected ? 'border-l border-outline-variant' : 'border-l-0'"
     :style="{
       width: (selected ? width : 0) + 'px',

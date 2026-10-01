@@ -1,3 +1,33 @@
+/* Room for the floating pill nav so page content is never hidden behind it.
+   mobile: the pill is always shown and pages pad themselves, so this is the
+   clearance a scrolling list needs. desktop: <main> already subtracts
+   --app-nav-reserve from its own height, so no extra padding is required. */
+:root {
+  --app-nav-clear: 5.5rem;
+}
+
+@media (min-width: 681px) {
+  :root {
+    --app-nav-clear: 0px;
+  }
+}
+
+/* The floating pill nav sits *above* the footer, so it floats over the bottom
+   of the scrollable <main> area.
+   Desktop only: the nav is hidden-below-681px, where pages already reserve room
+   for it with their own bottom padding. On desktop nothing did (the nav used to
+   be hidden there entirely), so without this reservation the last row of
+   content -- and a composer's send button -- ends up underneath it. */
+:root {
+  --app-nav-reserve: 0px;
+}
+
+@media (min-width: 681px) {
+  :root {
+    --app-nav-reserve: 5.25rem;
+  }
+}
+
 .sycs-emoji {
   display: inline-block;
   height: 100%;
@@ -171,16 +201,26 @@ body {
   pointer-events: none;
 }
 
-/* The plate follows a finger, so the rail must not let the browser pan it.
-   `touch-pan-y` keeps vertical page scrolling working while horizontal
-   movement is handed to the pointer handlers for the swipe-to-select
-   gesture. */
+/* The plate follows a pointer, so the rail must not let the browser pan it and
+   must not start a native image/text drag mid-gesture.
+   `touch-action: pan-y` keeps vertical page scrolling working while horizontal
+   movement is handed to the pointer handlers for the swipe-to-select gesture.
+   On desktop, where the gesture is driven by a mouse, the same rules apply --
+   `touch-action` is inert for a mouse but `user-select` / drag suppression are
+   what keep the drag from selecting text or ghost-dragging an avatar. */
 .sycs-floatnav-rail {
   pointer-events: auto;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
   touch-action: pan-y;
+}
+
+.sycs-floatnav-rail img,
+.sycs-floatnav-rail a {
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .sycs-floatnav > div {
@@ -201,12 +241,26 @@ body {
     0 20px 40px -12px rgb(0 0 0 / 0.38);
 }
 
-/* 選択中のプレート: バーより一段濃い面 + 独立した微細シャドウ */
+/* サイドバーの端 8px 帯。カーソルを寄せるまで透明、光ると「押せる」合図になる。
+   `group` はホバー中の祖先。帯自身は常に透明のままで、色は group-hover だけが作る。 */
+.sidebar-grip {
+  background: transparent;
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+}
+.group\/sidebar:hover .sidebar-grip,
+aside:hover > .sidebar-grip {
+  background: rgb(var(--md-sys-color-primary) / 0.55);
+  box-shadow: 0 0 12px 0 rgb(var(--md-sys-color-primary) / 0.5);
+}
+
+/* 選択中のプレート: 常時表示の丸いハイライト。
+   ドラッグ中はポインタに追従し、指を離すと確定スロットへ弾簧する。 */
 .sycs-floatnav-plate {
-  background: rgb(var(--md-sys-color-on-surface) / 0.13);
+  background: rgb(var(--md-sys-color-on-surface) / 0.16);
   box-shadow:
-    0 1px 2px 0 rgb(0 0 0 / 0.18),
-    0 0 0 0.5px rgb(var(--md-sys-color-outline-variant) / 0.6);
+    0 1px 2px 0 rgb(0 0 0 / 0.2),
+    0 0 0 0.5px rgb(var(--md-sys-color-outline-variant) / 0.65);
+  will-change: transform;
 }
 
 @media (prefers-color-scheme: dark) {

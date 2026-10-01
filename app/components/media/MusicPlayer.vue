@@ -270,6 +270,7 @@ onUnmounted(() => {
   gap: 0.75rem;
   min-width: 0;
   flex: 1 1 12rem;
+  max-width: 200px;
 }
 .mp-ctl {
   display: flex;
@@ -277,11 +278,13 @@ onUnmounted(() => {
   gap: 0.5rem;
   flex: 1 1 16rem;
   min-width: 0;
+  max-width: 100%;
 }
 .mp-progress {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
 }
 .mp-row {
   display: flex;

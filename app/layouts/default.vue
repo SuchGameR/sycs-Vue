@@ -2,9 +2,40 @@
 const route = useRoute()
 const isServerPage = computed(() => route.path.startsWith('/servers/') && !!route.params.id)
 
+/**
+ * /search hides the 56px app header entirely.
+ *
+ * That header's desktop slot is just a shortcut that navigates to /search, and
+ * its mobile slot is the logo -- both redundant while the page's own search UI
+ * is on screen. Reclaiming the height is what lets the big search box and the
+ * reel feed each get a full screen. `--app-header-h` is consumed by <main> and
+ * the sticky columns, so they slide up rather than leaving a 56px gap.
+ */
+const isSearchPage = computed(() => route.path === '/search')
+
 const isDesktop = useIsDesktop()
 const workbench = useWorkbench()
 const { layout } = workbench
+
+const { desktopNav, hydrate: hydrateNav } = useNavLayout()
+onMounted(hydrateNav)
+
+/**
+ * Room for the floating pill. It is 0 on mobile (pages pad themselves), and 0
+ * on desktop when the sidebar is the active nav -- otherwise switching to the
+ * sidebar would leave a phantom gap above the footer.
+ */
+const navReserveStyle = computed(() => {
+  const style: Record<string, string> = {}
+  // Only --app-nav-reserve needs overriding: it is 5.25rem on desktop to make
+  // room for the pill, and must drop to 0 when the sidebar is the active nav.
+  // --app-nav-clear needs no override because its desktop value is already 0
+  // (main's height is what absorbs the pill there) and on mobile the pill is
+  // shown regardless of the desktop preference.
+  if (desktopNav.value !== 'pill') style['--app-nav-reserve'] = '0px'
+  if (isSearchPage.value) style['--app-header-h'] = '0px'
+  return Object.keys(style).length ? style : undefined
+})
 
 const serverCache = ref<any>(null)
 
@@ -40,9 +71,10 @@ const customEmojis = useCustomEmojis()
  */
 const clientError = ref('')
 function showClientError(label: string, err: any) {
-  const msg = err?.message || err?.data?.message || String(err)
+  const e = err
+  const msg = e?.message || e?.data?.message || String(e)
   clientError.value = label + ': ' + msg
-  console.error('[layout]', label, err)
+  console.error('[layout]', label, e)
 }
 onMounted(() => {
   window.addEventListener('error', ev => showClientError('エラー', ev.error || ev.message))
@@ -85,7 +117,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px]">
+  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px] [--app-header-h:56px]" :style="navReserveStyle">
     <div v-if="clientError" class="fixed inset-x-3 top-[4.5rem] z-[300] mx-auto max-w-md rounded-xl border border-red-500/40 bg-red-950/90 p-3 text-sm text-red-200 shadow-2xl backdrop-blur">
       <div class="flex items-start gap-2">
         <Icon name="lucide:alert-triangle" class="w-4 h-4 shrink-0 mt-0.5" />
@@ -100,21 +132,20 @@ onUnmounted(() => {
     </div>
 
     <AppHeader
+      v-if="!isSearchPage"
       :is-server-page="isServerPage"
       :server="serverCache"
       class="sticky top-0 z-50 bg-surface sycs-header-bg border-b border-outline-variant sycs-glass"
     />
     <div class="flex">
-      <SidebarLeft
-        v-if="layout.sidebar"
-        class="hidden min-[681px]:flex w-48 min-[1024px]:w-60 border-r border-outline-variant sticky top-14"
-      />
-      <main class="flex-1 min-w-0 h-[calc(100vh-56px-var(--app-footer-h))] overflow-y-auto">
+      <!-- サイドバーはdesktopのみ。閉じる場合はピル_navが引き継ぐ。 -->
+      <SidebarLeft v-if="layout.sidebar && desktopNav === 'sidebar'" />
+      <main class="flex-1 min-w-0 h-[calc(100vh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve))] overflow-y-auto">
         <slot />
       </main>
       <MediaDetailPane v-if="isDesktop && layout.mediaPane" />
     </div>
-    <MobileNav class="min-[681px]:hidden" />
+    <MobileNav />
     <MediaMiniPlayer v-if="!isDesktop" />
     <VoiceCallDock />
     <WorkbenchFooter />

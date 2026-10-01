@@ -1,22 +1,94 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-const channels = ref<any[]>([])
-const loading = ref(true)
+const { on } = useRealtime()
+const unread = useUnread()
+const { openSwitcher } = useAccounts()
+const showSettings = ref(false)
+let offRealtime: (() => void)[] = []
 
-async function loadChannels() {
-  loading.value = true
+const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
+const myUser = computed<any>(() => me.value?.user || null)
+const myId = computed<string | undefined>(() => myUser.value?.id)
+
+/* ==========================================================================
+   Top tabs: サーバー / メッセージ
+   --------------------------------------------------------------------------
+   The remembered mode matters because this is a hub you flip between all day:
+   re-picking a tab on every visit is the kind of small friction that makes a
+   page feel broken. Persisted to localStorage so it survives a reload as well
+   as in-app navigation.
+   ========================================================================== */
+type Mode = 'servers' | 'messages'
+const MODE_KEY = 'sycs:social-mode'
+
+const mode = useState<Mode>('sycs:social-mode', () => 'messages')
+
+onMounted(() => {
   try {
-    const data = await $fetch('/api/dm/channels')
-    channels.value = data.channels
+    const saved = localStorage.getItem(MODE_KEY)
+    if (saved === 'servers' || saved === 'messages') mode.value = saved
+  } catch { /* ignore */ }
+})
+watch(mode, (v) => {
+  if (import.meta.client) {
+    try { localStorage.setItem(MODE_KEY, v) } catch { /* ignore */ }
+  }
+})
+
+const modes = [
+  { key: 'servers' as const, label: 'サーバー', icon: 'lucide:server' },
+  { key: 'messages' as const, label: 'メッセージ', icon: 'lucide:messages-square' },
+]
+
+/* ==========================================================================
+   サーバー
+   ========================================================================== */
+const servers = ref<any[]>([])
+const serversLoading = ref(false)
+const serversError = ref('')
+const serversLoaded = ref(false)
+const showServerSheet = ref(false)
+
+async function loadServers(force = false) {
+  if (serversLoaded.value && !force) return
+  serversLoading.value = true
+  serversError.value = ''
+  try {
+    const data = await $fetch<{ servers: any[] }>('/api/servers')
+    servers.value = data.servers || []
+    serversLoaded.value = true
+  } catch (e: any) {
+    serversError.value = e?.data?.message || 'サーバーを読み込めませんでした'
   } finally {
-    loading.value = false
+    serversLoading.value = false
   }
 }
 
-const { on } = useRealtime()
-const unread = useUnread()
-let offRealtime: (() => void)[] = []
+// Load each tab's data the first time it is actually opened, so landing on
+// メッセージ doesn't pay for the server list (and vice versa).
+// Client-only: during SSR the auth cookie is not forwarded to this internal
+// $fetch, so the request would 401 and paint an error state before hydration.
+onMounted(() => { if (mode.value === 'servers') loadServers() })
+watch(mode, (v) => { if (v === 'servers') loadServers() })
+
+/* ==========================================================================
+   メッセージ (DM)
+   ========================================================================== */
+const channels = ref<any[]>([])
+const channelsLoading = ref(true)
+
+async function loadChannels() {
+  channelsLoading.value = true
+  try {
+    const data = await $fetch('/api/dm/channels')
+    channels.value = data.channels
+  } catch {
+    channels.value = []
+  } finally {
+    channelsLoading.value = false
+  }
+}
 
 function patchChannel(p: any) {
   if (!p.channelId || !p.message?.id) return
@@ -28,28 +100,22 @@ function patchChannel(p: any) {
 function handleNewMessage(p: any) {
   if (!p.channelId) return
   // Only refetch channels on the first load; live updates patch the row in place.
-  if (channels.value.length) {
-    patchChannel(p)
-  } else {
-    loadChannels()
-  }
+  if (channels.value.length) patchChannel(p)
+  else loadChannels()
 }
 
 onMounted(() => {
   loadChannels()
-  if (isMobileNav.value) loadFriends()
   offRealtime = [
     on('dm.message', handleNewMessage),
     on('dm.message.edited', handleNewMessage),
   ]
 })
 
-onUnmounted(() => {
-  offRealtime.forEach(off => off())
-})
+onUnmounted(() => { offRealtime.forEach(off => off()) })
 
 function otherMembers(ch: any) {
-  return ch.members?.filter((m: any) => m.id !== me.value?.user?.id) || []
+  return (ch.members || []).filter((m: any) => m.id !== myId.value)
 }
 
 function timeAgo(date?: string) {
@@ -63,21 +129,13 @@ function timeAgo(date?: string) {
   return `${Math.floor(hours / 24)}日前`
 }
 
-const { data: me } = await useFetch('/api/auth/me', { key: 'dm-me' })
-
-/* ------------------------------------------------------------------------
- * モバイル専用（<681px）: アカウントカード + フレンドリスト
- * デスクトップの DM チャンネル一覧には一切影響させない。
- * ---------------------------------------------------------------------- */
-const { openSwitcher } = useAccounts()
-const showSettings = ref(false)
-
-// ブレークポイントはコードベース全体で 681px（モバイル = 680px 以下）
-const isMobileNav = useIsMobileNav()
-
-const myUser = computed<any>(() => me.value?.user || null)
-const myId = computed<string | undefined>(() => myUser.value?.id)
-
+/* ==========================================================================
+   フレンド
+   --------------------------------------------------------------------------
+   Friend requests are rare, so the list no longer occupies the top of the hub
+   permanently. It loads lazily the first time the sheet is opened, which also
+   means opening /social no longer fires a request nobody was going to look at.
+   ========================================================================== */
 interface Friend {
   id: string
   username: string
@@ -90,18 +148,29 @@ interface Friend {
 const friends = ref<Friend[]>([])
 const friendsLoading = ref(false)
 const friendsError = ref('')
-const friendsUnauthorized = ref(false)
+const friendsLoaded = ref(false)
+const showFriends = ref(false)
 const startingDmId = ref<string | null>(null)
 
 /**
- * `/api/users/:id/friends` は users テーブルの生行をそのまま返すため
- * passwordHash / email / settings を含む。必要な列だけを拾い、
- * クライアントへ持ち込む値を絞る。
+ * `/api/users/:id/friends` returns raw `users` rows (passwordHash / email /
+ * settings included), so only the columns the UI needs are carried over.
+ *
+ * Self is excluded by BOTH id and username: the id filter alone relied on the
+ * current user already being resolved when the list was built, which is not
+ * guaranteed while `/api/auth/me` is still in flight.
  */
 function toFriends(rows: unknown): Friend[] {
   const list = Array.isArray(rows) ? (rows as any[]) : []
+  const selfId = myId.value
+  const selfName = (myUser.value?.username || '').toLowerCase()
   return list
-    .filter((r: any) => r?.id && r.id !== myId.value)
+    .filter((r: any) => {
+      if (!r?.id) return false
+      if (selfId && String(r.id) === selfId) return false
+      if (selfName && String(r.username || '').toLowerCase() === selfName) return false
+      return true
+    })
     .map((r: any) => ({
       id: String(r.id),
       username: String(r.username || ''),
@@ -114,30 +183,27 @@ function toFriends(rows: unknown): Friend[] {
 }
 
 async function loadFriends() {
-  if (!myId.value) {
-    friends.value = []
-    friendsUnauthorized.value = true
-    friendsLoading.value = false
-    return
-  }
+  if (friendsLoaded.value) return
+  if (!myId.value) { friendsError.value = 'サインインが必要です'; return }
   friendsLoading.value = true
   friendsError.value = ''
-  friendsUnauthorized.value = false
   try {
     const data = await $fetch(`/api/users/${myId.value}/friends`)
     friends.value = toFriends(data?.friends)
+    friendsLoaded.value = true
   } catch (e: any) {
-    const status = e?.statusCode ?? e?.response?.status
-    if (status === 401) {
-      friends.value = []
-      friendsUnauthorized.value = true
-    } else {
-      friends.value = []
-      friendsError.value = e?.data?.message || 'フレンドを読み込めませんでした'
-    }
+    friends.value = []
+    friendsError.value = e?.data?.message || 'フレンドを読み込めませんでした'
   } finally {
     friendsLoading.value = false
   }
+}
+
+// Open lazily so the count badge is still available without paying for it up
+// front: it only refreshes once the sheet has been opened at least once.
+async function openFriends() {
+  showFriends.value = true
+  await loadFriends()
 }
 
 async function startDM(participantId: string) {
@@ -145,88 +211,190 @@ async function startDM(participantId: string) {
   startingDmId.value = participantId
   try {
     const data = await $fetch('/api/dm/channels', { method: 'POST', body: { participantId } })
+    showFriends.value = false
     await navigateTo(`/social/${data.channel.id}`)
   } catch (e: any) {
-    const status = e?.statusCode ?? e?.response?.status
-    if (status === 401) {
+    if ((e?.statusCode ?? e?.response?.status) === 401) {
       await navigateTo(`/signin?redirect=${encodeURIComponent('/social')}`)
     } else {
-      alert(e?.data?.message || 'DMを作成できませんでした')
+      alert(e?.data?.message || '会話を開始できませんでした')
     }
   } finally {
     startingDmId.value = null
   }
 }
-
-// 画面幅がリサイズでモバイル해진場合にのみ読み込む（デスクトップでは通信しない）
-watch(isMobileNav, (v) => {
-  if (v && !friends.value.length && !friendsLoading.value && !friendsError.value && !friendsUnauthorized.value) {
-    loadFriends()
-  }
-})
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 space-y-4">
-    <h1 class="text-2xl font-bold text-white">DM</h1>
-
-    <!-- ===== モバイル専用セクション（<681px） ===== -->
-    <section class="min-[681px]:hidden space-y-3">
-      <!-- (a) アカウント切り替え -->
+  <div class="max-w-2xl mx-auto p-4 space-y-4 pb-24 min-[681px]:pb-6">
+    <div class="flex items-center gap-2 p-2.5 rounded-xl bg-surface-container/40 border border-outline-variant">
       <button
         type="button"
         @click="openSwitcher"
-        class="w-full flex items-center gap-3 p-3 rounded-xl bg-surface-container/40 border border-outline-variant hover:bg-surface-container/70 active:bg-surface-container transition text-left"
+        class="flex-1 min-w-0 flex items-center gap-3 text-left"
+        :title="`${myUser?.displayName || 'マイアカウント'} を切り替える`"
       >
-        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
+        <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden relative group">
           <img v-if="avatarSrc(myUser?.avatarUrl)" :src="avatarSrc(myUser?.avatarUrl)" class="w-full h-full object-cover" alt="" />
           <template v-else>{{ myUser?.displayName?.charAt(0) || '?' }}</template>
+          <span class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition">
+            <Icon name="lucide:repeat-2" class="w-3.5 h-3.5 text-white" />
+          </span>
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-bold text-on-surface truncate">{{ myUser?.displayName || 'マイアカウント' }}</p>
           <p class="text-xs text-on-surface-variant truncate">@{{ myUser?.username || '?' }}</p>
-          <span class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-indigo-300 bg-indigo-600/20 rounded-full px-2 py-0.5 max-w-full">
-            <Icon name="lucide:repeat-2" class="w-3 h-3 shrink-0" />
-            <span class="truncate">アカウントを切り替える</span>
-          </span>
         </div>
-        <Icon name="lucide:chevron-right" class="w-4 h-4 text-on-surface-variant shrink-0" />
+        <Icon name="lucide:chevron-down" class="w-4 h-4 text-on-surface-variant shrink-0" />
       </button>
-
-      <!-- (b) アカウント設定 -->
       <button
         type="button"
         @click="showSettings = true"
-        class="w-full flex items-center gap-3 p-3 rounded-xl bg-surface-container/40 border border-outline-variant hover:bg-surface-container/70 active:bg-surface-container transition text-left"
+        aria-label="アカウント設定"
+        title="アカウント設定"
+        class="shrink-0 p-2 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition"
       >
-        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
-          <img v-if="avatarSrc(myUser?.avatarUrl)" :src="avatarSrc(myUser?.avatarUrl)" class="w-full h-full object-cover" alt="" />
-          <template v-else>{{ myUser?.displayName?.charAt(0) || '?' }}</template>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-bold text-on-surface truncate">{{ myUser?.displayName || 'マイアカウント' }}</p>
-          <p class="text-xs text-on-surface-variant truncate">@{{ myUser?.username || '?' }}</p>
-          <span class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-indigo-300 bg-indigo-600/20 rounded-full px-2 py-0.5 max-w-full">
-            <Icon name="lucide:settings" class="w-3 h-3 shrink-0" />
-            <span class="truncate">アカウント設定</span>
-          </span>
-        </div>
-        <Icon name="lucide:chevron-right" class="w-4 h-4 text-on-surface-variant shrink-0" />
+        <Icon name="lucide:settings" class="w-[18px] h-[18px]" />
       </button>
+      <button
+        @click="openFriends"
+        class="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-surface-container/70 border border-outline-variant text-sm text-on-surface hover:bg-surface-container transition"
+      >
+        <Icon name="lucide:user-round-check" class="w-4 h-4 text-indigo-400" />
+        フレンド
+        <span
+          v-if="friendsLoaded && friends.length"
+          class="min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[11px] font-bold flex items-center justify-center"
+        >{{ friends.length }}</span>
+      </button>
+    </div>
 
-      <!-- (c) フレンドリスト -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between px-1 gap-2">
-          <h2 class="text-sm font-bold text-on-surface flex items-center gap-1.5">
-            <Icon name="lucide:user-round-check" class="w-4 h-4 text-indigo-400" />
-            フレンド
-          </h2>
-          <span v-if="!friendsLoading && !friendsError && !friendsUnauthorized" class="text-[11px] text-on-surface-variant shrink-0">
-            {{ friends.length }}人
-          </span>
+    <!-- ===== 上部タブ: サーバー / メッセージ ===== -->
+    <div class="flex gap-1 p-1 rounded-full bg-surface-container/50 border border-outline-variant" role="tablist">
+      <button
+        v-for="m in modes"
+        :key="m.key"
+        role="tab"
+        :aria-selected="mode === m.key"
+        @click="mode = m.key"
+        class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-sm font-bold transition"
+        :class="mode === m.key
+          ? 'bg-indigo-600 text-white shadow-sm'
+          : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/60'"
+      >
+        <Icon :name="m.icon" class="w-4 h-4" />
+        {{ m.label }}
+      </button>
+    </div>
+
+    <!-- ===== サーバー ===== -->
+    <template v-if="mode === 'servers'">
+      <div class="flex gap-2">
+        <button
+          @click="showServerSheet = true"
+          class="flex-1 py-2.5 rounded-lg border border-outline text-sm text-on-surface hover:bg-surface-container transition flex items-center justify-center gap-1.5"
+        >
+          <Icon name="lucide:log-in" class="w-4 h-4" />
+          参加
+        </button>
+        <button
+          @click="showServerSheet = true"
+          class="flex-1 py-2.5 rounded-lg bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition flex items-center justify-center gap-1.5"
+        >
+          <Icon name="lucide:plus" class="w-4 h-4" />
+          作成
+        </button>
+      </div>
+
+      <div v-if="serversLoading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
+      <div v-else-if="serversError" class="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400 flex items-center justify-between gap-2">
+        <span>{{ serversError }}</span>
+        <button @click="loadServers(true)" class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-outline-variant hover:bg-surface-container transition">
+          <Icon name="lucide:rotate-cw" class="w-3.5 h-3.5" />再試行
+        </button>
+      </div>
+      <div v-else-if="!servers.length" class="text-center text-on-surface-variant py-10 text-sm">
+        参加しているサーバーはありません
+      </div>
+      <div v-else class="space-y-2">
+        <NuxtLink
+          v-for="s in servers"
+          :key="s.id"
+          :to="`/servers/${s.id}`"
+          class="flex items-center gap-3 p-3 bg-surface-container/30 rounded-xl border border-outline-variant hover:bg-surface-container/50 transition"
+        >
+          <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
+            <img v-if="s.iconUrl || s.icon_url" :src="s.iconUrl || s.icon_url" class="w-full h-full object-cover" alt="" />
+            <template v-else>{{ s.name?.charAt(0) || '?' }}</template>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-bold text-on-surface truncate">{{ s.name }}</p>
+            <p class="text-xs text-on-surface-variant truncate">
+              {{ s.description || `メンバー ${s.memberCount ?? s.member_count ?? 0} 人` }}
+            </p>
+          </div>
+          <Icon name="lucide:chevron-right" class="w-4 h-4 text-on-surface-variant shrink-0" />
+        </NuxtLink>
+      </div>
+    </template>
+
+    <!-- ===== メッセージ ===== -->
+    <template v-else>
+      <div v-if="channelsLoading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
+      <div v-else-if="!channels.length" class="text-center text-on-surface-variant py-10 text-sm space-y-3">
+        <p>まだ会話がありません</p>
+        <button
+          @click="openFriends"
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 transition"
+        >
+          <Icon name="lucide:user-round-check" class="w-4 h-4" />
+          フレンドから会話を始める
+        </button>
+      </div>
+      <div v-else class="space-y-2">
+        <NuxtLink
+          v-for="ch in channels"
+          :key="ch.id"
+          :to="`/social/${ch.id}`"
+          class="flex items-center gap-3 p-3 bg-surface-container/30 rounded-xl border border-outline-variant hover:bg-surface-container/50 transition"
+        >
+          <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
+            <img v-if="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" :src="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" class="w-full h-full object-cover" alt="" />
+            <template v-else>{{ otherMembers(ch)[0]?.displayName?.charAt(0) || '?' }}</template>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-bold text-on-surface truncate">
+                {{ otherMembers(ch).map((m: any) => m.displayName).join(', ') || '不明' }}
+                <span class="text-xs font-normal text-on-surface-variant">@{{ otherMembers(ch).map((m: any) => m.username).join(', @') || '?' }}</span>
+              </p>
+              <span class="flex items-center gap-1.5 shrink-0">
+                <span v-if="unread.hasDmUnread(ch.id)" class="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                <span v-if="ch.lastMessage?.createdAt" class="text-[11px] text-slate-600">{{ timeAgo(ch.lastMessage.createdAt) }}</span>
+              </span>
+            </div>
+            <p v-if="ch.lastMessage" class="text-xs text-on-surface-variant truncate">
+              <span class="text-on-surface">{{ ch.lastMessage.sender?.displayName }}<span v-if="ch.lastMessage.edited" class="text-on-surface-variant">（編集済み）</span>: </span>{{ ch.lastMessage.content }}
+            </p>
+            <p v-else class="text-xs text-on-surface-variant">会話を開く</p>
+            <p v-if="otherMembers(ch)[0]?.statusMessage" class="text-[11px] text-emerald-400/80 truncate flex items-center gap-1 mt-0.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 inline-block"></span>{{ otherMembers(ch)[0].statusMessage }}
+            </p>
+          </div>
+        </NuxtLink>
+      </div>
+    </template>
+
+    <!-- フレンドシート: 申請は滅多に無いので常時表示せずボタンから開く -->
+    <BottomSheet :open="showFriends" height="min(75dvh, 34rem)" :dismiss-on-backdrop="true" @close="showFriends = false">
+      <div class="p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-bold text-on-surface">フレンド</span>
+          <button @click="showFriends = false" class="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition">
+            <Icon name="lucide:x" class="w-5 h-5" />
+          </button>
         </div>
 
-        <!-- 読み込み中 -->
         <div v-if="friendsLoading" class="space-y-2">
           <div v-for="i in 3" :key="`skeleton-${i}`" class="flex items-center gap-3 p-2.5 rounded-xl bg-surface-container/30 border border-outline-variant">
             <div class="w-9 h-9 rounded-full bg-surface-container animate-pulse shrink-0"></div>
@@ -234,34 +402,20 @@ watch(isMobileNav, (v) => {
               <div class="h-3 w-1/3 rounded bg-surface-container animate-pulse"></div>
               <div class="h-2.5 w-1/4 rounded bg-surface-container animate-pulse"></div>
             </div>
-            <div class="w-4 h-4 rounded bg-surface-container animate-pulse shrink-0"></div>
           </div>
         </div>
 
-        <!-- 未ログイン / 401 -->
-        <div v-else-if="friendsUnauthorized" class="p-3 rounded-xl bg-surface-container/40 border border-outline-variant text-center">
-          <p class="text-sm text-on-surface">サインインが必要です</p>
-          <p class="text-xs text-on-surface-variant mt-1">アカウントにサインインするとフレンドが表示されます</p>
-          <NuxtLink to="/signin?redirect=%2Fdm" class="mt-3 inline-block px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
-            サインイン
-          </NuxtLink>
-        </div>
-
-        <!-- エラー -->
         <div v-else-if="friendsError" class="p-3 rounded-xl bg-surface-container/40 border border-outline-variant text-center">
-          <p class="text-sm text-red-400">{{ friendsError }}</p>
+          <p class="text-sm text-on-surface">{{ friendsError }}</p>
           <button
-            type="button"
-            @click="loadFriends"
+            @click="friendsLoaded = false; loadFriends()"
             class="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-sm text-on-surface hover:bg-surface-container transition"
           >
-            <Icon name="lucide:rotate-cw" class="w-4 h-4" />
-            再読み込み
+            <Icon name="lucide:rotate-cw" class="w-4 h-4" />再読み込み
           </button>
         </div>
 
-        <!-- フレンドがいない -->
-        <div v-else-if="!friends.length" class="p-4 rounded-xl bg-surface-container/40 border border-outline-variant text-center">
+        <div v-else-if="!friends.length" class="p-6 rounded-xl bg-surface-container/40 border border-outline-variant text-center">
           <div class="w-10 h-10 mx-auto rounded-full bg-surface-container flex items-center justify-center">
             <Icon name="lucide:user-round-x" class="w-5 h-5 text-on-surface-variant" />
           </div>
@@ -269,7 +423,6 @@ watch(isMobileNav, (v) => {
           <p class="text-xs text-on-surface-variant mt-1">プロフィールからフレンド申請を送ると、ここに表示されます</p>
         </div>
 
-        <!-- 一覧 -->
         <div v-else class="space-y-2">
           <button
             v-for="f in friends"
@@ -298,44 +451,9 @@ watch(isMobileNav, (v) => {
           </button>
         </div>
       </div>
-    </section>
+    </BottomSheet>
 
-    <!-- ===== 既存: DM チャンネル一覧（デスクトップ / モバイル共通） ===== -->
-    <div v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
-    <div v-else-if="!channels.length" class="text-center text-on-surface-variant py-8">
-      <p>まだDMチャンネルがありません</p>
-    </div>
-    <div v-else class="space-y-2">
-      <NuxtLink
-        v-for="ch in channels"
-        :key="ch.id"
-        :to="`/social/${ch.id}`"
-        class="flex items-center gap-3 p-3 bg-surface-container/30 rounded-xl hover:bg-surface-container/50 transition"
-      >
-        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
-          <img v-if="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" :src="avatarSrc(otherMembers(ch)[0]?.avatarUrl)" class="w-full h-full object-cover" />
-          <template v-else>{{ otherMembers(ch)[0]?.displayName?.charAt(0) || '?' }}</template>
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-sm font-bold text-white truncate">{{ otherMembers(ch).map((m: any) => m.displayName).join(', ') || '不明' }}
-              <span class="text-xs font-normal text-on-surface-variant">@{{ otherMembers(ch).map((m: any) => m.username).join(', @') || '?' }}</span>
-            </p>
-            <span class="flex items-center gap-1.5 shrink-0">
-              <span v-if="unread.hasDmUnread(ch.id)" class="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
-              <span v-if="ch.lastMessage?.createdAt" class="text-[11px] text-slate-600">{{ timeAgo(ch.lastMessage.createdAt) }}</span>
-            </span>
-          </div>
-          <p v-if="ch.lastMessage" class="text-xs text-on-surface-variant truncate">
-            <span :class="unread.hasDmUnread(ch.id) ? 'text-on-surface' : 'text-on-surface'">{{ ch.lastMessage.sender?.displayName }}<span v-if="ch.lastMessage.edited" class="text-on-surface-variant">（編集済み）</span>: </span>{{ ch.lastMessage.content }}
-          </p>
-          <p v-else class="text-xs text-on-surface-variant">DMを開く</p>
-          <p v-if="otherMembers(ch)[0]?.statusMessage" class="text-[11px] text-emerald-400/80 truncate flex items-center gap-1 mt-0.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 inline-block"></span>{{ otherMembers(ch)[0].statusMessage }}
-          </p>
-        </div>
-      </NuxtLink>
-    </div>
+    <ServerListModal v-if="showServerSheet" @close="showServerSheet = false; loadServers(true)" />
 
     <!-- SettingsModal はグローバルマウントではないためローカルに立てる。
          min-[681px]:hidden の内側に置くと display:none で不可視になるため、必ず外側。 -->

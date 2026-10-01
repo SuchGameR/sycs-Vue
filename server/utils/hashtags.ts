@@ -5,7 +5,7 @@ import * as schema from '../db/schema'
 /* ==========================================================================
    Hashtag grammar
    --------------------------------------------------------------------------
-   A tag body is 1-30 characters from:
+   A tag body is 1-20 characters from:
      - A-Z a-z 0-9 _
      - U+3040..U+30FF  (hiragana, katakana, and U+30FC prolonged sound mark)
 
@@ -23,6 +23,13 @@ import * as schema from '../db/schema'
    `#` at end of string, `#` followed by space/newline, and `#` followed by any
    character outside the class simply fail to match.
 
+   A following-character guard (lookahead `(?![TAG_CHARS])`) rejects a run that
+   is LONGER than the limit instead of truncating it. Without it a 21-char tag
+   matched its own first 20 chars, which indexed a tag the author never wrote
+   (`#abcdefghijklmnopqrstu` -> `abcdefghijklmnopqrst`) and made `#ラーメンー`
+   match as `ラーメン`, contradicting the rationale above. Now an over-long
+   token is simply not a hashtag, so it stays inert plain text on both sides.
+
    Casing: storage/lookup key is lowercased (`sycsdev`), the original casing is
    preserved in `hashtags.display_tag` for display. Lookup is therefore
    case-insensitive-tolerant.
@@ -37,7 +44,7 @@ const MAX_TAG_LENGTH = 20
 const PROLONGED = '\u30FC'
 
 export const HASHTAG_RE = new RegExp(
-  `(?<![${TAG_NOT_PRECEDED_BY}])#([${TAG_CHARS}]{0,${MAX_TAG_LENGTH - 1}}[${TAG_LAST_CHARS}])`,
+  `(?<![${TAG_NOT_PRECEDED_BY}])#([${TAG_CHARS}]{0,${MAX_TAG_LENGTH - 1}}[${TAG_LAST_CHARS}])(?![${TAG_CHARS}])`,
   'g',
 )
 

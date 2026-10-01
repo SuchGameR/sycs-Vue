@@ -45,7 +45,7 @@ onUnmounted(stopTrendingPolling)
 </script>
 
 <template>
-  <aside class="p-4 overflow-y-auto h-[calc(100vh-57px)] sticky top-14 space-y-6">
+  <aside class="p-4 overflow-y-auto h-[calc(100vh-var(--app-header-h))] sticky top-[var(--app-header-h)] space-y-6">
     <template v-if="isServerPage && members.length">
       <h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">メンバー ({{ members.length }})</h3>
       <div class="space-y-2">

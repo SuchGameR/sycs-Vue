@@ -264,14 +264,24 @@ function reportPost(postId: string) { alert('報告しました') }
         新着 {{ pending.length }} 件
       </button>
 
-      <div class="bg-surface-container/50 rounded-xl p-4 mt-4 border border-outline-variant overflow-hidden">
+      <!-- Composer stays inline on desktop only. On mobile the floating action
+           button + sheet is the single entry point, so an inline box would push
+           the feed below the fold and waste the top of the screen. -->
+      <div class="hidden min-[681px]:block bg-surface-container/50 rounded-xl p-4 mt-4 border border-outline-variant overflow-hidden">
         <PostComposer @submit="createPost" />
       </div>
 
       <div v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
       <template v-else>
-        <div class="rounded-xl border border-outline-variant overflow-hidden bg-surface/20">
-          <div v-for="post in posts" :key="post.id" :data-post-id="post.id">
+        <!-- Mobile: a hairline between posts so entries are separable while scrolling.
+             Desktop keeps the single bordered card, where the posts already read
+             as one panel. -->
+        <div class="min-[681px]:rounded-xl min-[681px]:border min-[681px]:border-outline-variant overflow-hidden bg-surface/20">
+          <div
+            v-for="(post, idx) in posts" :key="post.id" :data-post-id="post.id"
+            class="border-b border-outline-variant/40 min-[681px]:border-b-0"
+            :class="idx === posts.length - 1 ? 'border-b-0' : ''"
+          >
             <PostItem :post="post"
               :show-view-count="userSettings.showViewCount ?? true" :current-user-id="me?.user?.id"
               @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
