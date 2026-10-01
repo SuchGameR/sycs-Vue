@@ -137,6 +137,63 @@ export function customEmojiImg(name: string, url: string): string {
   return `<img class="sycs-emoji" src="${safeUrl}" alt=":${safeName}:" title=":${safeName}:" loading="lazy" draggable="false" />`
 }
 
+/* ---------------------------------------------------------------------------
+ * Twemoji
+ *
+ * Unicode emoji are drawn by the OS, so the same character is a flat pictogram
+ * on Windows, a rounded one on iOS and a coloured one on Android. Twemoji pins
+ * every client to the same asset, which is what makes a message look identical
+ * everywhere.
+ *
+ * Implemented here rather than pulled in as the `twemoji` package on purpose:
+ * that library's twemoji.parse() mutates the DOM after hydration, so Nuxt would
+ * render the server HTML, then rewrite every emoji client-side, and the
+ * hydrated tree would no longer match. Emitting the <img> during render keeps
+ * the server output and the first client render byte-identical.
+ *
+ * `alt` is not decoration: it is the whole fallback. If an asset 404s, or the
+ * request is blocked, the browser shows the original character instead of a
+ * broken-image box.
+ * ------------------------------------------------------------------------ */
+
+/** Pinned so the asset set can never shift under a deployed build. */
+export const TWEMOJI_VERSION = '14.0.2'
+const TWEMOJI_BASE = `https://cdn.jsdelivr.net/npm/twemoji@${TWEMOJI_VERSION}/assets/72x72`
+
+/**
+ * Twemoji names assets by code point, joined with '-', with U+FE0F dropped.
+ * That is why a plain 😀 (1f600) and an emoji-presentation 😄 (1f604 fe0f) can
+ * end up on different files, and why ZWJ families expand into a longer name.
+ */
+export function twemojiAssetUrl(char: string): string | null {
+  if (!char) return null
+  const points = Array.from(char)
+    .map((c) => c.codePointAt(0) as number)
+    .filter((cp) => cp !== 0xfe0f)
+  if (!points.length) return null
+  return `${TWEMOJI_BASE}/${points.join('-')}.png`
+}
+
+/** Same markup shape as customEmojiImg so both paths share .sycs-emoji styling. */
+export function unicodeEmojiImg(char: string): string | null {
+  const url = twemojiAssetUrl(char)
+  if (!url) return null
+  return `<img class="sycs-emoji" src="${url}" alt="${escapeEmojiAttr(char)}" loading="lazy" draggable="false" />`
+}
+
+/**
+ * Flags (regional indicator pairs), keycaps (# * 0-9 + FE0F + U+20E3) and
+ * pictographs with skin-tone modifiers or ZWJ joins. Ordered so the two-key
+ * sequences win over a lone pictograph.
+ */
+const UNICODE_EMOJI_RE =
+  /(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)/gu
+
+/** Replaces raw unicode emoji with their Twemoji image. Shortcodes are untouched. */
+export function replaceUnicodeEmoji(text: string): string {
+  return text.replace(UNICODE_EMOJI_RE, (match) => unicodeEmojiImg(match) ?? match)
+}
+
 const EMOJI_TOKEN_RE = /(?::[a-z0-9_+-]+:|\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)/giu
 
 /**

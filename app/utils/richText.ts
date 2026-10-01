@@ -1,4 +1,4 @@
-import { replaceShortcodes, shouldJumboEmoji, type CustomEmojiMap } from './emoji'
+import { replaceShortcodes, replaceUnicodeEmoji, shouldJumboEmoji, type CustomEmojiMap } from './emoji'
 
 const ESCAPE_MAP: Record<string, string> = {
   '&': '&amp;',
@@ -66,7 +66,10 @@ export function renderRichText(input: string, options: { emoji?: boolean; custom
     .join('')
 
   if (emoji) {
+    // Shortcodes first: they resolve to custom artwork, and the unicode pass
+    // that follows must not touch the markup just inserted.
     out = replaceShortcodes(out, options.custom)
+    out = replaceUnicodeEmoji(out)
     const jumbo = shouldJumboEmoji(input, options.custom)
     if (jumbo) out = `<span class="sycs-emoji-jumbo">${out}</span>`
   }
