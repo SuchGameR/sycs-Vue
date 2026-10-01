@@ -49,6 +49,27 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Cloudflare Tunnel (HTTPS 終端 + 公開ドメイン)
+  # ------------------------------------------------------------------
+  # なぜ必要か: getUserMedia はセキュアコンテキスト (https / localhost) でのみ
+  # 存在する。スマホから LAN IP で http:// アクセスすると navigator.mediaDevices が
+  # undefined になり、WebRTC 通話が根本的に成立しない。Tunnel を挟むと端末側は
+  # https になり、智能phone側の証明書信頼作业が不要になる。
+  #
+  # profiles で無効化しているので、`docker compose up -d` だけでは起動しない。
+  # 公開 anytimeは次:
+  #   docker compose --profile tunnel up -d
+  # トークンは .env の CLOUDFLARE_TUNNEL_TOKEN に置く (.env は gitignore 済み)。
+  # 公開ホスト名は Tunnel 作成時の設定側に持つので、アプリ側は変更不要。
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: sycs-tunnel
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is not set in .env}
+    depends_on:
+      - app
+    restart: unless-stopped
+
 volumes:
   pgdata:
   nuxt_cache:

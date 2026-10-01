@@ -407,8 +407,9 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
           :aria-current="activeIndex === i ? 'page' : undefined"
           :aria-label="it.key"
         >
+          <!-- 未読があるときだけ 最新Messagesのavatarを覗かせる。0なら普通のアイコン。 -->
           <img
-            v-if="it.key === 'social' && dmLatest?.avatarUrl"
+            v-if="it.key === 'social' && dmUnread > 0 && dmLatest?.avatarUrl"
             :src="avatarSrc(dmLatest.avatarUrl)"
             alt=""
             draggable="false"

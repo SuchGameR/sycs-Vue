@@ -265,15 +265,44 @@ function isScreenLike(e: any, uid: string) {
   return false
 }
 
+/**
+ * getUserMedia はセキュアコンテキスト (https / localhost) でのみ存在する。
+ * スマホから LAN IP で http:// アクセスすると navigator.mediaDevices 自体が
+ * undefined になり、以前は「この環境ではマイクを利用できません」という
+ * 原因が一切分からない文言しか出ていなかった。どの条件下で失敗したかを
+ * 名指しし、解決手順が分かる文言に変える。
+ */
+function micErrorMessage(e: any): string {
+  if (import.meta.client && !window.isSecureContext) {
+    return 'https でアクセスしていないためマイクを使えません（https:// または localhost で開いてください）'
+  }
+  switch (e?.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'マイクがブロックされています。ブラウザの設定で許可してください'
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return 'マイクが見つかりません'
+    case 'NotReadableError':
+      return 'マイクが他のアプリが使用中です'
+    default:
+      return e?.message || 'マイクを開けませんでした'
+  }
+}
+
 async function ensureLocalStream() {
   if (localStream.value) return localStream.value
   if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error('この環境ではマイクを利用できません')
+    throw new Error(micErrorMessage(null))
   }
-  localStream.value = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: false,
-  })
+  try {
+    localStream.value = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    })
+  } catch (e: any) {
+    throw new Error(micErrorMessage(e))
+  }
   localStream.value.getAudioTracks().forEach(t => { t.enabled = !muted.value })
   refreshTracksAcrossPeers()
   return localStream.value
