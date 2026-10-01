@@ -1,6 +1,6 @@
+/// <reference types="@nuxt/telemetry" />
 /// <reference types="@nuxt/icon" />
 /// <reference types="@nuxtjs/tailwindcss" />
-/// <reference types="@nuxt/telemetry" />
 /// <reference path="types/nitro-layouts.d.ts" />
 /// <reference path="types/builder-env.d.ts" />
 /// <reference path="types/plugins.d.ts" />
