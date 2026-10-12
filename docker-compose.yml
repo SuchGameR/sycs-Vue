@@ -54,22 +54,27 @@ services:
   # なぜ必要か: getUserMedia はセキュアコンテキスト (https / localhost) でのみ
   # 存在する。スマホから LAN IP で http:// アクセスすると navigator.mediaDevices が
   # undefined になり、WebRTC 通話が根本的に成立しない。Tunnel を挟むと端末側は
-  # https になり、証明書の手動信頼作业が不要になる。
+  # https になり、証明書の手動信頼の作業が不要になる。
   #
   # profiles で無効化しているので、`docker compose up -d` だけでは起動しない。
   # 有効化するには:
-  #   docker compose --profile tunnel up -d
-  # トークンは .env の CLOUDFLARE_TUNNEL_TOKEN に置く (.env は gitignore 済み)。
-  # 公開ホスト名は Tunnel 作成時の設定側に持つので、アプリ側は変更不要。
+  #   docker compose --profile tunnel up -d --no-deps tunnel
+  # 起動するたびにランダムな URL (https://xxx.trycloudflare.com) が発行され、
+  # スマホではその URL を開く。ログから読み取ること。
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: sycs-tunnel
     profiles: ["tunnel"]
-    # 空を既定にしてあるのは、`${VAR:?}` を付けるとトークン未設定のだけで
-    # `docker compose config` 全体が失敗し、tunnel をibirわない平时的
-    # `docker compose up -d` まで巻き込んで壊れるため。トークンが空のまま
-    # --profile tunnel を付けると cloudflared 自身が明示的にエラーにする。
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    # Quick Tunnel なのでトークンもドメインも要らない。`--url` に叩き先を渡す
+    # だけで https://<ランダム>.trycloudflare.com が発行される。
+    #
+    # 宛先は localhost ではなく compose ネットワーク上のサービス名 `app`。
+    # このコンテナ有自己的 localhost なので localhost を指定すると自分自身に
+    # _CONNECT して必ず失敗する。
+    #
+    # image の ENTRYPOINT は ["cloudflared","--no-autoupdate"] で shell が入って
+    # いないため、command はそのまま cloudflared の引数になる。
+    command: tunnel --url http://app:3000
     depends_on:
       - app
     restart: unless-stopped

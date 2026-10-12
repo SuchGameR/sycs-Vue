@@ -41,6 +41,8 @@ function detect(): UaInfo {
 
   const ua = navigator.userAgent || ''
   const isTablet = TABLET_UA_RE.test(ua)
+  const isIOS = IOS_UA_RE.test(ua)
+  const isAndroid = ANDROID_UA_RE.test(ua)
   // Client Hints already folds tablets into "not mobile", so only trust the
   // string for the tablet case when the hints are absent.
   const isMobile = typeof data?.mobile === 'boolean' ? data.mobile && !isTablet : MOBILE_UA_RE.test(ua) && !isTablet
@@ -48,12 +50,22 @@ function detect(): UaInfo {
   return {
     isMobile,
     isTablet,
-    isIOS: IOS_UA_RE.test(ua),
-    isAndroid: ANDROID_UA_RE.test(ua),
-    platform: data?.platform || (isIOS_UA_RE.test(ua) ? 'iOS' : isAndroid ? 'Android' : 'desktop'),
+    isIOS,
+    isAndroid,
+    platform: data?.platform || (isIOS ? 'iOS' : isAndroid ? 'Android' : 'desktop'),
   }
 }
 
 export function useUaInfo() {
-  return useState<UaInfo>('ua-info', detect)
+  // UA sniffing is a cosmetic nicety: it decides whether the address bar stays on
+  // "/". It must never be able to fail a request. A throw here propagates through
+  // useState into the Nuxt plugin, which surfaces as a 500 for the whole page, so
+  // any mistake below degrades to "looks like a desktop" instead.
+  return useState<UaInfo>('ua-info', () => {
+    try {
+      return detect()
+    } catch {
+      return FALLBACK
+    }
+  })
 }

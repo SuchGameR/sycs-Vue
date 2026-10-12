@@ -29,4 +29,4 @@ data/
 *.db-wal
 *.db-shm
 
-.opencode
+.opencode/

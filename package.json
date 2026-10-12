@@ -7,6 +7,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1",
+    "deploy:force": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1 -StopDevServer",
     "postinstall": "nuxt prepare",
     "theme:generate": "esbuild scripts/generate-theme-tokens.mjs --bundle --platform=node --format=esm --outfile=node_modules/.cache/sycs-gen-theme.mjs --log-level=warning && node node_modules/.cache/sycs-gen-theme.mjs"
   },

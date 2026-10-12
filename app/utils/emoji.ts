@@ -158,12 +158,18 @@ export function customEmojiImg(name: string, url: string): string {
 
 /** Pinned so the asset set can never shift under a deployed build. */
 export const TWEMOJI_VERSION = '14.0.2'
-const TWEMOJI_BASE = `https://cdn.jsdelivr.net/npm/twemoji@${TWEMOJI_VERSION}/assets/72x72`
+// The npm package `twemoji` ships the parser only -- its tarball contains ten
+// JS/type files and zero PNGs -- so the artwork has to come from the GitHub
+// source, not from /npm/. Verified against the CDN: /gh/.../1f600.png answers
+// 200 while /npm/.../assets/72x72/1f600.png is a hard 404.
+const TWEMOJI_BASE = `https://cdn.jsdelivr.net/gh/twitter/twemoji@${TWEMOJI_VERSION}/assets/72x72`
 
 /**
- * Twemoji names assets by code point, joined with '-', with U+FE0F dropped.
- * That is why a plain 😀 (1f600) and an emoji-presentation 😄 (1f604 fe0f) can
- * end up on different files, and why ZWJ families expand into a longer name.
+ * Twemoji names assets by code point in lowercase hex, joined with '-', with
+ * U+FE0F dropped and no zero padding. That is why a plain 😀 (1f600) and an
+ * emoji-presentation 😄 (1f604 fe0f) resolve to the same file, why a ZWJ family
+ * expands into a longer name, and why keycaps are `23-20e3.png` and not
+ * `0023-20e3.png` (checked against the CDN -- the padded form 404s).
  */
 export function twemojiAssetUrl(char: string): string | null {
   if (!char) return null
@@ -171,7 +177,7 @@ export function twemojiAssetUrl(char: string): string | null {
     .map((c) => c.codePointAt(0) as number)
     .filter((cp) => cp !== 0xfe0f)
   if (!points.length) return null
-  return `${TWEMOJI_BASE}/${points.join('-')}.png`
+  return `${TWEMOJI_BASE}/${points.map((cp) => cp.toString(16)).join('-')}.png`
 }
 
 /** Same markup shape as customEmojiImg so both paths share .sycs-emoji styling. */

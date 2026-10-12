@@ -25,7 +25,15 @@
 export default defineNuxtPlugin((nuxtApp) => {
   if (!import.meta.client) return
 
-  const { isMobile } = useUaInfo()
+  // Belt and braces on top of useUaInfo's own guard: this plugin runs before the
+  // app is mounted, so anything thrown here takes down every route. A cosmetic
+  // URL rewrite is never worth a blank page.
+  let isMobile = false
+  try {
+    isMobile = useUaInfo().isMobile.value
+  } catch {
+    return
+  }
 
   // Escape hatch for checking the behaviour from a desktop browser.
   let forced = false
@@ -34,7 +42,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   } catch {
     /* private mode */
   }
-  if (!forced && !isMobile.value) return
+  if (!forced && !isMobile) return
 
   const ROOT = '/'
   const original = history.replaceState.bind(history)
