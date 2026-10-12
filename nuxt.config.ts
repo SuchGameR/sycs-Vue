@@ -3,11 +3,10 @@ import { defineNuxtConfig } from 'nuxt/config'
 const isStaticPages =
   process.env.GITHUB_PAGES === 'true' || process.env.NITRO_PRESET === 'static'
 
+const baseURL = isStaticPages ? '/sycs-Vue/' : '/'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  // Isolated build artifacts when NUXT_BUILD_DIR is set (lets a production
-  // build coexist with the dev server's .nuxt without clobbering it).
-  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   // DevTools adds runtime hooks + client code to every page load.
   // Opt in with NUXT_DEVTOOLS=true when needed.
   devtools: { enabled: process.env.NUXT_DEVTOOLS === 'false' },
@@ -23,13 +22,27 @@ export default defineNuxtConfig({
   // ユーザーサイトにする場合は baseURL: '/' に戻す
   // 設定をやめるときは baseURL の条件分岐と下記 nitro / routeRules を削除すればOK
   app: {
-    baseURL: isStaticPages ? '/sycs-Vue/' : '/',
+    baseURL,
+    // ページ遷移はフェードのみ (app.css の .page-* とセット)。
+    // transform を使わないのは、ページ内の position:fixed 要素が新しい
+    // containing block に巻き込まれないようにするため。
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       title: 'SYCS - Ultra Modern Chat & SNS',
       meta: [
-        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover' }
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover' },
+        // ホーム画面に追加したときの standalone 起動 / ステータスバー。
+        // black-translucent なのでコンテンツはステータスバー下まで伸び、
+        // 上端は --app-safe-top でかわす。
+        { name: 'theme-color', content: '#0b0f19' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        { name: 'apple-mobile-web-app-title', content: 'SYCS' }
       ],
       link: [
+        { rel: 'manifest', href: `${baseURL}manifest.webmanifest` },
+        { rel: 'apple-touch-icon', href: `${baseURL}icons/apple-touch-icon.png` },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap' }

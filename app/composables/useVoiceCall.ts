@@ -23,12 +23,13 @@ interface SignalPayload {
 // /api/voice/turn から動的に取得する（Cloudflare Calls か、自前 coturn の静的
 // 資格情報）。ここに固定のTURN資格情報を埋め込むと、失効した瞬間から
 // リレー候補が死んで「つながりにくい」状態になるので置かない。
+// STUN は「数が多ければ速い」わけではない。サーバごとに候補を集めるため
+// 1台あたり数十ms～秒単位の待ちが積み上がり、候補ペアも増えて接続確立が
+// 遅くなる。到達性の高い Cloudflare と Google の2系統だけに絞る。
 const PC_CONFIG: RTCConfiguration = {
   iceServers: [
-    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
     { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
-    { urls: 'stun:global.stun.twilio.com:3478' },
-    { urls: 'stun:stun.services.mozilla.com:3478' },
+    { urls: 'stun:stun.l.google.com:19302' },
   ],
   // 候補を事前収集して初回接続を速くする。bundle/mux を固定すると
   // SDP・ポートが1本にまとまり、ネゴシエーションが軽くなる。
@@ -123,7 +124,7 @@ const callState = computed<StatusLabel>(() => {
 })
 
 // 「発信して相手の応答待ち」かどうか。DM通話でまだ自分以外が誰もいない状態。
-// この間だけ受信音(notificationCall.wav)をループさせる用途で使う。
+// この間だけ発信音(notificationCall.wav)をループさせる用途で使う。
 const waitingForPeer = computed(() =>
   (status.value === 'active' || status.value === 'connecting')
   && activeRoom.value?.kind === 'dm'
@@ -172,6 +173,14 @@ async function ensureMe() {
     displayName: u.displayName,
     avatarUrl: u.avatarUrl,
   }
+}
+
+// サーバの join/heartbeat 応答は「自分以外」を返す。自分をグリッドに出すため、
+// メンバー一覧には必ず自分を含める（既に含まれていればそのまま）。
+function withSelf(list: VoiceMember[]): VoiceMember[] {
+  const self = me.value
+  if (!self || list.some(m => m.userId === self.userId)) return list
+  return [{ userId: self.userId, username: self.username, displayName: self.displayName, avatarUrl: self.avatarUrl }, ...list]
 }
 
 function signalTo(room: VoiceRoomConfig, to: string, signal: SignalPayload, attempt = 0) {
@@ -474,7 +483,7 @@ function getPeer(room: VoiceRoomConfig, member: VoiceMember): RTCPeerConnection 
     const state = pc.iceConnectionState
     if (state === 'failed' || state === 'disconnected') {
       const now = Date.now()
-      if (now - (lastIceRestart.get(member.userId) || 0) > 6000) {
+      if (now - (lastIceRestart.get(member.userId) || 0) > 4000) {
         lastIceRestart.set(member.userId, now)
         if (typeof pc.restartIce === 'function') { try { pc.restartIce() } catch {} }
       }
@@ -555,9 +564,9 @@ function recoverPeers(room: VoiceRoomConfig) {
 
     // Failed connection: rebuild the connection from scratch (bounded).
     if (pc.connectionState === 'failed' || pc.iceConnectionState === 'failed') {
-      if (now - last < 8000) continue
+      if (now - last < 4000) continue
       const resets = hardResets.get(uid) || 0
-      if (resets >= 5) continue
+      if (resets >= 6) continue
       hardResets.set(uid, resets + 1)
       lastOfferAt.set(uid, now)
       const member = members.value.find(m => m.userId === uid)
@@ -571,17 +580,17 @@ function recoverPeers(room: VoiceRoomConfig) {
     // lets either side recover a dropped SDP without a full rebuild.
     switch (pc.signalingState) {
       case 'have-local-offer':
-        if (now - last < 4000) break
+        if (now - last < 2500) break
         lastOfferAt.set(uid, now)
         if (pc.localDescription) signalTo(room, uid, { type: 'offer', data: pc.localDescription })
         break
       case 'have-local-answer':
-        if (now - last < 4000) break
+        if (now - last < 2500) break
         lastOfferAt.set(uid, now)
         if (pc.localDescription) signalTo(room, uid, { type: 'answer', data: pc.localDescription })
         break
       case 'have-remote-offer':
-        if (now - last < 4000) break
+        if (now - last < 2500) break
         lastOfferAt.set(uid, now)
         ;(async () => {
           try {
@@ -596,7 +605,7 @@ function recoverPeers(room: VoiceRoomConfig) {
         // the polite side kicks a fresh offer (should rarely trigger).
         if (everConnected.has(uid)) break
         if (pc.remoteDescription != null && pc.iceConnectionState !== 'new') break
-        if (now - last < 10000) break
+        if (now - last < 6000) break
         if (me.value.userId >= uid) break
         lastOfferAt.set(uid, now)
         pc.createOffer()
@@ -629,7 +638,7 @@ function startWatchdog() {
         .then((res: any) => {
           if (!res?.known) return
           if (!res.members?.length) return
-          members.value = res.members || []
+          members.value = withSelf(res.members || [])
           for (const m of members.value) {
             if (m.userId !== me.value?.userId) ensurePeer(room, m)
           }
@@ -651,8 +660,12 @@ function stopWatchdog() {
   }
 }
 
-function ensurePeer(room: VoiceRoomConfig, member: VoiceMember) {
+async function ensurePeer(room: VoiceRoomConfig, member: VoiceMember) {
   if (me.value && member.userId === me.value.userId) return
+  // RTCPeerConnection は生成時に iceServers をコピーする。TURN の取得が
+  // 間に合う前に PC を作ると STUN だけで動き、対称NATで繋がらず復旧待ちの
+  // 数秒を無駄にする。必ず TURN 解決後に PC を作る（解決済みなら即時）。
+  await ensureTurn()
   const pc = getPeer(room, member)
   flushIce(member.userId)
   if (whiteboardStrokes.value.length) wbSyncTo(member.userId)
@@ -828,7 +841,7 @@ async function handleRealtimeReconnect() {  const room = activeRoom.value
   $fetch(room.joinPath, { method: 'POST', body: { sessionId: TAB_SESSION } })
     .then((res: any) => {
       if (res?.members) {
-        members.value = res.members || []
+        members.value = withSelf(res.members || [])
         for (const m of members.value) {
           if (m.userId !== me.value?.userId) ensurePeer(room, m)
         }
@@ -923,14 +936,15 @@ async function join(cfg?: VoiceRoomConfig) {
   connectionState.value = 'connecting'
   errorMsg.value = null
   try {
-    await ensureTurn()
-    await ensureMe()
+    // TURN 取得と自分の情報取得は独立なので並行に。マイク取得だけは
+    // 権限プロンプトがあるため直列に残す。
+    await Promise.all([ensureTurn(), ensureMe()])
     if (seq !== joinSeq) return
     await ensureLocalStream()
     if (seq !== joinSeq) return
     const res = await $fetch<{ members: VoiceMember[] }>(room.joinPath, { method: 'POST', body: { sessionId: TAB_SESSION } })
     if (seq !== joinSeq) return
-    members.value = res.members || []
+    members.value = withSelf(res.members || [])
     status.value = 'active'
     startWatchdog()
     for (const m of res.members || []) {

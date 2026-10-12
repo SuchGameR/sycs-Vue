@@ -369,7 +369,7 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
     -->
     <nav
       ref="navRef"
-      class="sycs-floatnav fixed inset-x-0 bottom-[calc(var(--app-footer-h)+0.75rem)] min-[681px]:bottom-[calc(var(--app-footer-h)+1.25rem)] z-[70] flex justify-center px-4 origin-bottom transition-transform duration-300 ease-out"
+      class="sycs-floatnav fixed inset-x-0 bottom-[calc(var(--app-footer-h)+0.75rem+var(--app-safe-bottom))] min-[681px]:bottom-[calc(var(--app-footer-h)+1.25rem+var(--app-safe-bottom))] z-[70] flex justify-center px-4 origin-bottom transition-transform duration-300 ease-out"
       :class="[
         desktopNav === 'pill' ? '' : 'min-[681px]:hidden',
         scrollCompact && desktopNav === 'pill' ? 'scale-[0.86] -translate-y-1' : 'scale-100',

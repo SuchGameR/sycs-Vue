@@ -32,7 +32,7 @@ const navReserveStyle = computed(() => {
   // On mobile the pill is always shown, so it needs no override there -- that
   // case is covered by --app-bottom-inset below.
   if (desktopNav.value !== 'pill') style['--app-nav-reserve'] = '0px'
-  if (isSearchPage.value) style['--app-header-h'] = '0px'
+  if (isSearchPage.value) style['--app-header-h'] = 'env(safe-area-inset-top, 0px)'
   return Object.keys(style).length ? style : undefined
 })
 
@@ -125,7 +125,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px] [--app-header-h:56px]" :style="[navReserveStyle, bottomInsetStyle]">
+  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px] [--app-header-h:calc(56px+env(safe-area-inset-top,0px))]" :style="[navReserveStyle, bottomInsetStyle]">
     <div v-if="clientError" class="fixed inset-x-3 top-[4.5rem] z-[300] mx-auto max-w-md rounded-xl border border-red-500/40 bg-red-950/90 p-3 text-sm text-red-200 shadow-2xl backdrop-blur">
       <div class="flex items-start gap-2">
         <Icon name="lucide:alert-triangle" class="w-4 h-4 shrink-0 mt-0.5" />
@@ -143,18 +143,18 @@ onUnmounted(() => {
       v-if="!isSearchPage"
       :is-server-page="isServerPage"
       :server="serverCache"
-      class="sticky top-0 z-50 bg-surface sycs-header-bg border-b border-outline-variant sycs-glass"
+      class="sycs-safe-top sticky top-0 z-50 bg-surface sycs-header-bg border-b border-outline-variant sycs-glass"
     />
     <div class="flex">
       <!-- サイドバーはdesktopのみ。閉じる場合はピル_navが引き継ぐ。 -->
       <SidebarLeft v-if="layout.sidebar && desktopNav === 'sidebar'" />
-      <main class="flex-1 min-w-0 h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve))] overflow-y-auto overscroll-contain">
+      <main class="sycs-main flex-1 min-w-0 h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve)-var(--app-keyboard-inset))] overflow-y-auto overscroll-contain">
         <slot />
       </main>
       <MediaDetailPane v-if="isDesktop && layout.mediaPane" />
     </div>
     <MobileNav />
-    <MediaMiniPlayer v-if="!isDesktop" />
+    <MediaMiniPlayer v-if="!isDesktop" class="sycs-mini-player" />
     <VoiceCallDock />
     <WorkbenchFooter />
     <AddToPlaylistModal />

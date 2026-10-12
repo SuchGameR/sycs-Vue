@@ -3,10 +3,21 @@
 Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
 
 ## Docker
-Build
+Build the Nuxt output first, then start the container. The container runs
+`.output/server/index.mjs` (bind-mounted from this project), so the build must
+exist before `up`:
+
 ```bash
-docker compose down
-docker compose up --build
+bun run build
+docker compose up -d --build
+```
+
+After changing source, rebuild and restart the app service:
+
+```bash
+docker compose stop app
+bun run build
+docker compose start app
 ```
 
 ## Setup

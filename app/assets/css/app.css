@@ -328,3 +328,132 @@ html[data-style='liquid-glass'] .sycs-hashtag {
   transform: scale(0.97);
   transition: transform 0.12s ease;
 }
+
+/* ==========================================================================
+   モバイル操作感 (ネイティブアプリ相当)
+   --------------------------------------------------------------------------
+   タップ応答 / スクロール / セーフエリア / キーボード回避をまとめて持つ。
+   個々のコンポーネントではなくここで一括して効かせる。
+   ========================================================================== */
+
+/* --- セーフエリア (ノッチ / ホームインジケータ) --------------------------- */
+/* viewport-fit=cover 前提。非ノッチ端末では env() が 0px を返すので無害。 */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* JS (keyboard-inset plugin) がソフトキーボードの高さを書き込む。 */
+  --app-keyboard-inset: 0px;
+}
+
+.sycs-safe-top {
+  padding-top: var(--app-safe-top);
+}
+
+/* --- タップ応答 ----------------------------------------------------------- */
+/* ダブルタップズームの判定待ちによる 300ms 遅延をなくす。html 側の
+   touch-action でピンチ/ダブルタップの抑止は維持したまま。 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a,
+button,
+[role='button'],
+label,
+summary,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+/* 押下を即座に感じさせる軽いフィードバック (タッチ端末のみ)。 */
+@media (hover: none) {
+  a:active,
+  button:active,
+  [role='button']:active,
+  label:active,
+  summary:active {
+    opacity: 0.68;
+  }
+}
+
+/* --- スクロール ----------------------------------------------------------- */
+/* 引っ張って更新 / バウンスを止めてアプリらしい挙動にする。iOS Safari では
+   standalone (ホーム画面から起動) のときだけ有効。 */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+/* メインのスクロール領域。慣性スクロールと、フォーカス時の余白を確保する。 */
+.sycs-main {
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-bottom: calc(var(--app-keyboard-inset) + 1.5rem);
+}
+
+/* --- ソフトキーボード ----------------------------------------------------- */
+/* キーボードが出ている間はフローティングナビとミニプレイヤーを隠し、画面を
+   コンテンツとキーボードに譲る (ネイティブのタブバーと同じ振る舞い)。
+   opacity のトランジションは base 側に持たせ、開閉どちらでも滑らかにする。
+   ナビの transform トランジション (スクロールで縮む) は維持する。 */
+.sycs-floatnav {
+  transition: transform 300ms ease-out, opacity 160ms ease;
+}
+.sycs-mini-player {
+  transition: opacity 160ms ease;
+}
+
+html.sycs-keyboard-open .sycs-floatnav,
+html.sycs-keyboard-open .sycs-mini-player {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 16px 未満の入力欄は iOS がフォーカス時に自動ズームするため、モバイルでは
+   入力欄だけ 16px に固定してズームを防ぐ。text-sm などのユーティリティを
+   確実に上書きするため !important を使う。 */
+@media (max-width: 680px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* --- ページ遷移 (Nuxt pageTransition: 'page') ---------------------------- */
+/* transform は使わない: ページ内の position:fixed (通話ドック等) が
+   新たな containing block に巻き込まれるのを避けるため、フェードのみ。 */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 160ms ease;
+}
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+/* --- エッジスワイプで戻る インジケータ ---------------------------------- */
+/* 左端から右へスワイプしたときに追従する丸い「戻る」表示。 */
+.sycs-swipe-back-indicator {
+  position: fixed;
+  left: max(0.75rem, env(safe-area-inset-left, 0px));
+  top: 50%;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  color: rgb(var(--md-sys-color-on-surface, 226 232 240));
+  background: rgb(var(--md-sys-color-surface-container, 30 41 59) / 0.85);
+  box-shadow: 0 6px 20px -6px rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%) scale(0.6);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+

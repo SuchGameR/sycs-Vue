@@ -103,8 +103,8 @@ const stateMeta = computed(() => {
 })
 
 /* ---- 効果音 ---- */
-// 音源パス・ループ・音量は useCallSounds に集約。ここは「いつ鳴らすか」だけを持つ。
-const sounds = useCallSounds()
+// 音源パス・ループ・音量は useAppSounds に集約。ここは「いつ鳴らすか」だけを持つ。
+const sounds = useAppSounds()
 
 // 着信音: 着信がある間ループ。
 watch(incoming, (v) => { if (v) sounds.startIncomingRing(); else sounds.stopIncomingRing() }, { immediate: true })
@@ -154,16 +154,18 @@ watch(callOpen, (open) => {
 })
 
 /* ---- tiles ---- */
-// Discord と同じく、自分はグリッドに出さず右下の小窓(PiP)に置く。
+// Discord と同じく自分もグリッドに出す（自分は最後に並べる）。
 type CallTile = { userId: string; name: string; avatarUrl: string | null; isSelf: boolean }
 const tiles = computed<CallTile[]>(() => {
   const list: CallTile[] = []
   for (const m of members.value) {
-    if (m.userId === me.value?.userId) continue
-    list.push({ userId: m.userId, name: m.displayName || m.username, avatarUrl: m.avatarUrl, isSelf: false })
+    list.push({ userId: m.userId, name: m.displayName || m.username, avatarUrl: m.avatarUrl, isSelf: m.userId === me.value?.userId })
   }
+  list.sort((a, b) => Number(a.isSelf) - Number(b.isSelf))
   return list
 })
+// 自分以外がまだ誰もいない（待機中）かどうか。
+const onlyMe = computed(() => members.value.filter(m => m.userId !== me.value?.userId).length === 0)
 const tileReactions = (uid: string) => reactions.value.filter(r => r.from === uid)
 
 /* ---- speaking activity (voice-level detection) ---- */
@@ -284,11 +286,12 @@ const wbColor = ref('#ffffff')
 const wbWidth = ref(3)
 const wbDrawing = ref(false)
 const wbCurrent = ref<any[]>([])
-const wbPanMode = ref(false)
 const wbView = reactive({ x: 0, y: 0, scale: 1 })
 const WB_COLORS = ['#ffffff', '#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#a855f7']
+const WB_WIDTHS = [2, 4, 10]
 const GRID = 100
 
+let wbPanning = false
 let pointers = new Map<number, { x: number; y: number }>()
 let pinchStart: { d: number; mid: { x: number; y: number }; scale: number; x: number; y: number } | null = null
 
@@ -320,7 +323,9 @@ function redrawWb() {
   const W = el.width, H = el.height
   const { x, y, scale } = wbView
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  ctx.clearRect(0, 0, W, H)
+  // 板は必ず不透明で塗る（透けると何が描けるのか分かりにくい）。既定は濃色ボード。
+  ctx.fillStyle = '#1b1c20'
+  ctx.fillRect(0, 0, W, H)
 
   // infinite grid
   const x0 = -x / scale, y0 = -y / scale
@@ -380,12 +385,8 @@ function wbZoomAt(cx: number, cy: number, factor: number) {
   redrawWb()
 }
 
-function wbZoom(factor: number) {
-  const el = wbCanvas.value
-  const cx = el?.clientWidth ? el.clientWidth / 2 : window.innerWidth / 2
-  const cy = el?.clientHeight ? el.clientHeight / 2 : window.innerHeight / 2
-  wbZoomAt(cx, cy, factor)
-}
+function closeWhiteboard() { whiteboardOpen.value = false }
+function toggleWhiteboard() { whiteboardOpen.value = !whiteboardOpen.value }
 
 function onWbWheel(e: WheelEvent) {
   e.preventDefault()
@@ -401,7 +402,8 @@ function onWbPointerDown(e: PointerEvent) {
     pinchStart = { d, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, scale: wbView.scale, x: wbView.x, y: wbView.y }
     return
   }
-  if (wbPanMode.value || e.button === 1) return
+  if (e.button === 1) { wbPanning = true; wbCanvas.value?.setPointerCapture(e.pointerId); return }
+  if (e.pointerType === 'mouse' && e.button !== 0) return
   wbCanvas.value?.setPointerCapture(e.pointerId)
   wbDrawing.value = true
   wbCurrent.value = [wbWorld(e)]
@@ -418,13 +420,16 @@ function onWbPointerMove(e: PointerEvent) {
     const d = Math.hypot(a.x - b.x, a.y - b.y)
     const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
     wbView.scale = Math.min(8, Math.max(0.15, pinchStart.scale * (d / pinchStart.d)))
-    wbView.x = mid.x - (mid.x - pinchStart.x) * (wbView.scale / pinchStart.scale)
-    wbView.y = mid.y - (mid.y - pinchStart.y) * (wbView.scale / pinchStart.scale)
+    // 開始時に指の間の真下にあった世界座標を、常に現在の中心の真下に固定する。
+    // これで拡大縮小と同時に2本指の移動がそのままパンになる。
+    const k = wbView.scale / pinchStart.scale
+    wbView.x = mid.x - (pinchStart.mid.x - pinchStart.x) * k
+    wbView.y = mid.y - (pinchStart.mid.y - pinchStart.y) * k
     redrawWb()
     return
   }
 
-  if (wbPanMode.value || e.button === 1) {
+  if (wbPanning) {
     const dx = now.x - (prev?.x ?? now.x)
     const dy = now.y - (prev?.y ?? now.y)
     wbView.x += dx
@@ -442,6 +447,7 @@ function onWbPointerMove(e: PointerEvent) {
 function onWbPointerUp(e: PointerEvent) {
   pointers.delete(e.pointerId)
   if (pointers.size < 2) pinchStart = null
+  wbPanning = false
   if (!wbDrawing.value) return
   wbDrawing.value = false
   if (wbCurrent.value.length >= 2) {
@@ -450,8 +456,6 @@ function onWbPointerUp(e: PointerEvent) {
   wbCurrent.value = []
   redrawWb()
 }
-
-function wbToggleTool() { wbPanMode.value = !wbPanMode.value }
 
 function wbClear() { voice.sendWhiteboard({ clear: true }) }
 function wbUndo() { voice.sendWhiteboard({ sync: [...whiteboardStrokes.value.slice(0, -1)] }) }
@@ -534,9 +538,23 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
         </div>
 
         <!-- stage -->
-        <div class="flex-1 overflow-y-auto px-3 pb-2 min-h-0">
-          <div v-if="tiles.length || screenTiles.length" class="h-full grid gap-3 content-center" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-            <!-- screen share tiles (separate from camera tiles) -->
+        <div class="relative flex-1 overflow-y-auto px-3 pb-2 min-h-0">
+          <div v-if="tiles.length" class="h-full grid gap-3 content-center" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <!-- self screen share -->
+            <div v-if="screenSharing && screenStream"
+              class="relative rounded-lg overflow-hidden bg-black md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
+              @click="expandedScreen = 'self'">
+              <video :srcObject.prop="screenStream" muted autoplay playsinline webkit-playsinline
+                class="absolute inset-0 w-full h-full object-contain" />
+              <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-[10px] text-white flex items-center gap-1">
+                <Icon name="lucide:monitor-up" class="w-3 h-3" /> あなたの画面
+              </div>
+              <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition">
+                <Icon name="lucide:maximize" class="w-8 h-8 text-white" />
+              </div>
+            </div>
+
+            <!-- remote screen shares -->
             <div v-for="s in screenTiles" :key="'sc-' + s.userId"
               class="relative rounded-lg overflow-hidden bg-black md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
               @click="expandedScreen = s.userId">
@@ -550,94 +568,83 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
               </div>
             </div>
 
-            <!-- member camera/avatar tiles -->
+            <!-- camera / avatar tiles (自分も含む) -->
             <div v-for="t in tiles" :key="t.userId" class="relative rounded-lg overflow-hidden bg-[#2b2d31] min-h-[180px] flex flex-col items-center justify-center">
-              <video v-if="hasVideo[t.userId]" :srcObject.prop="remoteStreams[t.userId]" muted autoplay playsinline webkit-playsinline
+              <video v-if="t.isSelf ? (cameraEnabled && localVideoStream) : hasVideo[t.userId]"
+                :srcObject.prop="t.isSelf ? localVideoStream : remoteStreams[t.userId]"
+                :class="t.isSelf ? 'scale-x-[-1]' : ''"
+                muted autoplay playsinline webkit-playsinline
                 class="absolute inset-0 w-full h-full object-cover" />
               <div v-else class="absolute inset-0 flex flex-col items-center justify-center">
-                <div :style="avatarPop(t.userId, false)" :class="['relative w-24 h-24 min-[681px]:w-28 min-[681px]:h-28 rounded-full', speakingGlow(t.userId, false)]">
+                <div :style="avatarPop(t.userId, t.isSelf)" :class="['relative w-24 h-24 min-[681px]:w-28 min-[681px]:h-28 rounded-full', speakingGlow(t.userId, t.isSelf)]">
                   <img v-if="avatarSrc(t.avatarUrl)" :src="avatarSrc(t.avatarUrl)" class="w-full h-full rounded-full object-cover" />
                   <div v-else class="w-full h-full rounded-full bg-[#5865f2] flex items-center justify-center text-white text-4xl font-bold">
                     {{ t.name.charAt(0) }}
                   </div>
                 </div>
               </div>
+              <!-- camera switch (自分のタイルのみ) -->
+              <button v-if="t.isSelf && cameraEnabled" @click="voice.switchCamera().catch(() => {})"
+                class="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 transition flex items-center justify-center z-[2]" title="カメラ切替（正面/背面）">
+                <Icon name="lucide:refresh-ccw" class="w-4 h-4 text-white" />
+              </button>
               <!-- reactions burst -->
               <div class="absolute inset-x-0 bottom-14 flex justify-center gap-2 pointer-events-none z-[2]">
                 <span v-for="r in tileReactions(t.userId)" :key="r.id" class="wb-fly text-3xl drop-shadow-lg">{{ r.emoji }}</span>
               </div>
               <!-- name + audio status -->
               <div class="absolute bottom-0 inset-x-0 flex items-center justify-between gap-2 px-3 py-2 bg-black/40">
-                <span class="text-white text-sm font-medium truncate">{{ t.name }}</span>
-                <Icon v-if="speakerMuted" name="lucide:volume-x" class="w-4 h-4 text-[#f23f43] shrink-0" />
+                <span class="text-white text-sm font-medium truncate">
+                  {{ t.isSelf ? (me?.displayName || 'あなた') : t.name }}<span v-if="t.isSelf" class="text-[#b5bac1]">（あなた）</span>
+                </span>
+                <span class="flex items-center gap-1.5 shrink-0">
+                  <Icon v-if="t.isSelf && muted" name="lucide:mic-off" class="w-4 h-4 text-[#f23f43]" />
+                  <Icon v-if="speakerMuted" name="lucide:volume-x" class="w-4 h-4 text-[#f23f43]" />
+                </span>
               </div>
             </div>
           </div>
 
-          <!-- waiting state (nobody else has joined yet) -->
-          <div v-else class="h-full flex flex-col items-center justify-center text-center gap-3">
-            <div class="w-24 h-24 rounded-full overflow-hidden bg-[#5865f2] flex items-center justify-center">
-              <img v-if="avatarSrc(roomAvatar)" :src="avatarSrc(roomAvatar)" class="w-full h-full object-cover" />
-              <Icon v-else name="lucide:phone" class="w-9 h-9 text-white" />
-            </div>
-            <div>
-              <p class="font-bold text-lg">{{ roomTitle }}</p>
-              <p class="text-sm text-[#b5bac1]">
-                {{ activeRoom?.kind === 'dm' ? '相手の応答を待っています…' : '誰かが参加するのを待っています…' }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- self preview (PiP, mirrored) -->
-        <div class="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 w-36 min-[681px]:w-44 rounded-lg overflow-hidden bg-[#2b2d31] border border-black/50 shadow-2xl z-[2] cursor-pointer group" @click="screenSharing ? expandedScreen = 'self' : null">
-          <video v-if="screenSharing && screenStream" :srcObject.prop="screenStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover" />
-          <video v-else-if="cameraEnabled && localVideoStream" :srcObject.prop="localVideoStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover scale-x-[-1]" />
-          <div v-else class="aspect-video flex items-center justify-center text-[#b5bac1]">
-            <Icon name="lucide:user" class="w-6 h-6" />
-          </div>
-          <button v-if="cameraEnabled" @click.stop="voice.switchCamera().catch(() => {})"
-            class="absolute top-0.5 right-0.5 w-9 h-9 min-[681px]:w-7 min-[681px]:h-7 rounded-full bg-black/60 hover:bg-black/80 transition flex items-center justify-center" title="カメラ切替（正面/背面）">
-            <Icon name="lucide:refresh-ccw" class="w-4 h-4 text-white" />
-          </button>
-          <div class="px-2 py-1 text-[11px] text-white flex items-center gap-1.5 bg-black/50" :style="avatarPop('me', true)">
-            <span class="w-1.5 h-1.5 rounded-full" :class="muted ? 'bg-[#f23f43]' : 'bg-[#23a55a]'" />
-            {{ me?.displayName }} <span v-if="muted">(ミュート)</span>
+          <!-- waiting hint (only yourself in the call) -->
+          <div v-if="onlyMe" class="pointer-events-none absolute inset-x-0 top-4 flex justify-center z-[2]">
+            <span class="px-3 py-1.5 rounded-full bg-black/50 text-xs text-[#b5bac1]">
+              {{ activeRoom?.kind === 'dm' ? '相手の応答を待っています…' : '誰かが参加するのを待っています…' }}
+            </span>
           </div>
         </div>
 
         <!-- whiteboard overlay -->
-        <div v-if="whiteboardOpen" class="absolute inset-0 z-[1] flex flex-col bg-surface/98">
-          <div class="flex items-center gap-1.5 px-4 py-2 border-b border-outline-variant bg-surface/80 flex-wrap">
-            <Icon name="lucide:presentation" class="w-4 h-4 text-indigo-400 shrink-0" />
-            <span class="text-sm font-bold text-white mr-2">ホワイトボード</span>
-            <button v-for="c in WB_COLORS" :key="c" @click="wbColor = c"
-              class="w-5 h-5 rounded-full border-2 transition shrink-0"
-              :style="{ backgroundColor: c, opacity: wbColor === c ? 1 : 0.6 }"
-              :class="wbColor === c ? 'border-white scale-110' : 'border-transparent'" :title="c" />
-            <button @click="wbToggleTool" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" :title="wbPanMode ? '描画モード' : '移動モード'">
-              <Icon :name="wbPanMode ? 'lucide:pencil' : 'lucide:hand'" class="w-3.5 h-3.5" />
-            </button>
-            <button @click="wbZoom(1.3)" class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" title="拡大">
-              <Icon name="lucide:zoom-in" class="w-3.5 h-3.5" />
-            </button>
-            <button @click="wbZoom(1 / 1.3)" class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" title="縮小">
-              <Icon name="lucide:zoom-out" class="w-3.5 h-3.5" />
-            </button>
-            <select v-model="wbWidth" class="bg-surface-container border border-outline rounded text-xs text-on-surface px-1 py-1 shrink-0">
-              <option :value="2">細</option>
-              <option :value="4">中</option>
-              <option :value="10">太</option>
-            </select>
-            <span class="text-[10px] text-on-surface-variant ml-auto">スクロールで拡大/縮小・2本指で移動</span>
-            <button @click="wbUndo" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0" title="戻す"><Icon name="lucide:undo-2" class="w-3.5 h-3.5" /></button>
-            <button @click="wbClear" class="px-2.5 py-1 rounded bg-red-900/40 hover:bg-red-900/70 text-xs text-red-300 transition shrink-0">クリア</button>
-            <button @click="whiteboardOpen = false; wbPanMode = false" class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-on-surface transition shrink-0">閉じる</button>
+        <div v-if="whiteboardOpen" class="absolute inset-0 z-[1] flex flex-col bg-[#15161a]">
+          <div class="flex items-center gap-2 px-3 py-2.5 shrink-0 flex-wrap">
+            <Icon name="lucide:presentation" class="w-5 h-5 text-[#5865f2] shrink-0" />
+            <span class="text-sm font-bold text-white mr-1">ホワイトボード</span>
+
+            <!-- 色 -->
+            <div class="flex items-center gap-1.5 bg-white/5 rounded-full px-2 py-1">
+              <button v-for="c in WB_COLORS" :key="c" @click="wbColor = c"
+                class="w-6 h-6 rounded-full transition"
+                :style="{ backgroundColor: c }"
+                :class="wbColor === c ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/20'" :title="c" />
+            </div>
+
+            <!-- 太さ -->
+            <div class="flex items-center gap-0.5 bg-white/5 rounded-full px-1.5 py-1">
+              <button v-for="w in WB_WIDTHS" :key="w" @click="wbWidth = w"
+                class="w-9 h-7 rounded-full flex items-center justify-center transition"
+                :class="wbWidth === w ? 'bg-white/20' : 'hover:bg-white/10'" :title="w <= 2 ? '細い' : w <= 4 ? '中' : '太い'">
+                <span class="rounded-full bg-white" :style="{ width: (w + 2) + 'px', height: (w + 2) + 'px' }" />
+              </button>
+            </div>
+
+            <button @click="wbUndo" class="wb-tool" title="戻す"><Icon name="lucide:undo-2" class="w-4 h-4" /></button>
+            <button @click="wbClear" class="wb-tool wb-tool-danger" title="全部消す"><Icon name="lucide:trash-2" class="w-4 h-4" /></button>
+
+            <span class="text-[11px] text-[#b5bac1] ml-auto hidden min-[700px]:block">1本指で描く／2本指で移動・拡大</span>
+            <button @click="closeWhiteboard" class="wb-tool" title="閉じる"><Icon name="lucide:x" class="w-4 h-4" /></button>
           </div>
           <canvas
             ref="wbCanvas"
-            class="flex-1 w-full touch-none"
-            :class="wbPanMode ? 'cursor-grab' : 'cursor-crosshair'"
+            class="flex-1 w-full touch-none cursor-crosshair"
             @wheel="onWbWheel"
             @pointerdown="onWbPointerDown"
             @pointermove="onWbPointerMove"
@@ -680,7 +687,7 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
             <button @click="voice.toggleScreenShare()" class="ctrl-btn" :class="screenSharing ? 'ctrl-active' : 'ctrl-ghost'" :title="screenSharing ? '共有を停止' : '画面を共有'">
               <Icon :name="screenSharing ? 'lucide:monitor-off' : 'lucide:monitor-up'" class="w-5 h-5" />
             </button>
-            <button @click="whiteboardOpen = !whiteboardOpen; if(!whiteboardOpen) wbPanMode = false" class="ctrl-btn" :class="whiteboardOpen ? 'ctrl-active' : 'ctrl-ghost'" title="ホワイトボード">
+            <button @click="toggleWhiteboard" class="ctrl-btn" :class="whiteboardOpen ? 'ctrl-active' : 'ctrl-ghost'" title="ホワイトボード">
               <Icon name="lucide:presentation" class="w-5 h-5" />
             </button>
             <button @click="showReactions = !showReactions" class="ctrl-btn ctrl-ghost" title="リアクション">
@@ -792,6 +799,17 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 @media (max-width: 480px) {
   .ctrl-btn, .ctrl-leave { width: 42px; height: 42px; }
 }
+
+.wb-tool {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 9999px;
+  background: #4e5058; color: #fff;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.wb-tool:hover { background: #5d6069; }
+.wb-tool:active { transform: scale(0.94); }
+.wb-tool-danger { background: #da373c; }
+.wb-tool-danger:hover { background: #c93134; }
 
 @keyframes wbfly {
   0% { opacity: 0; transform: translateY(10px) scale(0.4); }

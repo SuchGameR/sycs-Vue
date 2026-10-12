@@ -14,7 +14,6 @@ const dmLatest = ref<{ displayName: string; username: string; avatarUrl: string 
 
 let myId: string | null = null
 let initialized = false
-let audioCtx: AudioContext | null = null
 
 function readDmLast(): Record<string, string> {
   try {
@@ -43,23 +42,8 @@ function onDmIndex() {
 
 function playChime() {
   if (!import.meta.client) return
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
-    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {})
-    const t = audioCtx.currentTime + 0.01
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(880, t)
-    osc.frequency.setValueAtTime(1174.66, t + 0.14)
-    gain.gain.setValueAtTime(0.0001, t)
-    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.6)
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.start(t)
-    osc.stop(t + 0.62)
-  } catch { /* autoplay restrictions */ }
+  // 受信音は useAppSounds に集約（public/sounds/notify/message.wav）。
+  useAppSounds().playMessage()
 }
 
 function showNotification(title: string, body?: string, icon?: string | null) {
