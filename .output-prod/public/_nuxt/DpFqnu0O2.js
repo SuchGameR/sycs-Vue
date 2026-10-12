@@ -1,1 +1,0 @@
-import{F as e,O as t,et as n,ft as r}from"./C1q9in6h.js";import{u as i}from"./DbkTW44z.js";import{t as a}from"./CNs_Ozdc2.js";var o=e({__name:`index`,async setup(e){let o,s;return a({middleware:`auth`}),[o,s]=r(()=>i(`/home`,{replace:!0})),await o,s(),(e,r)=>(n(),t(`div`))}});export{o as default};

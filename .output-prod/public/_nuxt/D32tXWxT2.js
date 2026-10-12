@@ -1,1 +1,0 @@
-import{m as e}from"./C1q9in6h.js";import{c as t,u as n}from"./DbkTW44z.js";import{t as r}from"./cwdK2TFm.js";var i=t(async t=>{let i,a;if(t.path===`/`)try{return[i,a]=e(()=>r(`/api/auth/me`)),await i,a(),n(`/home`)}catch{}},1);export{i as default};
