@@ -19,16 +19,22 @@ interface SignalPayload {
   data?: any
 }
 
+// STUN だけでは対称NAT配下の端末同士を接続できないため、リレー(TURN)候補は
+// /api/voice/turn から動的に取得する（Cloudflare Calls か、自前 coturn の静的
+// 資格情報）。ここに固定のTURN資格情報を埋め込むと、失効した瞬間から
+// リレー候補が死んで「つながりにくい」状態になるので置かない。
 const PC_CONFIG: RTCConfiguration = {
   iceServers: [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+    { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
     { urls: 'stun:global.stun.twilio.com:3478' },
     { urls: 'stun:stun.services.mozilla.com:3478' },
-    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
   ],
-  iceCandidatePoolSize: 4,
+  // 候補を事前収集して初回接続を速くする。bundle/mux を固定すると
+  // SDP・ポートが1本にまとまり、ネゴシエーションが軽くなる。
+  iceCandidatePoolSize: 2,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
 }
 
 // A TURN server is required for reliable calls across strict NATs.
@@ -115,6 +121,14 @@ const callState = computed<StatusLabel>(() => {
   if (connectionState.value === 'failed' || connectionState.value === 'disconnected') return 'reconnecting'
   return 'connecting'
 })
+
+// 「発信して相手の応答待ち」かどうか。DM通話でまだ自分以外が誰もいない状態。
+// この間だけ受信音(notificationCall.wav)をループさせる用途で使う。
+const waitingForPeer = computed(() =>
+  (status.value === 'active' || status.value === 'connecting')
+  && activeRoom.value?.kind === 'dm'
+  && members.value.filter(m => m.userId !== me.value?.userId).length === 0,
+)
 
 const watchedRooms = new Map<string, VoiceRoomConfig>()
 const peers = new Map<string, RTCPeerConnection>()
@@ -611,7 +625,7 @@ function startWatchdog() {
     // endpoint refreshes the server-side TTL silently and only re-joins for real
     // when it reports the member is unknown (expired / never joined).
     if (tick % 5 === 0) {
-      $fetch(heartbeatPath(room), { method: 'POST' })
+      $fetch(heartbeatPath(room), { method: 'POST', body: { sessionId: TAB_SESSION } })
         .then((res: any) => {
           if (!res?.known) return
           if (!res.members?.length) return
@@ -786,6 +800,7 @@ function init() {
   offs = [
     on('voice.update', handleUpdate),
     on('voice.signal', handleSignal),
+    on('voice.displaced', handleDisplaced),
     on('realtime.reconnect', handleRealtimeReconnect),
   ]
   ensureTurn()
@@ -795,13 +810,22 @@ function init() {
   }
 }
 
+// 同じアカウントの別タブが通話を開始した（サーバ側が古いセッションへ送る通知）。
+// このタブの通話はもう無効なので畳む。sessionId を join/leave に載せるように
+// なったことで、初めてこの検知が機能する。
+function handleDisplaced(msg: any) {
+  const room = activeRoom.value
+  if (!room || msg?.roomKey !== room.roomKey) return
+  errorMsg.value = '別のタブで通話が開始されたため、この通話を終了しました'
+  leave()
+}
+
 // The SSE stream was dropped and has come back. Everything broadcast while it
 // was down is lost, so re-sync membership and re-send any signaling that the
 // peer never received.
-async function handleRealtimeReconnect() {
-  const room = activeRoom.value
+async function handleRealtimeReconnect() {  const room = activeRoom.value
   if (!room || (status.value !== 'active' && status.value !== 'connecting')) return
-  $fetch(room.joinPath, { method: 'POST' })
+  $fetch(room.joinPath, { method: 'POST', body: { sessionId: TAB_SESSION } })
     .then((res: any) => {
       if (res?.members) {
         members.value = res.members || []
@@ -889,7 +913,7 @@ async function join(cfg?: VoiceRoomConfig) {
     remoteScreenStreams.value = {}
     hardResets.clear()
     everConnected.clear()
-    $fetch(prev.leavePath, { method: 'POST' }).catch(() => {})
+    $fetch(prev.leavePath, { method: 'POST', body: { sessionId: TAB_SESSION } }).catch(() => {})
   }
 
   if (cfg) activeRoom.value = cfg
@@ -904,7 +928,7 @@ async function join(cfg?: VoiceRoomConfig) {
     if (seq !== joinSeq) return
     await ensureLocalStream()
     if (seq !== joinSeq) return
-    const res = await $fetch<{ members: VoiceMember[] }>(room.joinPath, { method: 'POST' })
+    const res = await $fetch<{ members: VoiceMember[] }>(room.joinPath, { method: 'POST', body: { sessionId: TAB_SESSION } })
     if (seq !== joinSeq) return
     members.value = res.members || []
     status.value = 'active'
@@ -947,7 +971,7 @@ async function leave() {
   hardResets.clear()
   everConnected.clear()
   if (room) {
-    $fetch(room.leavePath, { method: 'POST' }).catch(() => {})
+    $fetch(room.leavePath, { method: 'POST', body: { sessionId: TAB_SESSION } }).catch(() => {})
   }
 }
 
@@ -1046,6 +1070,7 @@ export function useVoiceCall() {
     status,
     connectionState,
     callState,
+    waitingForPeer,
     errorMsg,
     muted,
     speakerMuted,

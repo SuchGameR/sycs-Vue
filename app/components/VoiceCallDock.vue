@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const voice = useVoiceCall()
-const { status, members, muted, speakerMuted, remoteStreams, remoteScreenStreams, incoming, errorMsg, activeRoom, callState, me, cameraEnabled, screenSharing, localVideoStream, screenStream, localStream, reactions, whiteboardStrokes, currentFacing } = voice
+const { status, members, muted, speakerMuted, remoteStreams, remoteScreenStreams, incoming, errorMsg, activeRoom, callState, waitingForPeer, me, cameraEnabled, screenSharing, localVideoStream, screenStream, localStream, reactions, whiteboardStrokes, currentFacing } = voice
 
 const elapsed = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
@@ -42,6 +42,9 @@ const miniPeer = computed(() => {
   const other = members.value.find(m => m.userId !== me.value?.userId)
   return other || me.value || null
 })
+
+// トップバーに出す通話の顔。1:1なら相手、まだ誰もいなければ自分。
+const roomAvatar = computed(() => miniPeer.value?.avatarUrl || null)
 
 function onMiniDown(e: PointerEvent) {
   if (e.button !== 0) return
@@ -99,54 +102,20 @@ const stateMeta = computed(() => {
   return { label: '接続中...', cls: 'text-sky-400 border-sky-500/40 bg-sky-500/10', dot: 'bg-sky-400 animate-pulse' }
 })
 
-/* ---- ringtone ---- */
-let ringCtx: AudioContext | null = null
-let ringOsc: OscillatorNode | null = null
-let ringGain: GainNode | null = null
+/* ---- 効果音 ---- */
+// 音源パス・ループ・音量は useCallSounds に集約。ここは「いつ鳴らすか」だけを持つ。
+const sounds = useCallSounds()
 
-function startRing() {
-  if (ringCtx || !import.meta.client) return
-  try {
-    ringCtx = new AudioContext()
-    ringOsc = ringCtx.createOscillator()
-    ringGain = ringCtx.createGain()
-    ringOsc.type = 'sine'
-    ringOsc.frequency.value = 660
-    ringGain.gain.value = 0
-    ringOsc.connect(ringGain)
-    ringGain.connect(ringCtx.destination)
-    ringOsc.start()
-    const pulse = () => {
-      if (!ringCtx || !ringGain) return
-      const t = ringCtx.currentTime
-      ringGain.gain.cancelScheduledValues(t)
-      ringGain.gain.setValueAtTime(0, t)
-      ringGain.gain.linearRampToValueAtTime(0.08, t + 0.05)
-      ringGain.gain.linearRampToValueAtTime(0, t + 0.5)
-    }
-    pulse()
-    ;(ringCtx as any)._pulseTimer = setInterval(pulse, 1600)
-  } catch { /* ignore */ }
-}
+// 着信音: 着信がある間ループ。
+watch(incoming, (v) => { if (v) sounds.startIncomingRing(); else sounds.stopIncomingRing() }, { immediate: true })
 
-function stopRing() {
-  try {
-    if (ringCtx) {
-      if ((ringCtx as any)._pulseTimer) clearInterval((ringCtx as any)._pulseTimer)
-      ringOsc?.stop()
-      ringCtx.close()
-    }
-  } catch { /* ignore */ }
-  ringCtx = null
-  ringOsc = null
-  ringGain = null
-}
+// 受信音: 自分が発信して相手の応答待ちの間ループ。
+watch(waitingForPeer, (v) => { if (v) sounds.startOutgoingRing(); else sounds.stopOutgoingRing() }, { immediate: true })
 
-watch(incoming, (v) => { if (v) startRing(); else stopRing() }, { immediate: true })
-onUnmounted(stopRing)
+onUnmounted(() => sounds.stopAll())
 
 async function accept() {
-  stopRing()
+  sounds.stopAll()
   minimized.value = false
   await voice.acceptCall()
   const room = voice.activeRoom.value
@@ -155,7 +124,7 @@ async function accept() {
   }
 }
 function decline() {
-  stopRing()
+  sounds.stopAll()
   voice.declineCall()
 }
 
@@ -185,15 +154,14 @@ watch(callOpen, (open) => {
 })
 
 /* ---- tiles ---- */
+// Discord と同じく、自分はグリッドに出さず右下の小窓(PiP)に置く。
 type CallTile = { userId: string; name: string; avatarUrl: string | null; isSelf: boolean }
 const tiles = computed<CallTile[]>(() => {
   const list: CallTile[] = []
   for (const m of members.value) {
-    if (m.userId !== me.value?.userId) {
-      list.push({ userId: m.userId, name: m.displayName || m.username, avatarUrl: m.avatarUrl, isSelf: false })
-    }
+    if (m.userId === me.value?.userId) continue
+    list.push({ userId: m.userId, name: m.displayName || m.username, avatarUrl: m.avatarUrl, isSelf: false })
   }
-  if (me.value) list.push({ userId: me.value.userId, name: me.value.displayName, avatarUrl: me.value.avatarUrl, isSelf: true })
   return list
 })
 const tileReactions = (uid: string) => reactions.value.filter(r => r.from === uid)
@@ -542,35 +510,38 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 
     <!-- fullscreen call view -->
     <Transition name="fade">
-      <div v-if="callOpen && !minimized" data-vc-aud-root class="fixed inset-0 z-[85] bg-surface flex flex-col">
+      <div v-if="callOpen && !minimized" data-vc-aud-root class="fixed inset-0 z-[85] bg-[#1e1f22] text-white flex flex-col">
         <!-- top bar -->
-        <div class="flex items-center justify-between px-5 py-3 shrink-0 border-b border-outline-variant/60">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <Icon name="lucide:phone" class="w-4 h-4 text-on-surface-variant shrink-0" />
-            <h2 class="font-bold text-white truncate">{{ roomTitle }}</h2>
+        <div class="flex items-center justify-between gap-3 px-4 py-3 shrink-0">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="relative w-9 h-9 rounded-full overflow-hidden bg-[#5865f2] shrink-0 flex items-center justify-center">
+              <img v-if="avatarSrc(roomAvatar)" :src="avatarSrc(roomAvatar)" class="w-full h-full object-cover" />
+              <Icon v-else name="lucide:phone" class="w-4 h-4 text-white" />
+            </div>
+            <div class="min-w-0">
+              <h2 class="font-bold truncate leading-tight">{{ roomTitle }}</h2>
+              <p class="text-xs text-[#b5bac1] flex items-center gap-1.5 truncate">
+                <span :class="['w-2 h-2 rounded-full shrink-0', stateMeta.dot]" />
+                <span class="truncate">{{ callState === 'connected' ? '接続済み' : stateMeta.label }}</span>
+                <span v-if="status === 'active'" class="tabular-nums">· {{ callTime }}</span>
+                <span>· {{ members.length }}名</span>
+              </p>
+            </div>
           </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span :class="['px-2.5 py-1 rounded-full border text-xs font-medium flex items-center gap-1.5', stateMeta.cls]">
-              <span :class="['w-2 h-2 rounded-full', stateMeta.dot]" />
-              {{ callState === 'connected' ? '通話中' : stateMeta.label }}
-            </span>
-            <span v-if="status === 'active'" class="text-xs text-on-surface-variant tabular-nums">{{ callTime }}</span>
-            <span class="text-xs text-on-surface-variant">{{ tiles.length + screenTiles.length }}名</span>
-            <button @click="minimized = true" class="w-11 h-11 min-[681px]:w-8 min-[681px]:h-8 rounded-full bg-surface-container/60 hover:bg-surface-container-high transition flex items-center justify-center" title="最小化（ドラッグできる通話アイコンに）">
-              <Icon name="lucide:minus" class="w-4 h-4 text-on-surface" />
-            </button>
-          </div>
+          <button @click="minimized = true" class="w-10 h-10 shrink-0 rounded-full bg-white/5 hover:bg-white/10 transition flex items-center justify-center" title="最小化（ドラッグできる通話アイコンに）">
+            <Icon name="lucide:minus" class="w-5 h-5" />
+          </button>
         </div>
 
-        <!-- tiles -->
-        <div class="flex-1 overflow-y-auto p-4 min-h-0">
-          <div class="h-full grid gap-3 content-center" style="grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));">
+        <!-- stage -->
+        <div class="flex-1 overflow-y-auto px-3 pb-2 min-h-0">
+          <div v-if="tiles.length || screenTiles.length" class="h-full grid gap-3 content-center" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
             <!-- screen share tiles (separate from camera tiles) -->
             <div v-for="s in screenTiles" :key="'sc-' + s.userId"
-              class="relative rounded-2xl overflow-hidden bg-surface border border-outline md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
+              class="relative rounded-lg overflow-hidden bg-black md:col-span-2 md:row-span-2 min-h-[200px] max-h-[70vh] flex flex-col items-center justify-center cursor-pointer group"
               @click="expandedScreen = s.userId">
               <video :srcObject.prop="remoteScreenStreams[s.userId]" muted autoplay playsinline webkit-playsinline
-                class="absolute inset-0 w-full h-full object-contain bg-black" />
+                class="absolute inset-0 w-full h-full object-contain" />
               <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-[10px] text-white flex items-center gap-1">
                 <Icon name="lucide:monitor-up" class="w-3 h-3" /> {{ s.name }}の画面
               </div>
@@ -580,15 +551,13 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
             </div>
 
             <!-- member camera/avatar tiles -->
-            <div v-for="t in tiles" :key="t.userId" class="relative rounded-2xl overflow-hidden bg-surface border border-outline-variant min-h-[180px] flex flex-col items-center justify-center">
-              <div v-if="!t.isSelf && hasVideo[t.userId]" class="absolute inset-0 w-full h-full">
-                <video :srcObject.prop="remoteStreams[t.userId]" muted autoplay playsinline webkit-playsinline
-                  class="absolute inset-0 w-full h-full object-cover" />
-              </div>
+            <div v-for="t in tiles" :key="t.userId" class="relative rounded-lg overflow-hidden bg-[#2b2d31] min-h-[180px] flex flex-col items-center justify-center">
+              <video v-if="hasVideo[t.userId]" :srcObject.prop="remoteStreams[t.userId]" muted autoplay playsinline webkit-playsinline
+                class="absolute inset-0 w-full h-full object-cover" />
               <div v-else class="absolute inset-0 flex flex-col items-center justify-center">
-                <div :style="avatarPop(t.userId, t.isSelf)" :class="['relative w-28 h-28 rounded-full', speakingGlow(t.userId, t.isSelf)]">
+                <div :style="avatarPop(t.userId, false)" :class="['relative w-24 h-24 min-[681px]:w-28 min-[681px]:h-28 rounded-full', speakingGlow(t.userId, false)]">
                   <img v-if="avatarSrc(t.avatarUrl)" :src="avatarSrc(t.avatarUrl)" class="w-full h-full rounded-full object-cover" />
-                  <div v-else class="w-full h-full rounded-full bg-indigo-600 flex items-center justify-center text-white text-4xl font-bold">
+                  <div v-else class="w-full h-full rounded-full bg-[#5865f2] flex items-center justify-center text-white text-4xl font-bold">
                     {{ t.name.charAt(0) }}
                   </div>
                 </div>
@@ -597,32 +566,42 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
               <div class="absolute inset-x-0 bottom-14 flex justify-center gap-2 pointer-events-none z-[2]">
                 <span v-for="r in tileReactions(t.userId)" :key="r.id" class="wb-fly text-3xl drop-shadow-lg">{{ r.emoji }}</span>
               </div>
-              <!-- name + mic status -->
-              <div class="absolute bottom-0 inset-x-0 flex items-center justify-between gap-2 px-3 py-2 bg-gradient-to-t from-black/70 to-transparent">
+              <!-- name + audio status -->
+              <div class="absolute bottom-0 inset-x-0 flex items-center justify-between gap-2 px-3 py-2 bg-black/40">
                 <span class="text-white text-sm font-medium truncate">{{ t.name }}</span>
-                <span class="flex items-center gap-1.5 shrink-0">
-                  <Icon v-if="!t.isSelf && speakerMuted" name="lucide:volume-x" class="w-4 h-4 text-red-300" />
-                  <Icon v-if="muted && t.isSelf" name="lucide:mic-off" class="w-4 h-4 text-red-400" />
-                  <Icon v-else-if="!t.isSelf" name="lucide:mic" class="w-4 h-4 text-on-surface" />
-                </span>
+                <Icon v-if="speakerMuted" name="lucide:volume-x" class="w-4 h-4 text-[#f23f43] shrink-0" />
               </div>
+            </div>
+          </div>
+
+          <!-- waiting state (nobody else has joined yet) -->
+          <div v-else class="h-full flex flex-col items-center justify-center text-center gap-3">
+            <div class="w-24 h-24 rounded-full overflow-hidden bg-[#5865f2] flex items-center justify-center">
+              <img v-if="avatarSrc(roomAvatar)" :src="avatarSrc(roomAvatar)" class="w-full h-full object-cover" />
+              <Icon v-else name="lucide:phone" class="w-9 h-9 text-white" />
+            </div>
+            <div>
+              <p class="font-bold text-lg">{{ roomTitle }}</p>
+              <p class="text-sm text-[#b5bac1]">
+                {{ activeRoom?.kind === 'dm' ? '相手の応答を待っています…' : '誰かが参加するのを待っています…' }}
+              </p>
             </div>
           </div>
         </div>
 
-        <!-- self preview (mirrored) -->
-        <div class="absolute bottom-24 right-4 w-44 rounded-xl overflow-hidden bg-surface border border-outline-variant shadow-2xl z-[2] cursor-pointer group" @click="screenSharing ? expandedScreen = 'self' : null">
+        <!-- self preview (PiP, mirrored) -->
+        <div class="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 w-36 min-[681px]:w-44 rounded-lg overflow-hidden bg-[#2b2d31] border border-black/50 shadow-2xl z-[2] cursor-pointer group" @click="screenSharing ? expandedScreen = 'self' : null">
           <video v-if="screenSharing && screenStream" :srcObject.prop="screenStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover" />
           <video v-else-if="cameraEnabled && localVideoStream" :srcObject.prop="localVideoStream" muted autoplay playsinline webkit-playsinline class="w-full aspect-video object-cover scale-x-[-1]" />
-          <div v-else class="aspect-video flex items-center justify-center text-on-surface-variant">
+          <div v-else class="aspect-video flex items-center justify-center text-[#b5bac1]">
             <Icon name="lucide:user" class="w-6 h-6" />
           </div>
           <button v-if="cameraEnabled" @click.stop="voice.switchCamera().catch(() => {})"
-            class="absolute top-0.5 right-0.5 w-9 h-9 min-[681px]:w-7 min-[681px]:h-7 rounded-full bg-black/50 hover:bg-black/75 transition flex items-center justify-center" title="カメラ切替（正面/背面）">
+            class="absolute top-0.5 right-0.5 w-9 h-9 min-[681px]:w-7 min-[681px]:h-7 rounded-full bg-black/60 hover:bg-black/80 transition flex items-center justify-center" title="カメラ切替（正面/背面）">
             <Icon name="lucide:refresh-ccw" class="w-4 h-4 text-white" />
           </button>
-          <div class="px-2 py-1 text-[11px] text-on-surface flex items-center gap-1.5 bg-surface" :style="avatarPop('me', true)">
-            <span class="w-1.5 h-1.5 rounded-full" :class="muted ? 'bg-red-400' : 'bg-emerald-400'" />
+          <div class="px-2 py-1 text-[11px] text-white flex items-center gap-1.5 bg-black/50" :style="avatarPop('me', true)">
+            <span class="w-1.5 h-1.5 rounded-full" :class="muted ? 'bg-[#f23f43]' : 'bg-[#23a55a]'" />
             {{ me?.displayName }} <span v-if="muted">(ミュート)</span>
           </div>
         </div>
@@ -685,40 +664,44 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
           </div>
         </div>
 
-        <!-- control panel -->
-        <div class="shrink-0 px-4 py-4 flex items-center justify-center gap-3 border-t border-outline-variant/60 relative flex-wrap z-[2]">
-          <!-- reaction picker -->
-          <Transition name="slide-up">
-            <div v-if="showReactions" class="absolute bottom-full mb-3 flex items-center gap-1 bg-surface-container border border-outline rounded-full px-3 py-2 shadow-2xl">
-              <button v-for="e in EMOJIS" :key="e" @click="pickReaction(e)" class="text-2xl hover:scale-125 transition">{{ e }}</button>
-            </div>
-          </Transition>
+        <!-- control panel (floating Discord-style pill) -->
+        <div class="shrink-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 px-3 flex justify-center z-[2]">
+          <div class="relative flex flex-wrap items-center justify-center gap-1.5 rounded-[22px] bg-[#2b2d31] border border-black/40 px-2.5 py-2 shadow-[0_4px_18px_rgba(0,0,0,0.45)] max-w-[calc(100vw-1.5rem)]">
+            <!-- reaction picker -->
+            <Transition name="slide-up">
+              <div v-if="showReactions" class="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#2b2d31] border border-black/40 rounded-full px-3 py-2 shadow-2xl">
+                <button v-for="e in EMOJIS" :key="e" @click="pickReaction(e)" class="text-2xl hover:scale-125 transition">{{ e }}</button>
+              </div>
+            </Transition>
 
-          <button @click="voice.toggleMute()" class="ctrl-btn" :class="muted ? 'ctrl-active-red' : 'ctrl-ghost'" :title="muted ? 'ミュート解除' : 'ミュート'">
-            <Icon :name="muted ? 'lucide:mic-off' : 'lucide:mic'" class="w-5 h-5" />
-          </button>
-          <button @click="voice.toggleSpeakerMute()" class="ctrl-btn" :class="speakerMuted ? 'ctrl-active-red' : 'ctrl-ghost'" :title="speakerMuted ? 'スピーカーミュート解除' : 'スピーカーミュート'">
-            <Icon :name="speakerMuted ? 'lucide:volume-x' : 'lucide:volume-2'" class="w-5 h-5" />
-          </button>
-          <button @click="voice.setCamera(!cameraEnabled).catch(() => {})" class="ctrl-btn" :class="cameraEnabled ? 'ctrl-active' : 'ctrl-ghost'" :title="cameraEnabled ? 'カメラを切る' : 'カメラを付ける'">
-            <Icon :name="cameraEnabled ? 'lucide:video' : 'lucide:video-off'" class="w-5 h-5" />
-          </button>
-          <button @click="voice.toggleScreenShare()" class="ctrl-btn" :class="screenSharing ? 'ctrl-active' : 'ctrl-ghost'" :title="screenSharing ? '共有を停止' : '画面を共有'">
-            <Icon :name="screenSharing ? 'lucide:monitor-off' : 'lucide:monitor-up'" class="w-5 h-5" />
-          </button>
-          <button @click="whiteboardOpen = !whiteboardOpen; if(!whiteboardOpen) wbPanMode = false" class="ctrl-btn" :class="whiteboardOpen ? 'ctrl-active' : 'ctrl-ghost'" title="ホワイトボード">
-            <Icon name="lucide:presentation" class="w-5 h-5" />
-          </button>
-          <button @click="showReactions = !showReactions" class="ctrl-btn ctrl-ghost" title="リアクション">
-            <Icon name="lucide:smile" class="w-5 h-5" />
-          </button>
-          <button @click="inviteOpen = true" class="ctrl-btn ctrl-ghost" title="通話に招待">
-            <Icon name="lucide:user-plus" class="w-5 h-5" />
-          </button>
-          <button @click="voice.leave()" class="ctrl-btn ctrl-leave" title="退出">
-            <Icon name="lucide:phone-off" class="w-5 h-5" />
-            <span class="text-xs font-bold">退出</span>
-          </button>
+            <button @click="voice.setCamera(!cameraEnabled).catch(() => {})" class="ctrl-btn" :class="cameraEnabled ? 'ctrl-active' : 'ctrl-ghost'" :title="cameraEnabled ? 'カメラを切る' : 'カメラを付ける'">
+              <Icon :name="cameraEnabled ? 'lucide:video' : 'lucide:video-off'" class="w-5 h-5" />
+            </button>
+            <button @click="voice.toggleScreenShare()" class="ctrl-btn" :class="screenSharing ? 'ctrl-active' : 'ctrl-ghost'" :title="screenSharing ? '共有を停止' : '画面を共有'">
+              <Icon :name="screenSharing ? 'lucide:monitor-off' : 'lucide:monitor-up'" class="w-5 h-5" />
+            </button>
+            <button @click="whiteboardOpen = !whiteboardOpen; if(!whiteboardOpen) wbPanMode = false" class="ctrl-btn" :class="whiteboardOpen ? 'ctrl-active' : 'ctrl-ghost'" title="ホワイトボード">
+              <Icon name="lucide:presentation" class="w-5 h-5" />
+            </button>
+            <button @click="showReactions = !showReactions" class="ctrl-btn ctrl-ghost" title="リアクション">
+              <Icon name="lucide:smile" class="w-5 h-5" />
+            </button>
+            <button @click="inviteOpen = true" class="ctrl-btn ctrl-ghost" title="通話に招待">
+              <Icon name="lucide:user-plus" class="w-5 h-5" />
+            </button>
+
+            <span class="w-px h-7 bg-white/10 mx-0.5 hidden min-[520px]:block" />
+
+            <button @click="voice.toggleMute()" class="ctrl-btn" :class="muted ? 'ctrl-active-red' : 'ctrl-ghost'" :title="muted ? 'ミュート解除' : 'ミュート'">
+              <Icon :name="muted ? 'lucide:mic-off' : 'lucide:mic'" class="w-5 h-5" />
+            </button>
+            <button @click="voice.toggleSpeakerMute()" class="ctrl-btn" :class="speakerMuted ? 'ctrl-active-red' : 'ctrl-ghost'" :title="speakerMuted ? 'スピーカーミュート解除' : 'スピーカーミュート'">
+              <Icon :name="speakerMuted ? 'lucide:volume-x' : 'lucide:volume-2'" class="w-5 h-5" />
+            </button>
+            <button @click="voice.leave()" class="ctrl-leave" title="退出">
+              <Icon name="lucide:phone-off" class="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <!-- invite modal -->
@@ -794,14 +777,21 @@ onUnmounted(() => { window.removeEventListener('resize', wbResize); window.remov
 .ctrl-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   width: 46px; height: 46px; border-radius: 9999px;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
-.ctrl-ghost { background: #1e2637; color: #cbd5e1; border: 1px solid #334155; }
-.ctrl-ghost:hover { background: #2b3650; color: #fff; }
-.ctrl-active { background: #313601; color: #facc15; border: 1px solid #57534e; }
-.ctrl-active-red { background: rgba(220,38,38,.25); color: #fca5a5; border: 1px solid rgba(239,68,68,.5); }
-.ctrl-leave { background: #dc2626; color: #fff; border: 1px solid #ef4444; border-radius: 9999px; padding: 0 18px; width: auto; flex: none; }
-.ctrl-leave:hover { background: #ef4444; }
+.ctrl-btn:active { transform: scale(0.94); }
+.ctrl-ghost { background: #4e5058; color: #fff; }
+.ctrl-ghost:hover { background: #5d6069; }
+.ctrl-active { background: #fff; color: #1e1f22; }
+.ctrl-active:hover { background: #e3e5e8; }
+.ctrl-active-red { background: #da373c; color: #fff; }
+.ctrl-active-red:hover { background: #c93134; }
+.ctrl-leave { background: #da373c; color: #fff; border-radius: 9999px; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; transition: background-color 0.15s ease, transform 0.1s ease; }
+.ctrl-leave:hover { background: #c93134; }
+.ctrl-leave:active { transform: scale(0.94); }
+@media (max-width: 480px) {
+  .ctrl-btn, .ctrl-leave { width: 42px; height: 42px; }
+}
 
 @keyframes wbfly {
   0% { opacity: 0; transform: translateY(10px) scale(0.4); }
