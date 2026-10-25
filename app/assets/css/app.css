@@ -26,16 +26,16 @@
 .sycs-emoji {
   display: inline-block;
   height: 100%;
-  max-height: 1.15em !important;
+  /* max-height: 1.15em !important; */
   vertical-align: -0.2em;
   object-fit: contain;
   margin: 0 0.03em;
 }
 
 .sycs-emoji--lg {
-  width: 1.75em;
+  /* width: 1.75em; */
   height: 1.75em;
-  max-width: 1.75em !important;
+  /* max-width: 1.75em !important; */
   max-height: 1.75em !important;
   vertical-align: -0.35em;
 }

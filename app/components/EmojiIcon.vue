@@ -31,7 +31,7 @@ const dim = computed(() => SIZES[props.size || 'md'])
     :alt="emoji"
     :title="emoji"
     class="sycs-emoji"
-    :style="{ width: dim, height: dim, maxWidth: dim, maxHeight: dim }"
+    :style="{ height: dim, maxHeight: dim }"
     draggable="false"
   />
   <img
@@ -39,7 +39,7 @@ const dim = computed(() => SIZES[props.size || 'md'])
     :src="twemoji"
     :alt="emoji"
     class="sycs-emoji"
-    :style="{ width: dim, height: dim, maxWidth: dim, maxHeight: dim }"
+    :style="{ height: dim, maxHeight: dim }"
     draggable="false"
   />
   <span v-else class="leading-none">{{ emoji }}</span>
@@ -50,16 +50,16 @@ const dim = computed(() => SIZES[props.size || 'md'])
 .sycs-emoji {
   display: inline-block;
   height: 100%;
-  max-height: 1.75em !important;
+  /* max-height: 1.75em !important; */
   vertical-align: -0.2em;
   object-fit: contain;
   margin: 0 0.03em;
 }
 
 .sycs-emoji--lg {
-  width: 1.75em;
+  /* width: 1.75em; */
   height: 1.75em;
-  max-width: 1.75em !important;
+  /* max-width: 1.75em !important; */
   max-height: 1.75em !important;
   vertical-align: -0.35em;
 }
