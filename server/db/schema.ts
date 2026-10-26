@@ -95,6 +95,25 @@ export const postComments = pgTable('post_comments', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+export const postCommentReactions = pgTable('post_comment_reactions', {
+  id: text('id').primaryKey(),
+  commentId: text('comment_id').notNull().references(() => postComments.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  emoji: text('emoji').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  userCommentEmojiIdx: uniqueIndex('post_comment_reactions_user_comment_emoji_idx').on(t.userId, t.commentId, t.emoji),
+}))
+
+export const postCommentReposts = pgTable('post_comment_reposts', {
+  id: text('id').primaryKey(),
+  commentId: text('comment_id').notNull().references(() => postComments.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  userCommentIdx: uniqueIndex('post_comment_reposts_user_comment_idx').on(t.userId, t.commentId),
+}))
+
 export const postReactions = pgTable('post_reactions', {
   id: text('id').primaryKey(),
   postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),

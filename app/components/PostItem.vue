@@ -50,6 +50,7 @@ const showRepostMenu = ref(false)
 const rootEl = ref<HTMLElement | null>(null)
 const { observe, unobserve } = useViewTracker()
 const { openAdd: openAddToPlaylist } = usePlaylists()
+const toast = useToast()
 
 onMounted(() => observe(rootEl.value, props.post.id, (count) => { props.post.viewCount = count }))
 onUnmounted(() => unobserve(rootEl.value))
@@ -119,7 +120,9 @@ async function toggleReaction(emoji: string) {
     const uid = myId.value
     if (uid) applyReactionDelta(emoji, uid, res.active, true)
     else applyReactionDelta(emoji, 'me', res.active, true)
-  } catch { /* ignore */ }
+  } catch {
+    toast.error('リアクションできませんでした')
+  }
 }
 
 onMounted(ensureMe)
@@ -135,8 +138,10 @@ onMounted(ensureMe)
       <Icon name="lucide:repeat-2" class="w-3.5 h-3.5" />
       <NuxtLink :to="`/profile/@${post.boostedBy.user?.username || ''}`" class="hover:underline truncate">
         <span v-if="post.boostedBy.user" class="flex items-center gap-1">
-          <img v-if="avatarSrc(post.boostedBy.user.avatarUrl)" :src="avatarSrc(post.boostedBy.user.avatarUrl)" loading="lazy"
-            class="w-4 h-4 rounded-full object-cover" />
+          <UserHoverCard :user="post.boostedBy.user">
+            <img v-if="avatarSrc(post.boostedBy.user.avatarUrl)" :src="avatarSrc(post.boostedBy.user.avatarUrl)" loading="lazy"
+              class="w-4 h-4 rounded-full object-cover" />
+          </UserHoverCard>
           <span class="font-bold">{{ post.boostedBy.user.displayName }}</span>
         </span>
       </NuxtLink>
@@ -144,12 +149,14 @@ onMounted(ensureMe)
     </div>
 
     <div class="flex gap-3" @click.self="openThread">
-      <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0 h-fit">
-        <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" loading="lazy" class="w-10 h-10 rounded-full object-cover" />
-        <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-          {{ post.user.displayName.charAt(0) }}
-        </div>
-      </NuxtLink>
+      <UserHoverCard :user="post.user" class="shrink-0 h-fit">
+        <NuxtLink :to="`/profile/@${post.user.username}`">
+          <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" loading="lazy" class="w-10 h-10 rounded-full object-cover" />
+          <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+            {{ post.user.displayName.charAt(0) }}
+          </div>
+        </NuxtLink>
+      </UserHoverCard>
       <div class="flex-1 min-w-0" @click.self="openThread">
         <div class="flex items-center gap-2 mb-1">
           <NuxtLink :to="`/profile/@${post.user.username}`" class="font-bold text-white hover:underline truncate">

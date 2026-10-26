@@ -326,6 +326,31 @@ async function initDbInternal() {
     await client.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS post_reactions_user_post_emoji_idx ON post_reactions(user_id, post_id, emoji)
     `)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS post_comment_reactions (
+        id TEXT PRIMARY KEY,
+        comment_id TEXT NOT NULL REFERENCES post_comments(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        emoji TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS post_comment_reactions_user_comment_emoji_idx
+      ON post_comment_reactions(user_id, comment_id, emoji)
+    `)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS post_comment_reposts (
+        id TEXT PRIMARY KEY,
+        comment_id TEXT NOT NULL REFERENCES post_comments(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS post_comment_reposts_user_comment_idx
+      ON post_comment_reposts(user_id, comment_id)
+    `)
     await client.query(`CREATE INDEX IF NOT EXISTS posts_server_channel_idx ON posts(server_id, channel_id)`)
     await client.query(`CREATE INDEX IF NOT EXISTS post_comments_post_idx ON post_comments(post_id)`)
     await client.query(`ALTER TABLE post_comments ADD COLUMN IF NOT EXISTS attachments TEXT DEFAULT '[]'`)

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const { map: customEmojiMap } = useCustomEmojis()
 definePageMeta({})
 
 const route = useRoute()
@@ -15,6 +14,8 @@ const profile = ref<any>(null)
 const userPosts = ref<any[]>([])
 const loading = ref(true)
 const showSettings = ref(false)
+const toast = useToast()
+const mediaPane = useMediaPane()
 
 const relationKind = ref<'followers' | 'following' | null>(null)
 function openRelation(kind: 'followers' | 'following') {
@@ -261,16 +262,51 @@ function timeAgo(date: string) {
 async function toggleRepost(postId: string) {
   const p = userPosts.value.find(x => x.id === postId)
   if (!p) return
+  const next = !p.reposted
+  const previousCount = p.repostCount || 0
+  p.reposted = next
+  p.repostCount = Math.max(0, previousCount + (next ? 1 : -1))
   try {
-    if (p.reposted) { await $fetch(`/api/posts/${postId}/unrepost`, { method: 'POST' }); p.reposted = false; p.repostCount = Math.max(0, (p.repostCount || 0) - 1) }
-    else { await $fetch(`/api/posts/${postId}/repost`, { method: 'POST' }); p.reposted = true; p.repostCount = (p.repostCount || 0) + 1 }
-  } catch {}
+    await $fetch(`/api/posts/${postId}/${next ? 'repost' : 'unrepost'}`, { method: 'POST' })
+    toast.success(next ? 'リポストしました' : 'リポストを取り消しました', { icon: 'lucide:repeat-2' })
+  } catch {
+    p.reposted = !next
+    p.repostCount = previousCount
+    toast.error('リポストに失敗しました')
+  }
 }
 
 async function toggleBookmark(postId: string) {
   const p = userPosts.value.find(x => x.id === postId)
   if (!p) return
-  try { const res = await $fetch<{ bookmarked: boolean }>('/api/bookmarks/toggle', { method: 'POST', body: { postId } }); p.bookmarked = res.bookmarked } catch {}
+  const previous = !!p.bookmarked
+  p.bookmarked = !previous
+  try {
+    const res = await $fetch<{ bookmarked: boolean }>('/api/bookmarks/toggle', { method: 'POST', body: { postId } })
+    p.bookmarked = res.bookmarked
+  } catch {
+    p.bookmarked = previous
+    toast.error('ブックマークを更新できませんでした')
+  }
+}
+
+async function deletePost(postId: string) {
+  try {
+    await $fetch(`/api/posts/${postId}`, { method: 'DELETE' })
+    userPosts.value = userPosts.value.filter(post => post.id !== postId)
+    if (profile.value?.stats) profile.value.stats.posts = Math.max(0, profile.value.stats.posts - 1)
+    toast.success('投稿を削除しました', { icon: 'lucide:trash-2' })
+  } catch {
+    toast.error('投稿を削除できませんでした')
+  }
+}
+
+function reportPost() {
+  toast.info('投稿を報告しました。確認までしばらくお待ちください。', { icon: 'lucide:shield-alert' })
+}
+
+function openMedia(post: any) {
+  mediaPane.openSmart(post, profile.value?.user?.displayName || 'プロフィール')
 }
 </script>
 
@@ -285,11 +321,13 @@ async function toggleBookmark(postId: string) {
           :style="profile.user.bannerUrl ? `background-image: url(${profile.user.bannerUrl}); background-size: cover; background-position: center;` : ''" />
         <div class="px-5 pb-5">
           <div class="flex items-end -mt-12 mb-3">
-            <img v-if="avatarSrc(profile.user.avatarUrl)" :src="avatarSrc(profile.user.avatarUrl)"
-              class="w-20 h-20 rounded-full border-4 border-surface object-cover" />
-            <div v-else class="w-20 h-20 rounded-full border-4 border-surface bg-indigo-600 flex items-center justify-center text-2xl font-bold text-white">
-              {{ profile.user.displayName?.charAt(0) || '?' }}
-            </div>
+            <UserHoverCard :user="profile.user">
+              <img v-if="avatarSrc(profile.user.avatarUrl)" :src="avatarSrc(profile.user.avatarUrl)"
+                class="w-20 h-20 rounded-full border-4 border-surface object-cover" />
+              <div v-else class="w-20 h-20 rounded-full border-4 border-surface bg-indigo-600 flex items-center justify-center text-2xl font-bold text-white">
+                {{ profile.user.displayName?.charAt(0) || '?' }}
+              </div>
+            </UserHoverCard>
           </div>
           <div class="flex items-start justify-between">
             <div>
@@ -402,33 +440,18 @@ async function toggleBookmark(postId: string) {
           <p class="text-sm mt-1">フォローすると投稿を閲覧できます。</p>
         </div>
         <template v-else-if="filteredPosts.length">
-          <div v-for="post in filteredPosts" :key="post.id" class="p-4 bg-surface-container/30 border border-outline-variant rounded-xl">
-            <div class="flex gap-3">
-              <NuxtLink :to="`/profile/@${post.user.username}`" class="shrink-0">
-                <img v-if="avatarSrc(post.user.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" class="w-10 h-10 rounded-full object-cover" />
-                <div v-else class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">{{ post.user.displayName.charAt(0) }}</div>
-              </NuxtLink>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                  <NuxtLink :to="`/profile/@${post.user.username}`" class="font-bold text-white hover:underline truncate">{{ post.user.displayName }}</NuxtLink>
-                  <UserBadges :badges="post.user.badges" />
-                  <UserTitle :title="post.user.title" />
-                  <span class="text-on-surface-variant text-sm shrink-0">@{{ post.user.username }} · {{ timeAgo(post.createdAt) }}</span>
-                </div>
-                <p class="text-on-surface leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
-                <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" />
-                <PostEmbeds v-if="post.content" :content="post.content" class="mt-2" :max="2" />
-                <div class="flex items-center gap-4 mt-3 text-on-surface-variant">
-                  <button @click="toggleRepost(post.id)" class="flex items-center gap-1.5 transition text-sm" :class="post.reposted ? 'text-green-400' : 'hover:text-green-400'">
-                    <Icon name="lucide:repeat-2" class="w-4 h-4" /> <span>{{ post.repostCount || 0 }}</span>
-                  </button>
-                  <button @click="toggleBookmark(post.id)" class="flex items-center gap-1.5 transition text-sm" :class="post.bookmarked ? 'text-amber-400' : 'hover:text-amber-400'">
-                    <svg viewBox="0 0 24 24" class="w-4 h-4" :class="post.bookmarked ? 'fill-amber-400 stroke-amber-400' : 'stroke-current fill-none'"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PostItem
+            v-for="post in filteredPosts"
+            :key="post.id"
+            :post="post"
+            :show-view-count="settings.showViewCount !== false"
+            :current-user-id="me?.user?.id"
+            @toggle-repost="toggleRepost"
+            @toggle-bookmark="toggleBookmark"
+            @delete="deletePost"
+            @report="reportPost"
+            @open-media="openMedia"
+          />
         </template>
         <p v-else-if="!profile.locked" class="text-center text-on-surface-variant py-8">まだ投稿がありません</p>
 

@@ -8,6 +8,7 @@ const emit = defineEmits<{ update: [postId: string, patch: any] }>()
 
 const { on } = useRealtime()
 const me = useState<any>('comments-me', () => null)
+const toast = useToast()
 
 const comments = ref<any[]>([])
 const loading = ref(true)
@@ -99,7 +100,10 @@ async function loadComments(reset = true) {
     }
     return { hasMore: commentHasMore.value }
   } catch {
-    if (reset) comments.value = []
+    if (reset) {
+      comments.value = []
+      toast.error('返信を読み込めませんでした')
+    }
     return { hasMore: false }
   } finally {
     if (reset) loading.value = false
@@ -169,15 +173,79 @@ function applyReactionDelta(emoji: string, userId: string, active: boolean, isMe
   emit('update', props.post.id, { reactions: [...reactions] })
 }
 
-async function toggleReaction(emoji: string) {
+async function togglePostReaction(emoji: string) {
   try {
-    const res = await $fetch<{ active: boolean }>(`/api/posts/${props.post.id}/reactions`, {
+    const result = await $fetch<{ active: boolean }>(`/api/posts/${props.post.id}/reactions`, {
       method: 'POST',
       body: { emoji },
     })
-    const uid = me.value?.id
-    if (uid) applyReactionDelta(emoji, uid, res.active, true)
-  } catch { /* ignore */ }
+    const userId = me.value?.id
+    if (userId) applyReactionDelta(emoji, userId, result.active, true)
+  } catch {
+    toast.error('リアクションできませんでした')
+  }
+}
+
+async function toggleCommentReaction(emoji: string) {
+  const target = activeComment.value
+  if (!target) return
+  try {
+    const res = await $fetch<{ active: boolean }>(`/api/comments/${target.id}/reactions`, {
+      method: 'POST',
+      body: { emoji },
+    })
+    applyCommentReaction(target, emoji, me.value?.id || 'me', res.active)
+  } catch {
+    toast.error('リアクションできませんでした')
+  }
+}
+
+const activeComment = ref<any>(null)
+
+async function toggleCommentRepost(comment: any) {
+  try {
+    const endpoint = comment.reposted ? 'unrepost' : 'repost'
+    const result = await $fetch<{ reposted: boolean; repostCount: number }>(`/api/comments/${comment.id}/${endpoint}`, { method: 'POST' })
+    comment.reposted = result.reposted
+    comment.repostCount = result.repostCount
+    toast.success(result.reposted ? '返信をリポストしました' : 'リポストを取り消しました', { icon: 'lucide:repeat-2' })
+  } catch {
+    toast.error('返信をリポストできませんでした')
+  }
+}
+
+async function deleteComment(comment: any) {
+  if (!confirm('この返信を削除しますか？')) return
+  try {
+    await $fetch(`/api/comments/${comment.id}`, { method: 'DELETE' })
+    comments.value = comments.value.filter(item => item.id !== comment.id)
+    emit('update', props.post.id, { commentCount: Math.max(0, (props.post.commentCount || 0) - 1) })
+    toast.success('返信を削除しました', { icon: 'lucide:trash-2' })
+  } catch {
+    toast.error('返信を削除できませんでした')
+  }
+}
+
+function applyCommentReaction(comment: any, emoji: string, userId: string, active: boolean) {
+  const reactions = [...(comment.reactions || [])]
+  let group = reactions.find((reaction: any) => reaction.emoji === emoji)
+  if (active) {
+    if (!group) {
+      group = { emoji, count: 0, mine: true, users: [] }
+      reactions.push(group)
+    }
+    if (!group.users?.some((user: any) => user.id === userId)) {
+      group.count += 1
+      group.users = [...(group.users || []), { id: userId }]
+    }
+    group.mine = true
+  } else if (group) {
+    group.count = Math.max(0, group.count - 1)
+    group.users = (group.users || []).filter((user: any) => user.id !== userId)
+    group.mine = false
+    if (!group.count) reactions.splice(reactions.indexOf(group), 1)
+  }
+  comment.reactions = reactions
 }
 
 async function submitComment() {
@@ -233,7 +301,7 @@ function timeAgo(date: string) {
       <button
         v-for="r in (post.reactions || [])"
         :key="r.emoji"
-        @click="toggleReaction(r.emoji)"
+        @click="togglePostReaction(r.emoji)"
         class="flex items-center gap-1 px-2 py-1 rounded-full text-sm border transition"
         :class="r.mine ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-200' : 'bg-surface-container/50 border-outline text-on-surface hover:border-slate-500'"
         :title="(r.users || []).map((u: any) => u.displayName || '').join(', ')"
@@ -242,7 +310,7 @@ function timeAgo(date: string) {
         <span class="text-xs">{{ r.count }}</span>
       </button>
 
-      <ReactionPicker @select="toggleReaction" />
+      <ReactionPicker @select="togglePostReaction" />
     </div>
 
     <!-- Comments -->
@@ -250,12 +318,14 @@ function timeAgo(date: string) {
       <div v-if="loading" class="text-center text-on-surface-variant text-sm py-6">読み込み中...</div>
       <template v-else>
         <div v-for="c in comments" :key="c.id" class="flex gap-2.5">
-          <NuxtLink :to="`/profile/@${c.user?.username || c.userId}`" class="shrink-0">
-            <img v-if="avatarSrc(c.user?.avatarUrl)" :src="avatarSrc(c.user.avatarUrl)" class="w-7 h-7 rounded-full object-cover" />
-            <div v-else class="w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center text-white text-xs font-bold">
-              {{ c.user?.displayName?.charAt(0) || '?' }}
-            </div>
-          </NuxtLink>
+          <UserHoverCard :user="c.user || { id: c.userId }" class="shrink-0">
+            <NuxtLink :to="`/profile/@${c.user?.username || c.userId}`">
+              <img v-if="avatarSrc(c.user?.avatarUrl)" :src="avatarSrc(c.user.avatarUrl)" class="w-7 h-7 rounded-full object-cover" />
+              <div v-else class="w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center text-white text-xs font-bold">
+                {{ c.user?.displayName?.charAt(0) || '?' }}
+              </div>
+            </NuxtLink>
+          </UserHoverCard>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <span class="text-sm font-bold text-white truncate">{{ c.user?.displayName || '不明' }}</span>
@@ -265,6 +335,29 @@ function timeAgo(date: string) {
             </div>
             <p v-if="c.content" class="text-sm text-on-surface whitespace-pre-wrap break-words" v-html="renderRichText(c.content, { custom: customEmojiMap })" />
             <PostAttachments v-if="c.attachments?.length" :attachments="c.attachments" class="max-w-md" />
+            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <button
+                v-for="reaction in (c.reactions || [])"
+                :key="reaction.emoji"
+                @click="activeComment = c; toggleCommentReaction(reaction.emoji)"
+                class="flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition"
+                :class="reaction.mine ? 'border-indigo-500/50 bg-indigo-600/20 text-indigo-200' : 'border-outline bg-surface-container/50 text-on-surface-variant hover:border-slate-500'"
+              >
+                <EmojiIcon :emoji="reaction.emoji" size="sm" /><span>{{ reaction.count }}</span>
+              </button>
+              <div class="relative">
+                <button @click="activeComment = c" class="rounded-full p-1 text-on-surface-variant transition hover:bg-surface-container hover:text-indigo-300" title="リアクション">
+                  <Icon name="lucide:smile-plus" class="h-3.5 w-3.5" />
+                </button>
+                <ReactionPicker v-if="activeComment?.id === c.id" @select="toggleCommentReaction" />
+              </div>
+              <button @click="toggleCommentRepost(c)" class="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs text-on-surface-variant transition hover:text-green-400" :class="{ 'text-green-400': c.reposted }" title="リポスト">
+                <Icon name="lucide:repeat-2" class="h-3.5 w-3.5" /><span>{{ c.repostCount || 0 }}</span>
+              </button>
+              <button v-if="c.userId === me?.id" @click="deleteComment(c)" class="rounded-full p-1 text-on-surface-variant transition hover:bg-red-500/10 hover:text-red-400" title="返信を削除">
+                <Icon name="lucide:trash-2" class="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
         <p v-if="!comments.length" class="text-center text-on-surface-variant text-sm py-8">まだコメントはありません</p>

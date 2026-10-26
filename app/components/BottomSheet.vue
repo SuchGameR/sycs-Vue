@@ -13,6 +13,8 @@ const props = withDefaults(
     open: boolean
     /** 事业的高さ。'auto' なら内容どおり、'full' ほぼ全面 */
     height?: string
+    /** Optional panel width, used for wide settings dialogs on desktop. */
+    width?: string
     /** 背面のタップで閉じるか (モバイルは既定 false) */
     dismissOnBackdrop?: boolean
   }>(),
@@ -28,9 +30,10 @@ const dragging = ref(false)
 const canDrag = ref(false)
 
 const panelStyle = computed(() => {
-  if (props.height === 'auto') return {}
-  if (props.height === 'full') return { height: 'calc(100dvh - 3.5rem)' }
-  return { height: props.height }
+  const width = props.width ? { width: props.width } : {}
+  if (props.height === 'auto') return width
+  if (props.height === 'full') return { height: 'calc(100dvh - 3.5rem)', ...width }
+  return { height: props.height, ...width }
 })
 
 function close() {

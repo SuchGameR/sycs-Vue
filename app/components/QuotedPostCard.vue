@@ -25,25 +25,28 @@ const previewAtts = computed(() => (props.post?.attachments || []).slice(0, 4))
   <button
     v-if="post"
     type="button"
-    class="w-full text-left rounded-xl border border-outline-variant bg-surface/40 hover:border-slate-600 transition p-3 flex flex-col gap-2 overflow-hidden"
+    class="quoted-post-card w-full text-left rounded-xl border border-white/10 bg-transparent hover:border-white/20 hover:bg-white/[0.02] transition p-3 flex flex-col gap-2 overflow-hidden"
     @click.stop="emit('open')"
   >
-    <div v-if="post.deleted" class="text-sm text-on-surface-variant py-2 text-center">このポストは削除されました</div>
+    <div v-if="post.deleted" class="text-sm text-on-surface-variant py-2">このポストは削除されました</div>
     <template v-else>
-      <div class="flex items-center gap-2 min-w-0">
+      <div class="flex items-center gap-1.5 min-w-0">
         <img v-if="avatarSrc(post.user?.avatarUrl)" :src="avatarSrc(post.user.avatarUrl)" loading="lazy" class="w-5 h-5 rounded-full object-cover shrink-0" />
         <div v-else class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0">
           {{ (post.user?.displayName || '?').charAt(0) }}
         </div>
         <span class="font-bold text-on-surface text-sm truncate">{{ post.user?.displayName || '不明' }}</span>
-        <span class="text-on-surface-variant text-xs truncate">@{{ post.user?.username }} · {{ timeAgo(post.createdAt) }}</span>
+        <UserBadges :badges="post.user?.badges" />
+        <UserTitle :title="post.user?.title" />
+        <span class="text-on-surface-variant text-xs truncate">@{{ post.user?.username }}</span>
+        <span class="text-on-surface-variant/70 text-xs shrink-0">· {{ timeAgo(post.createdAt) }}</span>
       </div>
 
-      <p v-if="post.content" class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-6"
+      <p v-if="post.content" class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-4"
         v-html="renderRichText(post.content, { custom: customEmojiMap })" />
 
       <div v-if="previewAtts.length" class="flex gap-1 flex-wrap">
-        <img v-for="a in previewAtts.filter((x: any) => String(x.mime || '').startsWith('image/'))" :key="a.id" :src="a.url" loading="lazy" class="w-14 h-14 rounded-lg object-cover" />
+        <img v-for="a in previewAtts.filter((x: any) => String(x.mime || '').startsWith('image/'))" :key="a.id" :src="a.url" loading="lazy" class="w-14 h-14 rounded-lg border border-white/5 object-cover" />
         <span v-if="previewAtts.some((a: any) => !String(a.mime || '').startsWith('image/'))" class="flex items-center gap-1 text-xs text-on-surface-variant px-2 py-1 rounded-lg bg-surface-container/60">
           <Icon name="lucide:paperclip" class="w-3.5 h-3.5" />
           {{ previewAtts.filter((a: any) => !String(a.mime || '').startsWith('image/')).length }} ファイル
@@ -52,3 +55,10 @@ const previewAtts = computed(() => (props.post?.attachments || []).slice(0, 4))
     </template>
   </button>
 </template>
+
+<style scoped>
+.quoted-post-card:focus-visible {
+  outline: 2px solid rgb(129 140 248 / 0.8);
+  outline-offset: 2px;
+}
+</style>

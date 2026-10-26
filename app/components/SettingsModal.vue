@@ -51,16 +51,21 @@ const message = ref("");
 const activeCategory = ref("profile");
 
 const categories = [
-  { key: "profile", label: "プロフィール", icon: "lucide:user" },
-  { key: "detail", label: "詳細情報", icon: "lucide:info" },
-  { key: "links", label: "リンク", icon: "lucide:link" },
-  { key: "posts", label: "投稿設定", icon: "lucide:edit-3" },
-  { key: "timeline", label: "タイムライン", icon: "lucide:layout" },
-  { key: "media", label: "メディア表示", icon: "lucide:monitor-play" },
-  { key: "appearance", label: "外観", icon: "lucide:palette" },
-  { key: "privacy", label: "プライバシー", icon: "lucide:shield" },
-  { key: "notifications", label: "通知", icon: "lucide:bell" },
+  { key: "profile", label: "プロフィール", icon: "lucide:user", group: "基本" },
+  { key: "appearance", label: "外観", icon: "lucide:palette", group: "基本" },
+  { key: "posts", label: "投稿設定", icon: "lucide:edit-3", group: "基本" },
+  { key: "detail", label: "詳細情報", icon: "lucide:info", group: "アドバンス" },
+  { key: "links", label: "リンク", icon: "lucide:link", group: "アドバンス" },
+  { key: "timeline", label: "タイムライン", icon: "lucide:layout", group: "アドバンス" },
+  { key: "media", label: "メディア表示", icon: "lucide:monitor-play", group: "アドバンス" },
+  { key: "privacy", label: "プライバシー", icon: "lucide:shield", group: "アドバンス" },
+  { key: "notifications", label: "通知", icon: "lucide:bell", group: "アドバンス" },
 ];
+
+const categoryGroups = computed(() => [
+  { label: "基本", items: categories.filter(category => category.group === "基本") },
+  { label: "アドバンス", items: categories.filter(category => category.group === "アドバンス") },
+]);
 
 const buttonOrder = ref<string[]>(
   s.value.postButtonOrder || ["like", "repost", "bookmark", "view"]
@@ -274,27 +279,34 @@ async function save() {
 </script>
 
 <template>
-  <BottomSheet :open="open" height="min(85dvh, 44rem)" :dismiss-on-backdrop="true" @close="emit('close')">
-      <div class="flex h-full">
+  <BottomSheet :open="open" height="min(85dvh, 44rem)" width="min(58rem, 100vw)" :dismiss-on-backdrop="true" @close="emit('close')">
+      <div class="settings-layout flex h-full min-h-0">
         <div
-          class="w-44 shrink-0 border-r border-outline-variant p-3 space-y-1 overflow-y-auto"
+          class="settings-nav w-44 shrink-0 border-r border-outline-variant p-3 space-y-4 overflow-y-auto"
         >
-          <button
-            v-for="cat in categories"
-            :key="cat.key"
-            @click="activeCategory = cat.key"
-            class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition text-left"
-            :class="
-              activeCategory === cat.key
-                ? 'bg-indigo-600/20 text-indigo-400'
-                : 'text-on-surface-variant hover:text-white hover:bg-surface-container/30'
-            "
-          >
-            <Icon :name="cat.icon" class="w-4 h-4 shrink-0" /> {{ cat.label }}
-          </button>
+          <section v-for="group in categoryGroups" :key="group.label" class="settings-nav-group">
+            <p class="settings-nav-heading px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/70">
+              {{ group.label }}
+            </p>
+            <div class="settings-nav-items space-y-1">
+              <button
+                v-for="cat in group.items"
+                :key="cat.key"
+                @click="activeCategory = cat.key"
+                class="settings-nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition text-left"
+                :class="
+                  activeCategory === cat.key
+                    ? 'bg-indigo-600/20 text-indigo-400'
+                    : 'text-on-surface-variant hover:text-white hover:bg-surface-container/30'
+                "
+              >
+                <Icon :name="cat.icon" class="w-4 h-4 shrink-0" /> {{ cat.label }}
+              </button>
+            </div>
+          </section>
         </div>
-        <div class="flex-1 min-w-0 p-6 overflow-y-auto space-y-5">
-          <div class="flex items-center justify-between mb-2">
+        <div class="settings-content flex-1 min-w-0 p-6 overflow-y-auto space-y-5">
+          <div class="settings-heading flex items-center justify-between mb-2">
             <h2 class="text-xl font-bold text-white">
               {{ categories.find((c) => c.key === activeCategory)?.label || "設定" }}
             </h2>
@@ -834,3 +846,58 @@ async function save() {
       </div>
   </BottomSheet>
 </template>
+
+<style scoped>
+.settings-nav-item {
+  min-height: 2.75rem;
+}
+
+@media (max-width: 680px) {
+  .settings-layout {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    width: 100%;
+    flex: none;
+    display: flex;
+    gap: 1rem;
+    padding: 0.625rem 0.875rem;
+    border-right: 0;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-nav-group {
+    flex: none;
+  }
+
+  .settings-nav-heading {
+    padding-inline: 0.25rem;
+    white-space: nowrap;
+  }
+
+  .settings-nav-items {
+    display: flex;
+    gap: 0.375rem;
+  }
+
+  .settings-nav-item {
+    width: auto;
+    min-height: 2.5rem;
+    white-space: nowrap;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .settings-content {
+    padding: 1rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+</style>
