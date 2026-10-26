@@ -5,12 +5,7 @@
  * 主要アクションを 1 つ浮かせ、押すと関連アクションが縦に開く。
  * inline にするとデモ用に親要素の中で absolute 配置になる。
  */
-export interface FabAction {
-  id: string
-  label: string
-  icon: string
-  tone?: 'primary' | 'success' | 'danger' | 'neutral'
-}
+import type { FabAction } from '~/utils/uiTypes'
 
 const props = withDefaults(
   defineProps<{

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   src: string
   poster?: string
   autoplay?: boolean
-}>()
+}>(), {
+  poster: '',
+  autoplay: false,
+})
 
 const video = ref<HTMLVideoElement | null>(null)
 const playing = ref(false)
@@ -223,7 +226,7 @@ onUnmounted(() => {
       ref="video"
       :src="src"
       :poster="poster"
-      :autoplay="autoplay !== false"
+      :autoplay="autoplay"
       playsinline
       class="vp-video cursor-pointer"
       @click="toggle"

@@ -417,6 +417,7 @@ async function toggleBookmark(postId: string) {
                 </div>
                 <p class="text-on-surface leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
                 <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" />
+                <PostEmbeds v-if="post.content" :content="post.content" class="mt-2" :max="2" />
                 <div class="flex items-center gap-4 mt-3 text-on-surface-variant">
                   <button @click="toggleRepost(post.id)" class="flex items-center gap-1.5 transition text-sm" :class="post.reposted ? 'text-green-400' : 'hover:text-green-400'">
                     <Icon name="lucide:repeat-2" class="w-4 h-4" /> <span>{{ post.repostCount || 0 }}</span>

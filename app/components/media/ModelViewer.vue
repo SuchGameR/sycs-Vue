@@ -14,6 +14,10 @@ function themeSurfaceColor(): string {
 }
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
+import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 const props = defineProps<{
@@ -127,6 +131,29 @@ async function toggleFullscreen() {
   else await el.requestFullscreen().catch(() => {})
 }
 
+function modelExt(src: string): string {
+  const m = src.split('?')[0]?.match(/\.([a-z0-9]+)$/i)
+  return (m?.[1] || '').toLowerCase()
+}
+
+/**
+ * OBJ / STL / FBX はマテリアルが無いことがある。
+ * そのまま描画すると真っ黒 / 不可視になるので、中立な標準マテリアルを割り当てる。
+ */
+function normalizeMaterials(root: THREE.Object3D) {
+  root.traverse((obj) => {
+    const mesh = obj as any
+    if (!mesh.isMesh) return
+    if (!mesh.material) {
+      mesh.material = new THREE.MeshStandardMaterial({
+        color: 0x9ca3af,
+        metalness: 0.12,
+        roughness: 0.68,
+      })
+    }
+  })
+}
+
 function load() {
   if (!props.src || !scene) return
   loading.value = true
@@ -144,25 +171,54 @@ function load() {
     model = null
   }
 
-  const loader = new GLTFLoader()
-  loader.load(
-    props.src,
-    (gltf) => {
-      if (disposed || !scene) return
-      model = gltf.scene
-      scene.add(model)
-      pendingFit = !setSize()
-      fitToModel()
-      loading.value = false
-    },
-    (event) => {
-      if (event.total) progress.value = Math.round((event.loaded / event.total) * 100)
-    },
-    () => {
-      loading.value = false
-      error.value = 'モデルを読み込めませんでした（.glb / .gltf に対応）'
-    },
-  )
+  const finish = (object: THREE.Object3D) => {
+    if (disposed || !scene) return
+    normalizeMaterials(object)
+    model = object
+    scene.add(model)
+    pendingFit = !setSize()
+    fitToModel()
+    loading.value = false
+  }
+
+  const onProgress = (event: ProgressEvent) => {
+    if (event.total) progress.value = Math.round((event.loaded / event.total) * 100)
+  }
+
+  const fail = () => {
+    loading.value = false
+    error.value = 'モデルを読み込めませんでした（GLB / GLTF / OBJ / STL / FBX / 3DS に対応）'
+  }
+
+  const ext = modelExt(props.src)
+  try {
+    if (ext === 'glb' || ext === 'gltf') {
+      new GLTFLoader().load(props.src, gltf => finish(gltf.scene), onProgress, fail)
+    } else if (ext === 'obj') {
+      new OBJLoader().load(props.src, finish, onProgress, fail)
+    } else if (ext === 'stl') {
+      new STLLoader().load(
+        props.src,
+        (geometry) => {
+          if (!geometry.getAttribute('normal')) geometry.computeVertexNormals()
+          finish(new THREE.Mesh(
+            geometry,
+            new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.12, roughness: 0.68 }),
+          ))
+        },
+        onProgress,
+        fail,
+      )
+    } else if (ext === 'fbx') {
+      new FBXLoader().load(props.src, finish, onProgress, fail)
+    } else if (ext === '3ds') {
+      new TDSLoader().load(props.src, finish, onProgress, fail)
+    } else {
+      fail()
+    }
+  } catch {
+    fail()
+  }
 }
 
 function init() {

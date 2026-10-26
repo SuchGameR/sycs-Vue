@@ -18,7 +18,7 @@ watch(
 const densities = [
   { id: 'compact', label: 'コンパクト', icon: 'lucide:rows-3' },
   { id: 'cozy', label: '標準', icon: 'lucide:rows-2' },
-  { id: 'comfortable', label: 'ゆったり', icon: 'lucide:rows-1' },
+  { id: 'comfortable', label: 'ゆったり', icon: 'lucide:align-justify' },
 ] as const
 
 const motions = [

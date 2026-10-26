@@ -5,14 +5,7 @@
  * 右クリック / 長押しした座標に表示し、画面外へはみ出さないよう
  * ビューポート内へクランプする。Esc / 外側タップで閉じる。
  */
-export interface MenuItem {
-  id: string
-  label: string
-  icon?: string
-  shortcut?: string
-  danger?: boolean
-  separatorBefore?: boolean
-}
+import type { MenuItem } from '~/utils/uiTypes'
 
 const props = withDefaults(
   defineProps<{

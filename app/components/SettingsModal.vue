@@ -642,6 +642,26 @@ async function save() {
           </div>
 
           <div v-if="activeCategory === 'appearance'" class="space-y-4">
+            <NuxtLink
+              to="/interactions"
+              class="group flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-500/15 via-violet-500/10 to-fuchsia-500/10 p-3 transition hover:border-indigo-400/50 hover:from-indigo-500/20"
+              @click="emit('close')"
+            >
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-lg shadow-indigo-900/30">
+                <Icon name="lucide:wand-sparkles" class="w-5 h-5" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5 text-sm font-bold text-white">
+                  Interaction Studio
+                  <span class="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold text-indigo-200">33</span>
+                </span>
+                <span class="mt-0.5 block text-xs leading-relaxed text-on-surface-variant">
+                  操作・フィードバック・テーマをその場で試して調整
+                </span>
+              </span>
+              <Icon name="lucide:chevron-right" class="h-4 w-4 shrink-0 text-on-surface-variant transition group-hover:translate-x-0.5 group-hover:text-white" />
+            </NuxtLink>
+
             <ThemePicker />
             <div>
               <label class="block text-sm text-on-surface-variant mb-2">言語</label>

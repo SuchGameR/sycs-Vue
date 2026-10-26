@@ -5,12 +5,7 @@
  * 対象のすぐ近くに、よく使う操作を横並びで置く。
  * アイコンだけ / ラベル付きを切り替えられる。
  */
-export interface QuickAction {
-  id: string
-  label: string
-  icon: string
-  tone?: 'primary' | 'danger' | 'success' | 'neutral'
-}
+import type { QuickAction } from '~/utils/uiTypes'
 
 withDefaults(
   defineProps<{

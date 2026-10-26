@@ -9,6 +9,9 @@ const composerOpen = ref(false)
 
 const timelines = useCustomTimelines()
 const mediaPane = useMediaPane()
+const settings = useInteractionSettings()
+const toast = useToast()
+const { pulse } = useHaptics()
 const { data: me } = useFetch('/api/auth/me', { key: 'home-me' })
 const userSettings = ref(JSON.parse(me.value?.user?.settings || '{}'))
 const refreshMode = computed(() => userSettings.value.refreshMode || 'auto')
@@ -176,6 +179,7 @@ async function restoreScrollMemory() {
 }
 
 onMounted(() => {
+  settings.hydrate()
   const el = mainEl()
   el?.addEventListener('scroll', onMainScroll, { passive: true })
   onMainScroll()
@@ -223,37 +227,73 @@ function openMedia(post: any) {
 async function toggleRepost(postId: string) {
   const p = posts.value.find(x => x.id === postId)
   if (!p) return
+
+  // 楽観的 UI: 先に画面を更新し、失敗したら元へ戻す。
+  const next = !p.reposted
+  const prevCount = p.repostCount || 0
+  p.reposted = next
+  p.repostCount = Math.max(0, prevCount + (next ? 1 : -1))
+  pulse('light')
+
   try {
-    if (p.reposted) {
-      await $fetch(`/api/posts/${postId}/unrepost`, { method: 'POST' })
-      p.reposted = false; p.repostCount = Math.max(0, (p.repostCount || 0) - 1)
-    } else {
-      await $fetch(`/api/posts/${postId}/repost`, { method: 'POST' })
-      p.reposted = true; p.repostCount = (p.repostCount || 0) + 1
-    }
-  } catch {}
+    await $fetch(`/api/posts/${postId}/${next ? 'repost' : 'unrepost'}`, { method: 'POST' })
+    toast.success(next ? 'リポストしました' : 'リポストを取り消しました', {
+      icon: 'lucide:repeat-2',
+      duration: 1800,
+    })
+  } catch {
+    p.reposted = !next
+    p.repostCount = prevCount
+    toast.error('リポストに失敗しました')
+  }
 }
 
 async function toggleBookmark(postId: string) {
   const p = posts.value.find(x => x.id === postId)
   if (!p) return
+
+  const next = !p.bookmarked
+  p.bookmarked = next
+  pulse('light')
+
   try {
     const res = await $fetch<{ bookmarked: boolean }>('/api/bookmarks/toggle', { method: 'POST', body: { postId } })
     p.bookmarked = res.bookmarked
-  } catch {}
+    toast.success(res.bookmarked ? 'ブックマークしました' : 'ブックマークを外しました', {
+      icon: 'lucide:bookmark',
+      duration: 1800,
+    })
+  } catch {
+    p.bookmarked = !next
+    toast.error('ブックマークに失敗しました')
+  }
 }
 
 async function deletePost(postId: string) {
-  await $fetch(`/api/posts/${postId}`, { method: 'DELETE' })
-  posts.value = posts.value.filter(p => p.id !== postId)
+  if (!posts.value.some(p => p.id === postId)) return
+  try {
+    await $fetch(`/api/posts/${postId}`, { method: 'DELETE' })
+    posts.value = posts.value.filter(p => p.id !== postId)
+    toast.success('投稿を削除しました', { icon: 'lucide:trash-2' })
+  } catch {
+    toast.error('投稿を削除できませんでした')
+  }
 }
 
-function reportPost(postId: string) { alert('報告しました') }
+function reportPost(postId: string) {
+  void postId
+  toast.info('投稿を報告しました。確認までしばらくお待ちください。', { icon: 'lucide:shield-alert' })
+}
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto pb-24 min-[681px]:pb-6">
-    <div class="p-0 space-y-4">
+  <UiPullToRefresh
+    :on-refresh="manualRefresh"
+    :disabled="!settings.isEnabled('pull-to-refresh')"
+    scroll-selector="main"
+  >
+    <div class="max-w-2xl mx-auto pb-24 min-[681px]:pb-6">
+      <div class="p-0 space-y-4">
       <div v-if="postError" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">{{ postError }}</div>
 
       <button v-if="refreshMode === 'manual'" @click="manualRefresh" :disabled="manualRefreshing"
@@ -275,7 +315,16 @@ function reportPost(postId: string) { alert('報告しました') }
         <PostComposer @submit="createPost" />
       </div>
 
-      <div v-if="loading" class="text-center text-on-surface-variant py-8">読み込み中...</div>
+        <div v-if="loading" class="space-y-3" aria-busy="true" aria-label="タイムラインを読み込み中">
+          <div
+            v-for="i in 4"
+            :key="i"
+            class="rounded-xl border border-outline-variant bg-surface-container/20 p-3"
+          >
+            <UiSkeletonBlock circle />
+            <UiSkeletonBlock :lines="3" class="mt-3" />
+          </div>
+        </div>
       <template v-else>
         <!-- Mobile: a hairline between posts so entries are separable while scrolling.
              Desktop keeps the single bordered card, where the posts already read
@@ -291,7 +340,14 @@ function reportPost(postId: string) { alert('報告しました') }
               @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
               @delete="deletePost" @report="reportPost" @open-media="openMedia" />
           </div>
-          <p v-if="!posts.length" class="text-center text-on-surface-variant py-8">まだ投稿がありません</p>
+          <UiEmptyState
+            v-if="!posts.length"
+            icon="lucide:sparkles"
+            title="まだ投稿がありません"
+            description="最初の投稿をして、タイムラインを始めましょう。フォローすると、ここに最新の投稿が流れます。"
+            action-label="最初の投稿をする"
+            @action="composerOpen = true"
+          />
         </div>
 
         <div ref="sentinel" class="h-1" aria-hidden="true"></div>
@@ -321,6 +377,7 @@ function reportPost(postId: string) { alert('報告しました') }
         </div>
         <PostComposer @submit="createFromSheet" />
       </div>
-    </BottomSheet>
-  </div>
+      </BottomSheet>
+    </div>
+  </UiPullToRefresh>
 </template>

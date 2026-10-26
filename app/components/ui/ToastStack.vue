@@ -5,7 +5,7 @@
  * レイアウトに 1 つ置くだけ。キューと自動 dismiss は useToast が持つ。
  * アクション付き (元に戻す) は、押すまで長めに残る。
  */
-const toast = useToast()
+const { items, dismiss, runAction } = useToast()
 
 const meta = {
   default: { icon: 'lucide:bell', ring: 'border-outline-variant', tint: 'bg-surface-container-highest/95', iconClass: 'bg-white/10 text-on-surface' },
@@ -34,7 +34,7 @@ function metaFor(item: { type: keyof typeof meta; icon: string }) {
         class="flex w-full max-w-md flex-col gap-2"
       >
         <div
-          v-for="item in toast.items"
+          v-for="item in items"
           :key="item.id"
           class="pointer-events-auto relative overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl"
           :class="[metaFor(item).ring, metaFor(item).tint]"
@@ -57,7 +57,7 @@ function metaFor(item: { type: keyof typeof meta; icon: string }) {
                 <button
                   type="button"
                   class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-on-surface transition hover:bg-white/20 active:scale-95"
-                  @click="toast.runAction(item)"
+                  @click="runAction(item)"
                 >
                   {{ item.action.label }}
                 </button>
@@ -68,7 +68,7 @@ function metaFor(item: { type: keyof typeof meta; icon: string }) {
               type="button"
               class="-mr-1 -mt-1 shrink-0 rounded-lg p-1.5 text-on-surface-variant transition hover:bg-white/10 hover:text-on-surface"
               aria-label="通知を閉じる"
-              @click="toast.dismiss(item.id)"
+              @click="dismiss(item.id)"
             >
               <Icon name="lucide:x" class="h-4 w-4" />
             </button>

@@ -96,11 +96,9 @@ export function useDragSort<T>(list: Ref<T[]>, keyOf: (item: T) => string) {
     list.value = next
   }
 
-  function getHandleProps(key: string) {
-    return {
-      onPointerdown: (e: PointerEvent) => start(e, key),
-      style: { touchAction: 'none' as const },
-    }
+  /** ハンドル用: `@pointerdown="drag.onHandleDown($event, key)"` */
+  function onHandleDown(e: PointerEvent, key: string) {
+    start(e, key)
   }
 
   onBeforeUnmount(() => {
@@ -113,7 +111,7 @@ export function useDragSort<T>(list: Ref<T[]>, keyOf: (item: T) => string) {
     draggingKey,
     overKey,
     justDragged,
-    getHandleProps,
+    onHandleDown,
     moveBy,
     end,
   }

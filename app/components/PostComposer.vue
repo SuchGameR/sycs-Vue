@@ -75,11 +75,36 @@ const selectedVis = computed(() => visibilityOptions.find(o => o.key === visibil
 const MAX_FILES = 8
 
 const KINDS: Record<string, { mimes: string[]; exts: string[] }> = {
-  image: { mimes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'], exts: ['.png', '.jpg', '.jpeg', '.gif', '.webp'] },
-  video: { mimes: ['video/webm', 'video/mp4'], exts: ['.webm', '.mp4'] },
-  audio: { mimes: ['audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/mp4'], exts: ['.mp3', '.ogg', '.wav', '.m4a'] },
-  model: { mimes: ['model/gltf-binary', 'model/gltf+json', 'model/obj'], exts: ['.glb', '.gltf', '.obj', '.fbx', '.stl'] },
-  file: { mimes: ['application/pdf', 'application/zip', 'text/plain', 'text/markdown', 'application/json', 'text/csv'], exts: ['.pdf', '.zip', '.txt', '.md', '.json', '.csv'] },
+  image: {
+    mimes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif'],
+    exts: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif'],
+  },
+  video: {
+    mimes: ['video/webm', 'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/ogg'],
+    exts: ['.webm', '.mp4', '.mov', '.mkv', '.m4v', '.ogv'],
+  },
+  audio: {
+    mimes: ['audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/flac', 'audio/aac', 'audio/opus'],
+    exts: ['.mp3', '.ogg', '.wav', '.m4a', '.flac', '.aac', '.opus'],
+  },
+  model: {
+    mimes: ['model/gltf-binary', 'model/gltf+json', 'model/obj', 'model/stl'],
+    exts: ['.glb', '.gltf', '.obj', '.fbx', '.stl', '.3ds'],
+  },
+  file: {
+    mimes: [
+      'application/pdf', 'application/zip', 'text/plain', 'text/markdown', 'application/json', 'text/csv',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/x-rar-compressed', 'application/x-7z-compressed', 'application/gzip', 'application/epub+zip',
+    ],
+    exts: [
+      '.pdf', '.zip', '.txt', '.md', '.json', '.csv',
+      '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+      '.rar', '.7z', '.tar', '.gz', '.epub',
+    ],
+  },
 }
 const ALL_KINDS = ['image', 'video', 'audio', 'model', 'file']
 
@@ -89,10 +114,28 @@ const allowedKinds = computed(() => {
 })
 
 const acceptAttr = computed(() => allowedKinds.value.flatMap(k => KINDS[k].exts).join(','))
+const acceptLabel = computed(() => {
+  const labels: Record<string, string> = {
+    image: '画像',
+    video: '動画',
+    audio: '音声',
+    model: '3D',
+    file: 'ファイル',
+  }
+  return allowedKinds.value.map(k => labels[k]).join('・')
+})
 
 function fileExt(name: string) {
   const m = name.toLowerCase().match(/\.([a-z0-9]+)$/)
   return m ? '.' + m[1] : ''
+}
+
+function fallbackMime(kind: string) {
+  return kind === 'file' ? 'application/octet-stream' : KINDS[kind].mimes[0]
+}
+
+function mimeOf(f: File, kind: string) {
+  return f.type || fallbackMime(kind)
 }
 
 function kindOfFile(f: File): string | null {
@@ -105,20 +148,7 @@ function kindOfFile(f: File): string | null {
 
 function onFileSelect(e: Event) {
   const input = e.target as HTMLInputElement
-  if (!input.files?.length) return
-  const remaining = MAX_FILES - pendingFiles.value.length
-  for (const f of Array.from(input.files).slice(0, remaining)) {
-    const kind = kindOfFile(f)
-    if (!kind) continue
-    pendingFiles.value.push({
-      file: f,
-      preview: URL.createObjectURL(f),
-      type: kind,
-      mime: f.type || KINDS[kind].mimes[0],
-      blur: false,
-      watermark: false,
-    })
-  }
+  if (input.files?.length) addFiles(input.files)
   input.value = ''
 }
 
@@ -131,7 +161,7 @@ function addFiles(files: FileList | File[]) {
       file: f,
       preview: URL.createObjectURL(f),
       type: kind,
-      mime: f.type || KINDS[kind].mimes[0],
+      mime: mimeOf(f, kind),
       blur: false,
       watermark: false,
     })
@@ -244,6 +274,7 @@ function fileIcon(mime: string) {
             </div>
             <p v-if="content.trim()" class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words"
               v-html="renderRichText(content, { custom: customEmojiMap })" />
+            <PostEmbeds v-if="content.trim()" :content="content" :max="1" compact class="mt-2" />
             <div v-if="pendingFiles.length" class="flex flex-wrap gap-1.5 mt-1">
               <img v-for="f in pendingFiles.filter((x: any) => x.type === 'image')" :key="f.preview"
                 :src="f.preview" class="w-16 h-16 rounded-lg object-cover" />
@@ -318,7 +349,7 @@ function fileIcon(mime: string) {
         <div class="flex items-center gap-2">
           <button @click="fileInput?.click()" :disabled="pendingFiles.length >= MAX_FILES || uploading"
             class="p-1.5 rounded-full text-on-surface-variant hover:text-indigo-400 hover:bg-surface-container/50 transition disabled:opacity-30"
-            :title="`ファイル添付 (${pendingFiles.length}/${MAX_FILES})`">
+            :title="`${acceptLabel}を添付 (${pendingFiles.length}/${MAX_FILES})`">
             <Icon name="lucide:paperclip" class="w-4 h-4" />
           </button>
           <span v-if="pendingFiles.length" class="text-[11px] text-slate-600">{{ pendingFiles.length }}/{{ MAX_FILES }}</span>

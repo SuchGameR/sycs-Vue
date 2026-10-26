@@ -4,14 +4,7 @@
  *
  * 出来事を時系列に並べ、何がいつ起きたかを追えるようにする。
  */
-export interface TimelineItem {
-  id: string
-  title: string
-  description?: string
-  time: string
-  icon?: string
-  tone?: 'default' | 'success' | 'warning' | 'danger' | 'info'
-}
+import type { TimelineItem } from '~/utils/uiTypes'
 
 withDefaults(defineProps<{ items: TimelineItem[]; dense?: boolean }>(), {
   dense: false,

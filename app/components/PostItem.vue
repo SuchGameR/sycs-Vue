@@ -198,6 +198,8 @@ onMounted(ensureMe)
         <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" :post-id="post.id"
           interactive image-lightbox @open="openMedia" />
 
+        <PostEmbeds v-if="post.content" :content="post.content" class="mt-2" :max="2" />
+
         <QuotedPostCard v-if="post.quotedPost" :post="post.quotedPost" class="mt-2" @open="emit('openMedia', post.quotedPost)" />
 
         <div class="flex items-center gap-4 mt-3 text-on-surface-variant">

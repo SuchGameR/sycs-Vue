@@ -186,12 +186,13 @@ function onSheetUp() {
             <ModelViewer v-else-if="firstModel" :src="firstModel.url" />
 
             <div v-else-if="files.length" class="space-y-2">
-              <FileCard v-for="f in files" :key="f.id" :url="f.url" :mime="f.mime" />
+              <FileCard v-for="f in files" :key="f.id" :url="f.url" :mime="f.mime" :name="f.originalName || f.name" />
             </div>
           </div>
 
           <div class="px-3 py-3">
             <p v-if="selected.content" class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
+            <PostEmbeds v-if="selected.content" :content="selected.content" class="mt-2" :max="2" compact />
             <div class="flex items-center gap-4 mt-3 text-on-surface-variant text-sm">
               <span class="flex items-center gap-1.5"><Icon name="lucide:smile-plus" class="w-4 h-4" />{{ (selected.reactions || []).reduce((n: number, r: any) => n + (r.count || 0), 0) }}</span>
               <span class="flex items-center gap-1.5"><Icon name="lucide:repeat-2" class="w-4 h-4" />{{ selected.repostCount || 0 }}</span>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import FileCard from './media/FileCard.vue'
-import MusicPlayer from './media/MusicPlayer.vue'
+import AudioCard from './media/AudioCard.vue'
 
 const MODEL_EXT = /\.(glb|gltf|obj|fbx|stl|3ds)(\?|$)/i
 
@@ -9,6 +9,10 @@ const props = defineProps<{
     id: string
     url: string
     blurUrl?: string | null
+    originalUrl?: string | null
+    originalName?: string | null
+    name?: string | null
+    size?: number | null
     type: string
     mime: string
   }>
@@ -335,37 +339,61 @@ onUnmounted(() => {
       </template>
 
       <template v-else-if="isAudio(item.att.mime)">
-        <div class="flex flex-col gap-2 mt-2 px-2 w-full">
-          <MusicPlayer :src="item.att.url" />
+        <div class="flex w-full flex-col gap-1 p-1.5">
+          <AudioCard
+            :src="item.att.url"
+            :title="item.att.originalName || item.att.name || 'オーディオ'"
+            :subtitle="props.interactive ? '詳細で大きなプレイヤーを開く' : ''"
+            compact
+          />
           <button v-if="props.interactive" type="button"
             @click.stop="emit('open', item.index)"
-            class="self-end p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition shrink-0" title="詳細を開く">
-            <Icon name="lucide:maximize-2" class="w-4 h-4" />
-          </button>
-        </div>
-      </template>
-
-      <template v-else-if="isModel(item.att)">
-        <div class="relative">
-          <div class="h-32 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-fuchsia-900/40 to-slate-900">
-            <Icon name="lucide:box" class="w-8 h-8 text-fuchsia-400" />
-            <span class="text-[11px] text-on-surface-variant">3Dモデル</span>
-          </div>
-          <button v-if="props.interactive" type="button"
-            @click.stop="emit('open', item.index)"
-            class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
+            class="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-on-surface-variant transition hover:bg-white/10 hover:text-on-surface">
             <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
           </button>
         </div>
       </template>
 
+      <template v-else-if="isModel(item.att)">
+        <div
+          class="relative flex h-36 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden bg-gradient-to-br from-violet-900/45 via-slate-900 to-fuchsia-900/25 px-3 text-center transition hover:from-violet-900/60"
+          role="button"
+          :tabindex="props.interactive ? 0 : undefined"
+          :aria-label="props.interactive ? '3Dモデルの詳細を開く' : '3Dモデル'"
+          @click.stop="props.interactive && emit('open', item.index)"
+          @keydown.enter.prevent="props.interactive && emit('open', item.index)"
+          @keydown.space.prevent="props.interactive && emit('open', item.index)"
+        >
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25">
+            <Icon name="lucide:box" class="h-5 w-5" />
+          </span>
+          <span class="max-w-full truncate text-xs font-bold text-on-surface">
+            {{ item.att.originalName || item.att.name || '3Dモデル' }}
+          </span>
+          <span class="text-[10px] text-on-surface-variant">
+            {{ props.interactive ? 'クリックして回転・拡大' : '3Dモデル' }}
+          </span>
+          <span v-if="props.interactive"
+            class="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[10px] font-bold text-white/85 backdrop-blur">
+            <Icon name="lucide:rotate-3d" class="h-3 w-3" /> 3D
+          </span>
+        </div>
+      </template>
+
       <template v-else>
-        <FileCard :url="item.att.url" :mime="item.att.mime" />
-        <button v-if="props.interactive" type="button"
-          @click.stop="emit('open', item.index)"
-          class="absolute top-2 right-2 flex items-center gap-1 bg-black/70 hover:bg-black/90 text-white text-xs font-bold rounded-full px-2.5 py-1 transition">
-          <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
-        </button>
+        <div class="w-full">
+          <FileCard
+            :url="item.att.url"
+            :mime="item.att.mime"
+            :name="item.att.originalName || item.att.name || undefined"
+            :size="item.att.size || undefined"
+          />
+          <button v-if="props.interactive" type="button"
+            @click.stop="emit('open', item.index)"
+            class="mt-1 ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-on-surface-variant transition hover:bg-white/10 hover:text-on-surface">
+            <Icon name="lucide:maximize-2" class="w-3 h-3" /> 詳細
+          </button>
+        </div>
       </template>
     </div>
     </LongPress>

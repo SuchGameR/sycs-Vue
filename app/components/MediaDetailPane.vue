@@ -192,7 +192,7 @@ function timeAgo(date: string) {
                 <MusicPlayer
                   :key="currentMedia.id"
                   :src="currentMedia.url"
-                  :title="`オーディオ ${mediaIndex + 1} / ${audios.length}`"
+                  :title="currentMedia.originalName || `オーディオ ${mediaIndex + 1} / ${audios.length}`"
                   :artist="'@' + (selected.user?.username || '')"
                 />
               </Transition>
@@ -235,13 +235,17 @@ function timeAgo(date: string) {
                   :key="f.id"
                   :url="f.url"
                   :mime="f.mime"
+                  :name="f.originalName || f.name"
                 />
               </div>
             </template>
           </div>
 
-          <!-- Text -->
-          <p v-if="selected.content" class="px-4 py-3 text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
+          <!-- Text + URL embeds -->
+          <div v-if="selected.content" class="px-4 py-3 space-y-2">
+            <p class="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
+            <PostEmbeds :content="selected.content" :max="2" />
+          </div>
 
           <!-- Actions -->
           <div class="px-4 pb-3 flex items-center gap-4 text-on-surface-variant border-b border-outline-variant/60">

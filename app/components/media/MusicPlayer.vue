@@ -1,11 +1,16 @@
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   src: string
   title?: string
   artist?: string
   cover?: string
   autoplay?: boolean
-}>()
+}>(), {
+  title: '',
+  artist: '',
+  cover: '',
+  autoplay: false,
+})
 
 const audio = ref<HTMLAudioElement | null>(null)
 const playing = ref(false)
@@ -167,7 +172,7 @@ onUnmounted(() => {
       <audio
         ref="audio"
         :src="src"
-        :autoplay="autoplay !== false"
+        :autoplay="autoplay"
         @play="playing = true"
         @pause="playing = false"
         @timeupdate="onTime"

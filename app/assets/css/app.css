@@ -25,29 +25,32 @@
 
 .sycs-emoji {
   display: inline-block;
-  height: 100%;
-  /* max-height: 1.15em !important; */
+  /* 親の行ボックスではなく、必ず文字サイズ基準でそろえる。
+     height:100% だと containing block が auto のとき画像の原寸 (72px) まで
+     膨らみ、投稿内の絵文字だけ巨大になっていた。 */
+  height: 1.2em;
+  width: auto;
+  max-height: 1.2em;
   vertical-align: -0.2em;
   object-fit: contain;
   margin: 0 0.03em;
 }
 
 .sycs-emoji--lg {
-  /* width: 1.75em; */
-  height: 1.75em;
-  /* max-width: 1.75em !important; */
-  max-height: 1.75em !important;
+  height: 1.6em;
+  max-height: 1.6em !important;
   vertical-align: -0.35em;
 }
 
 /* A message that only contains emojis (1〜3) scales up slightly, Discord-style. */
 .sycs-emoji-jumbo {
-  font-size: 2em;
+  font-size: 2.2em;
   line-height: 1.2;
 }
 
 .sycs-emoji-jumbo .sycs-emoji {
-  height: 0.15em !important;
+  height: 1em !important;
+  max-height: 1em !important;
   margin: 0 0.05em;
 }
 
@@ -455,5 +458,208 @@ html.sycs-keyboard-open .sycs-mini-player {
   opacity: 0;
   transform: translateY(-50%) scale(0.6);
   transition: opacity 140ms ease, transform 140ms ease;
+}
+
+/* ==========================================================================
+   Interaction Kit — 共通ユーティリティ
+   UiSkeletonBlock / UiToastStack / UiSelectionToolbar などが使う。
+   ========================================================================== */
+
+/* --- オーディオ (ネイティブコントロール) ---------------------------------- */
+.sycs-audio {
+  color-scheme: dark;
+  height: 2.25rem;
+}
+
+.sycs-audio::-webkit-media-controls-enclosure {
+  border-radius: 0.5rem;
+}
+
+/* --- スケルトン ---------------------------------------------------------- */
+.sycs-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(var(--md-sys-color-surface-container-highest, 51 65 85) / 0.55);
+}
+
+.sycs-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(var(--md-sys-color-on-surface, 226 232 240) / 0.09) 45%,
+    rgb(var(--md-sys-color-on-surface, 226 232 240) / 0.14) 55%,
+    transparent 100%
+  );
+  animation: sycs-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes sycs-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sycs-skeleton::after {
+    animation: none;
+    opacity: 0.35;
+    transform: none;
+  }
+}
+
+/* --- トースト ------------------------------------------------------------ */
+.sycs-toast-enter-active,
+.sycs-toast-leave-active {
+  transition:
+    opacity var(--sycs-duration, 220ms) ease,
+    transform var(--sycs-duration, 220ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sycs-toast-enter-from,
+.sycs-toast-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.97);
+}
+
+.sycs-toast-move {
+  transition: transform var(--sycs-duration, 220ms) ease;
+}
+
+.sycs-toast-progress {
+  transform-origin: left center;
+  animation-name: sycs-toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes sycs-toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* --- 画面の縁から出る面 -------------------------------------------------- */
+.sycs-slide-down-enter-active,
+.sycs-slide-down-leave-active,
+.sycs-slide-up-enter-active,
+.sycs-slide-up-leave-active {
+  transition:
+    opacity var(--sycs-duration, 220ms) ease,
+    transform var(--sycs-duration, 220ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sycs-slide-down-enter-from,
+.sycs-slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+.sycs-slide-up-enter-from,
+.sycs-slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* --- ポップ / フェード ---------------------------------------------------- */
+.sycs-pop-enter-active,
+.sycs-pop-leave-active {
+  transition:
+    opacity 140ms ease,
+    transform 180ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.sycs-pop-enter-from,
+.sycs-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(-4px);
+}
+
+.sycs-fade-enter-active,
+.sycs-fade-leave-active {
+  transition: opacity 160ms ease;
+}
+
+.sycs-fade-enter-from,
+.sycs-fade-leave-to {
+  opacity: 0;
+}
+
+.sycs-fab-enter-active,
+.sycs-fab-leave-active {
+  transition:
+    opacity 160ms ease,
+    transform 200ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.sycs-fab-enter-from,
+.sycs-fab-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.85);
+}
+
+/* --- スクロールバーを隠す (横スクロールのチップ列など) -------------------- */
+.sycs-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sycs-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- ミニプレイヤーのイコライザー ---------------------------------------- */
+.sycs-eq {
+  transform-origin: bottom;
+  animation: sycs-eq 900ms ease-in-out infinite alternate;
+}
+
+@keyframes sycs-eq {
+  from {
+    transform: scaleY(0.45);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sycs-eq {
+    animation: none;
+  }
+}
+
+/* --- 共有要素トランジション ---------------------------------------------- */
+::view-transition-old(sycs-shared-root),
+::view-transition-new(sycs-shared-root) {
+  animation-duration: 240ms;
+}
+
+::view-transition-group(*) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* モーション控えめ設定ではキット内のアニメーションを短くする。 */
+html[data-motion='reduced'] .sycs-skeleton::after {
+  animation-duration: 2.8s;
+}
+
+html[data-density='compact'] .sycs-floatnav-rail {
+  gap: 2px;
 }
 

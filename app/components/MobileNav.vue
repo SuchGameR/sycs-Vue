@@ -5,7 +5,12 @@ const { data: me } = useFetch('/api/auth/me', { key: 'mobilenav-me' })
 
 /** Mobile always uses the pill; on desktop it only wins when the user picked it. */
 const { desktopNav, hydrate: hydrateNav } = useNavLayout()
-onMounted(hydrateNav)
+const { items: navModules, hydrate: hydrateModules } = useModularNav()
+const { pulse } = useHaptics()
+onMounted(() => {
+  hydrateNav()
+  hydrateModules()
+})
 
 /**
  * Shrinks out of the way while the page is scrolled (see useScrollCompact).
@@ -16,7 +21,7 @@ const { compact: scrollCompact } = useScrollCompact()
 
 type Item = { key: string; to: string; icon: string; match: (p: string) => boolean }
 
-const items = computed<Item[]>(() => {
+const baseItems = computed<Item[]>(() => {
   const u = me.value?.user
   const uid = u?.id
   const uname = u?.username
@@ -37,6 +42,26 @@ const items = computed<Item[]>(() => {
         }
       : { key: 'signin', to: '/signin', icon: 'lucide:log-in', match: p => p.startsWith('/signin') },
   ]
+})
+
+/**
+ * Interaction Studio の「モジュール式ナビ」で並べ替え / 非表示にした順序を反映する。
+ * カタログに無い項目 (未ログイン時の signin など) は末尾へ回す。
+ */
+const items = computed<Item[]>(() => {
+  const byKey = new Map(baseItems.value.map(it => [it.key, it]))
+  const ordered: Item[] = []
+  for (const mod of navModules.value) {
+    if (!mod.visible) continue
+    const it = byKey.get(mod.key)
+    if (it) {
+      ordered.push(it)
+      byKey.delete(mod.key)
+    }
+  }
+  for (const it of byKey.values()) ordered.push(it)
+  // すべて非表示にされても、ナビが空にならないようにする。
+  return ordered.length ? ordered : baseItems.value.slice(0, 1)
 })
 
 const activeIndex = computed(() => {
@@ -314,6 +339,7 @@ function endDrag(e: PointerEvent) {
 
   const it = items.value[targetIndex]
   if (it && targetIndex !== activeIndex.value) {
+    pulse('selection')
     navigateTo(it.to)
   }
 }
@@ -406,6 +432,7 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
           :style="{ transitionDuration: armed && previewIndex === i ? '120ms' : undefined }"
           :aria-current="activeIndex === i ? 'page' : undefined"
           :aria-label="it.key"
+          @click="pulse('light')"
         >
           <!-- 未読があるときだけ 最新Messagesのavatarを覗かせる。0なら普通のアイコン。 -->
           <img

@@ -6,12 +6,7 @@
  * - しきい値を超えて離すと先頭のアクションを実行
  * - 下に並ぶボタンはクリック / タップでも実行できる (キーボード / デスクトップ用)
  */
-export interface SwipeActionItem {
-  id: string
-  label: string
-  icon: string
-  tone?: 'primary' | 'success' | 'danger' | 'neutral'
-}
+import type { SwipeActionItem } from '~/utils/uiTypes'
 
 const props = withDefaults(
   defineProps<{

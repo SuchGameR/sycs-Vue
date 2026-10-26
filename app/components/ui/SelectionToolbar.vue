@@ -4,12 +4,7 @@
  *
  * 選択中だけ下部に出る。fixed=false ならデモ枠の中に absolute で収まる。
  */
-export interface SelectionAction {
-  id: string
-  label: string
-  icon: string
-  tone?: 'primary' | 'danger' | 'neutral'
-}
+import type { SelectionAction } from '~/utils/uiTypes'
 
 const props = withDefaults(
   defineProps<{

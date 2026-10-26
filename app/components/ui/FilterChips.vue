@@ -5,12 +5,7 @@
  * multiple=true なら複数選択、false なら単一選択。
  * 横スクロールし、件数バッジも出せる。
  */
-export interface FilterChipOption {
-  id: string
-  label: string
-  icon?: string
-  count?: number
-}
+import type { FilterChipOption } from '~/utils/uiTypes'
 
 const props = withDefaults(
   defineProps<{

@@ -6,14 +6,16 @@ import sharp from 'sharp'
 import opentype from 'opentype.js'
 
 const ALLOWED = [
-  '.png', '.jpeg', '.jpg', '.gif', '.webp',
-  '.webm', '.mp4',
-  '.mp3', '.ogg',
-  '.glb', '.gltf', '.obj', '.fbx', '.stl',
-  '.pdf', '.zip', '.txt', '.md', '.json', '.csv',
+  '.png', '.jpeg', '.jpg', '.gif', '.webp', '.avif',
+  '.webm', '.mp4', '.mov', '.m4v', '.mkv', '.ogv',
+  '.mp3', '.ogg', '.wav', '.m4a', '.flac', '.aac', '.opus',
+  '.glb', '.gltf', '.obj', '.fbx', '.stl', '.3ds',
+  '.pdf', '.zip', '.rar', '.7z', '.tar', '.gz',
+  '.txt', '.md', '.json', '.csv',
+  '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.epub',
 ]
-const IMAGE_TYPES = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
-const MODEL_TYPES = ['.glb', '.gltf', '.obj', '.fbx', '.stl']
+const IMAGE_TYPES = ['.png', '.jpeg', '.jpg', '.gif', '.webp', '.avif']
+const MODEL_TYPES = ['.glb', '.gltf', '.obj', '.fbx', '.stl', '.3ds']
 
 const MAX_SIZE_IMAGE = 10 * 1024 * 1024
 const MAX_SIZE_VIDEO = 50 * 1024 * 1024

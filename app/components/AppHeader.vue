@@ -8,23 +8,13 @@ const route = useRoute()
 const router = useRouter()
 const me = useState<any>('current-user', () => null)
 const { openSwitcher } = useAccounts()
+const { setOpen: openCommandPalette } = useCommandPalette()
 const isHomePage = computed(() => route.path === '/home')
 const isProfilePage = computed(() => route.path.startsWith('/profile/'))
 const profileHeader = useState<{displayName: string; username: string; avatarUrl: string | null; bannerUrl: string | null; badges?: any[]; title?: string | null} | null>('profile-header-state', () => null)
 
-function onKey(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault()
-    router.push('/search')
-  }
-}
-const isMac = ref(false)
-onMounted(() => {
-  window.addEventListener('keydown', onKey)
-  isMac.value = /Mac|iPhone|iPad/.test(navigator.userAgent)
-})
-onUnmounted(() => window.removeEventListener('keydown', onKey))
-const shortcut = computed(() => (isMac.value ? '⌘K' : 'Ctrl K'))
+// Ctrl / ⌘ + K はグローバルなコマンドパレット (UiCommandPalette) が担当する。
+// ここで横取りすると /search へ飛んでしまい、パレットが開かない。
 </script>
 
 <template>
@@ -97,7 +87,15 @@ const shortcut = computed(() => (isMac.value ? '⌘K' : 'Ctrl K'))
         >
           <Icon name="lucide:search" class="w-3.5 h-3.5 shrink-0" />
           <span class="truncate">検索</span>
-          <span class="ml-auto text-[10px] text-on-surface-variant border border-outline-variant rounded px-1 shrink-0">{{ shortcut }}</span>
+        </button>
+
+        <button
+          class="w-8 h-8 rounded-full border border-outline-variant bg-surface/70 flex items-center justify-center text-on-surface-variant hover:text-indigo-300 hover:border-indigo-500/60 transition shrink-0"
+          title="コマンドパレット (Ctrl / ⌘ + K)"
+          aria-label="コマンドパレットを開く"
+          @click="openCommandPalette(true)"
+        >
+          <Icon name="lucide:command" class="w-3.5 h-3.5" />
         </button>
 
         <button
@@ -117,14 +115,25 @@ const shortcut = computed(() => (isMac.value ? '⌘K' : 'Ctrl K'))
       </div>
     </div>
 
-    <!-- Mobile search shortcut -->
-    <button
-      class="min-[1024px]:hidden absolute right-3 top-3 z-40 p-2 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container/60 transition"
-      @click="router.push('/search')"
-      title="検索"
-    >
-      <Icon name="lucide:search" class="w-5 h-5" />
-    </button>
+    <!-- Mobile search / command shortcuts -->
+    <div class="min-[1024px]:hidden absolute right-2 top-2 z-40 flex items-center gap-0.5">
+      <button
+        class="p-2 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container/60 transition"
+        @click="router.push('/search')"
+        title="検索"
+        aria-label="検索"
+      >
+        <Icon name="lucide:search" class="w-5 h-5" />
+      </button>
+      <button
+        class="p-2 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container/60 transition"
+        @click="openCommandPalette(true)"
+        title="コマンドパレット (Ctrl / ⌘ + K)"
+        aria-label="コマンドパレットを開く"
+      >
+        <Icon name="lucide:command" class="w-5 h-5" />
+      </button>
+    </div>
   </div>
 </template>
 

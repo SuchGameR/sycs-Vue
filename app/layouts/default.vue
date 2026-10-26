@@ -18,7 +18,22 @@ const workbench = useWorkbench()
 const { layout } = workbench
 
 const { desktopNav, hydrate: hydrateNav } = useNavLayout()
-onMounted(hydrateNav)
+
+/**
+ * Interaction Kit のグローバル初期化。
+ * 設定・デザイントークン・ナビ構成を localStorage から復元する。
+ * 画面ごとのコンポーネントは「有効/無効」を見て自分で振る舞いを変える。
+ */
+const interactionSettings = useInteractionSettings()
+const themeTokens = useThemeTokens()
+const modularNav = useModularNav()
+
+onMounted(() => {
+  hydrateNav()
+  interactionSettings.hydrate()
+  themeTokens.hydrate()
+  modularNav.hydrate()
+})
 
 /**
  * Room for the floating pill. It is 0 on mobile (pages pad themselves), and 0
@@ -155,6 +170,9 @@ onUnmounted(() => {
     </div>
     <MobileNav />
     <MediaMiniPlayer v-if="!isDesktop" class="sycs-mini-player" />
+    <UiOfflineBanner />
+    <UiToastStack />
+    <UiCommandPalette />
     <VoiceCallDock />
     <WorkbenchFooter />
     <AddToPlaylistModal />
