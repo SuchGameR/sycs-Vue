@@ -290,17 +290,18 @@ function fileIcon(mime: string) {
 
       <!-- File previews (clickable) -->
       <div v-if="pendingFiles.length" class="flex flex-wrap gap-2">
-        <button v-for="(f, i) in pendingFiles" :key="i"
-          @click="activePreview = i"
+        <div v-for="(f, i) in pendingFiles" :key="i"
           class="relative w-16 h-16 rounded-lg overflow-hidden bg-surface/70 border border-outline hover:border-indigo-500 transition shrink-0">
-          <img v-if="f.type === 'image'" :src="f.preview" class="w-full h-full object-cover" />
-          <div v-else class="w-full h-full flex items-center justify-center text-on-surface-variant">
-            <Icon :name="fileIcon(f.mime)" class="w-5 h-5" />
-          </div>
-          <button @click.stop="removeFile(i)" class="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white hover:bg-black/80">
+          <button type="button" @click="activePreview = i" class="w-full h-full" :aria-label="`${f.file.name} をプレビュー`">
+            <img v-if="f.type === 'image'" :src="f.preview" class="w-full h-full object-cover" />
+            <span v-else class="w-full h-full flex items-center justify-center text-on-surface-variant">
+              <Icon :name="fileIcon(f.mime)" class="w-5 h-5" />
+            </span>
+          </button>
+          <button type="button" @click.stop="removeFile(i)" class="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white hover:bg-black/80" :aria-label="`${f.file.name} を削除`">
             <Icon name="lucide:x" class="w-2.5 h-2.5" />
           </button>
-        </button>
+        </div>
       </div>
 
       <!-- Attachment preview modal -->

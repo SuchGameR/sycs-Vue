@@ -238,24 +238,29 @@ function directInfo(url: URL, ext: string): EmbedInfo | null {
   return null
 }
 
+/** http(s) 以外はリンクにしない (javascript: などを href に入れない)。 */
+function unsafeInfo(input: string): EmbedInfo {
+  return {
+    url: '#',
+    kind: 'link',
+    host: '',
+    title: input || 'リンク',
+    subtitle: '安全でない URL',
+    icon: ICONS.link,
+    accent: ACCENTS.link,
+  }
+}
+
 export function parseEmbed(input: string): EmbedInfo {
   let url: URL
   try {
     url = new URL(input)
   } catch {
-    return {
-      url: input,
-      kind: 'link',
-      host: '',
-      title: input,
-      subtitle: '',
-      icon: ICONS.link,
-      accent: ACCENTS.link,
-    }
+    return unsafeInfo(input)
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return baseInfo(url, 'link', url.toString(), '')
+    return unsafeInfo(input)
   }
 
   const yt = youtubeId(url)

@@ -166,10 +166,15 @@ onUnmounted(() => {
       <main class="sycs-main flex-1 min-w-0 h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve)-var(--app-keyboard-inset))] overflow-y-auto overscroll-contain">
         <slot />
       </main>
-      <MediaDetailPane v-if="isDesktop && layout.mediaPane" />
+      <ClientOnly>
+        <!-- Viewport-dependent panes: SSR has no viewport, so let the client pick. -->
+        <MediaDetailPane v-if="isDesktop && layout.mediaPane" />
+      </ClientOnly>
     </div>
     <MobileNav />
-    <MediaMiniPlayer v-if="!isDesktop" class="sycs-mini-player" />
+    <ClientOnly>
+      <MediaMiniPlayer v-if="!isDesktop" class="sycs-mini-player" />
+    </ClientOnly>
     <UiOfflineBanner />
     <UiToastStack />
     <UiCommandPalette />

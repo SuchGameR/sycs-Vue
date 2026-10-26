@@ -95,13 +95,8 @@ function onTouchMove(e: TouchEvent) {
   armed.value = pull.value >= props.threshold
 }
 
-async function finish() {
-  if (!tracking.value) return
-  tracking.value = false
-  if (!armed.value) {
-    pull.value = 0
-    return
-  }
+async function runRefresh() {
+  if (refreshing.value || props.disabled) return
   refreshing.value = true
   pull.value = 46
   try {
@@ -111,6 +106,16 @@ async function finish() {
     refreshing.value = false
     pull.value = 0
   }
+}
+
+async function finish() {
+  if (!tracking.value) return
+  tracking.value = false
+  if (!armed.value) {
+    pull.value = 0
+    return
+  }
+  await runRefresh()
 }
 
 function onTouchCancel() {
@@ -137,7 +142,7 @@ onBeforeUnmount(() => {
   node.removeEventListener('touchcancel', onTouchCancel)
 })
 
-defineExpose({ refresh: finish })
+defineExpose({ refresh: runRefresh })
 </script>
 
 <template>
@@ -179,7 +184,7 @@ defineExpose({ refresh: finish })
       type="button"
       class="absolute right-2 top-2 z-10 hidden h-8 items-center gap-1.5 rounded-full border border-outline-variant bg-surface-container-high/90 px-3 text-[11px] font-medium text-on-surface-variant shadow transition hover:text-on-surface active:scale-95 min-[681px]:flex"
       :disabled="refreshing || disabled"
-      @click="finish"
+      @click="runRefresh"
     >
       <Icon name="lucide:refresh-ccw" class="h-3.5 w-3.5" :class="refreshing ? 'animate-spin' : ''" />
       更新
