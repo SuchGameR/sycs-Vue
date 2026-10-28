@@ -9,6 +9,7 @@ import { saveFileWithWatermark, urlToFilePath } from '../../utils/upload'
 import { emit } from '../../utils/eventBus'
 import { isServerMember } from '../../utils/serverAuth'
 import { syncPostHashtags } from '../../utils/hashtags'
+import { serializePosts } from '../../utils/postQuery'
 
 const IMAGE_EXTENSIONS = ['.png', '.jpeg', '.jpg', '.gif', '.webp']
 
@@ -98,7 +99,7 @@ export default defineEventHandler(async (event) => {
     await db.insert(schema.postAttachments).values(values)
   }
 
-  const postWithUser = { ...post, user, attachments: values, liked: false, reposted: false, bookmarked: false }
+  const [postWithUser] = await serializePosts([post], user)
   emit('post:created', { post: postWithUser })
 
   return { post: postWithUser }

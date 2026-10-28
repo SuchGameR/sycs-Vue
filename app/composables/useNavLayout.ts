@@ -7,12 +7,15 @@ import type { Ref } from 'vue'
  * Mobile always uses the pill; only the desktop choice is persisted.
  */
 export type DesktopNavMode = 'pill' | 'sidebar'
+export type PillNavPosition = 'center' | 'left' | 'right'
 
 const MODE_KEY = 'sycs:desktop-nav'
 const COLLAPSED_KEY = 'sycs:sidebar-collapsed'
+const POSITION_KEY = 'sycs:pill-nav-position'
 
 export function useNavLayout() {
   const desktopNav = useState<DesktopNavMode>('nav:desktop-mode', () => 'pill')
+  const pillPosition = useState<PillNavPosition>('nav:pill-position', () => 'center')
   const sidebarCollapsed = useState<boolean>('nav:sidebar-collapsed', () => false)
 
   /** localStorage is read once, on the client, after first paint. */
@@ -22,8 +25,15 @@ export function useNavLayout() {
     if (hydrated.value || !import.meta.client) return
     const mode = localStorage.getItem(MODE_KEY)
     if (mode === 'pill' || mode === 'sidebar') desktopNav.value = mode
+    const position = localStorage.getItem(POSITION_KEY)
+    if (position === 'center' || position === 'left' || position === 'right') pillPosition.value = position
     sidebarCollapsed.value = localStorage.getItem(COLLAPSED_KEY) === '1'
     hydrated.value = true
+  }
+
+  function setPillPosition(position: PillNavPosition) {
+    pillPosition.value = position
+    if (import.meta.client) localStorage.setItem(POSITION_KEY, position)
   }
 
   function setDesktopNav(mode: DesktopNavMode) {
@@ -52,11 +62,13 @@ export function useNavLayout() {
 
   return {
     desktopNav,
+    pillPosition,
     sidebarCollapsed,
     hydrated,
     pillActive,
     hydrate,
     setDesktopNav,
+    setPillPosition,
     setSidebarCollapsed,
     toggleDesktopNav,
     toggleSidebar,

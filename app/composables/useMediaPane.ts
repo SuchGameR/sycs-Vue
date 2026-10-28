@@ -36,6 +36,7 @@ export function useMediaPane() {
   })
   const mobileFull = useState<boolean>('media-pane:mobile-full', () => false)
   const mobileMinimized = useState<boolean>('media-pane:mobile-min', () => false)
+  const threadOpen = useState<boolean>('media-pane:thread-open', () => false)
 
   const isOpen = computed(() => !!selected.value)
   const kind = computed<MediaKind>(() => mediaKindOf(selected.value))
@@ -50,6 +51,7 @@ export function useMediaPane() {
     sourceLabel.value = label
     mobileFull.value = false
     mobileMinimized.value = false
+    threadOpen.value = false
   }
 
   /**
@@ -71,6 +73,7 @@ export function useMediaPane() {
       sourceLabel.value = label
       mobileFull.value = false
       mobileMinimized.value = false
+      threadOpen.value = false
       return
     }
     openMobileFull(post, label)
@@ -85,6 +88,7 @@ export function useMediaPane() {
     sourceLabel.value = ''
     mobileFull.value = false
     mobileMinimized.value = false
+    threadOpen.value = false
   }
 
   function setWidth(value: number) {
@@ -100,6 +104,23 @@ export function useMediaPane() {
     }
     mobileFull.value = true
     mobileMinimized.value = false
+    threadOpen.value = false
+  }
+
+  function openComments(post: any, label = '') {
+    if (!post) return
+    const isMobile = import.meta.client && window.innerWidth < 1024
+    selected.value = post
+    sourceLabel.value = label
+    mobileMinimized.value = false
+    if (isMobile) {
+      mobileFull.value = false
+      threadOpen.value = true
+      return
+    }
+    mobileFull.value = false
+    threadOpen.value = false
+    useWorkbench().setLayout({ mediaPane: true })
   }
 
   function minimizeMobile() {
@@ -110,7 +131,14 @@ export function useMediaPane() {
   function closeMobile() {
     mobileFull.value = false
     mobileMinimized.value = false
+    threadOpen.value = false
     close()
+  }
+
+  function closeComments() {
+    threadOpen.value = false
+    selected.value = null
+    sourceLabel.value = ''
   }
 
   function updatePost(post: any) {
@@ -118,9 +146,9 @@ export function useMediaPane() {
   }
 
   return {
-    selected, sourceLabel, width, mobileFull, mobileMinimized,
+    selected, sourceLabel, width, mobileFull, mobileMinimized, threadOpen,
     isOpen, kind,
     openPost, openSmart, togglePost, close, setWidth,
-    openMobileFull, minimizeMobile, closeMobile, updatePost,
+    openMobileFull, openComments, closeComments, minimizeMobile, closeMobile, updatePost,
   }
 }

@@ -180,6 +180,7 @@ async function restoreScrollMemory() {
 
 onMounted(() => {
   settings.hydrate()
+  window.addEventListener('sycs:post-created', onQuotedPostCreated)
   const el = mainEl()
   el?.addEventListener('scroll', onMainScroll, { passive: true })
   onMainScroll()
@@ -190,6 +191,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('sycs:post-created', onQuotedPostCreated)
   captureScrollMemory()
   mainEl()?.removeEventListener('scroll', onMainScroll)
   stopPolling()
@@ -222,6 +224,17 @@ function createFromSheet(content: string, attachments?: Array<any>, visibility?:
 function openMedia(post: any) {
   const label = timelines.activeTab.value.label
   mediaPane.openSmart(post, label)
+}
+
+function openComments(post: any) {
+  mediaPane.openComments(post, timelines.activeTab.value.label)
+}
+
+function onQuotedPostCreated(event: Event) {
+  const post = (event as CustomEvent<any>).detail
+  if (!post?.id || posts.value.some(item => item.id === post.id)) return
+  if (atTop.value) posts.value = [post, ...posts.value]
+  else pending.value = [post, ...pending.value]
 }
 
 async function toggleRepost(postId: string) {
@@ -338,7 +351,7 @@ function reportPost(postId: string) {
             <PostItem :post="post"
               :show-view-count="userSettings.showViewCount ?? true" :current-user-id="me?.user?.id"
               @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
-              @delete="deletePost" @report="reportPost" @open-media="openMedia" />
+              @delete="deletePost" @report="reportPost" @open-media="openMedia" @open-thread="openComments" />
           </div>
           <UiEmptyState
             v-if="!posts.length"

@@ -33,12 +33,14 @@ let dragging = false
 let dragStartX = 0
 let dragStartScroll = 0
 let dragMoved = false
+let activePointerId: number | null = null
 
 function onPointerDown(e: PointerEvent) {
-  if (e.pointerType !== 'mouse') return
+  if (e.pointerType !== 'mouse' || e.button !== 0) return
   const el = scroller.value
   if (!el) return
   dragging = true
+  activePointerId = e.pointerId
   dragStartX = e.clientX
   dragStartScroll = el.scrollLeft
   dragMoved = false
@@ -46,15 +48,31 @@ function onPointerDown(e: PointerEvent) {
 
 function onPointerMove(e: PointerEvent) {
   const el = scroller.value
-  if (!dragging || !el) return
+  if (!dragging || !el || e.pointerId !== activePointerId) return
   const dx = e.clientX - dragStartX
-  if (Math.abs(dx) > 4) dragMoved = true
+  if (Math.abs(dx) > 4) {
+    if (!dragMoved && activePointerId !== null) {
+      try {
+        el.setPointerCapture(activePointerId)
+      } catch {
+        // Continue scrolling even if pointer capture is unavailable.
+      }
+    }
+    dragMoved = true
+    e.preventDefault()
+  }
   el.scrollLeft = dragStartScroll - dx
 }
 
-function onPointerUp() {
+function onPointerUp(e?: PointerEvent) {
   if (!dragging) return
+  if (e && activePointerId !== null && e.pointerId !== activePointerId) return
+  const el = scroller.value
+  if (el && activePointerId !== null && el.hasPointerCapture(activePointerId)) {
+    el.releasePointerCapture(activePointerId)
+  }
   dragging = false
+  activePointerId = null
   if (dragMoved) setTimeout(() => { dragMoved = false }, 0)
 }
 
@@ -63,7 +81,14 @@ function onTabClick(id: string) {
   select(id)
 }
 
-onUnmounted(() => { dragging = false })
+onUnmounted(() => {
+  const el = scroller.value
+  if (el && activePointerId !== null && el.hasPointerCapture(activePointerId)) {
+    el.releasePointerCapture(activePointerId)
+  }
+  dragging = false
+  activePointerId = null
+})
 </script>
 
 <template>
@@ -75,6 +100,7 @@ onUnmounted(() => { dragging = false })
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointerleave="onPointerUp"
+      @lostpointercapture="onPointerUp"
     >
       <div
         v-for="tab in visibleTabs"

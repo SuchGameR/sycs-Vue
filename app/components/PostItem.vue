@@ -43,6 +43,7 @@ const emit = defineEmits<{
   delete: [postId: string]
   report: [postId: string]
   openMedia: [post: any]
+  openThread: [post: any]
 }>()
 
 const showMenu = ref(false)
@@ -51,6 +52,23 @@ const rootEl = ref<HTMLElement | null>(null)
 const { observe, unobserve } = useViewTracker()
 const { openAdd: openAddToPlaylist } = usePlaylists()
 const toast = useToast()
+const quotedPost = ref<any>(props.post.quotedPost || null)
+
+watch(
+  () => [props.post.id, props.post.quotedPostId, props.post.quotedPost],
+  async ([, quotedPostId, embedded]: any[]) => {
+    quotedPost.value = embedded || null
+    if (!quotedPostId || quotedPost.value) return
+    try {
+      const result = await $fetch<{ post: any }>(`/api/posts/${quotedPostId}`)
+      quotedPost.value = result.post || null
+    } catch (error) {
+      console.warn("[PostItem] Failed to load quoted post", error)
+      quotedPost.value = null
+    }
+  },
+  { immediate: true },
+)
 
 onMounted(() => observe(rootEl.value, props.post.id, (count) => { props.post.viewCount = count }))
 onUnmounted(() => unobserve(rootEl.value))
@@ -69,7 +87,12 @@ function openMedia() {
 }
 
 function openThread() {
-  emit('openMedia', props.post)
+  emit('openThread', props.post)
+}
+
+function onContentClick(event: MouseEvent) {
+  if ((event.target as HTMLElement).closest('a')) return
+  openThread()
 }
 
 function timeAgo(date: string) {
@@ -200,14 +223,14 @@ onMounted(ensureMe)
           </div>
         </div>
 
-        <p class="text-on-surface leading-relaxed whitespace-pre-wrap break-words cursor-pointer" @click.self="openThread" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
+        <p class="text-on-surface leading-relaxed whitespace-pre-wrap break-words cursor-pointer" @click="onContentClick" v-html="renderRichText(post.content, { custom: customEmojiMap })" />
 
         <PostAttachments v-if="post.attachments?.length" :attachments="post.attachments" :post-id="post.id"
           interactive image-lightbox @open="openMedia" />
 
-        <PostEmbeds v-if="post.content" :content="post.content" class="mt-2" :max="2" />
+        <QuotedPostCard v-if="quotedPost" :post="quotedPost" class="mt-2" @open="emit('openMedia', quotedPost)" />
 
-        <QuotedPostCard v-if="post.quotedPost" :post="post.quotedPost" class="mt-2" @open="emit('openMedia', post.quotedPost)" />
+        <PostEmbeds v-if="post.content" :content="post.content" class="mt-2" :max="2" />
 
         <div class="flex items-center gap-4 mt-3 text-on-surface-variant">
           <div class="relative">

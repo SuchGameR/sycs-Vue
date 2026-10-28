@@ -1,6 +1,9 @@
 <script setup lang="ts">
 const route = useRoute()
 const isServerPage = computed(() => route.path.startsWith('/servers/') && !!route.params.id)
+const isDirectMessage = computed(() =>
+  route.path.startsWith('/social/') && route.path.split('/').filter(Boolean).length > 1,
+)
 
 /**
  * /search hides the 56px app header entirely.
@@ -27,12 +30,20 @@ const { desktopNav, hydrate: hydrateNav } = useNavLayout()
 const interactionSettings = useInteractionSettings()
 const themeTokens = useThemeTokens()
 const modularNav = useModularNav()
+const interfaceScale = useInterfaceScale()
 
 onMounted(() => {
   hydrateNav()
   interactionSettings.hydrate()
   themeTokens.hydrate()
   modularNav.hydrate()
+  void $fetch<{ user?: { settings?: string | null } }>('/api/auth/me')
+    .then(({ user }) => interfaceScale.hydrate(user?.settings))
+    .catch((error: any) => {
+      if (error?.statusCode !== 401) {
+        console.error('[layout] Failed to load interface size preferences', error)
+      }
+    })
 })
 
 /**
@@ -59,6 +70,11 @@ const navReserveStyle = computed(() => {
  */
 const { inset: bottomInset } = useBottomInset()
 const bottomInsetStyle = computed(() => ({ '--app-bottom-inset': `${bottomInset.value}px` }))
+const { setCompact } = useScrollCompact()
+
+function onMainScroll(event: Event) {
+  setCompact((event.currentTarget as HTMLElement).scrollTop > 24)
+}
 
 const serverCache = ref<any>(null)
 
@@ -136,11 +152,12 @@ watch(isServerPage, (v) => {
 onUnmounted(() => {
   offRealtime.forEach(off => off())
   offEmojiRealtime.forEach(off => off())
+  setCompact(false)
 })
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px] [--app-header-h:calc(56px+env(safe-area-inset-top,0px))]" :style="[navReserveStyle, bottomInsetStyle]">
+  <div class="min-h-screen bg-surface text-on-surface [--app-footer-h:0px] min-[681px]:[--app-footer-h:30px] [--app-header-h:calc(56px+env(safe-area-inset-top,0px))]" :class="isDirectMessage ? 'min-[681px]:[--app-footer-h:0px]' : ''" :style="[navReserveStyle, bottomInsetStyle]">
     <div v-if="clientError" class="fixed inset-x-3 top-[4.5rem] z-[300] mx-auto max-w-md rounded-xl border border-red-500/40 bg-red-950/90 p-3 text-sm text-red-200 shadow-2xl backdrop-blur">
       <div class="flex items-start gap-2">
         <Icon name="lucide:alert-triangle" class="w-4 h-4 shrink-0 mt-0.5" />
@@ -160,10 +177,13 @@ onUnmounted(() => {
       :server="serverCache"
       class="sycs-safe-top sticky top-0 z-50 bg-surface sycs-header-bg border-b border-outline-variant sycs-glass"
     />
-    <div class="flex">
+    <div
+      class="app-content-stage flex"
+      :class="{ 'app-content-stage--thread-open': mediaPane.threadOpen.value }"
+    >
       <!-- サイドバーはdesktopのみ。閉じる場合はピル_navが引き継ぐ。 -->
-      <SidebarLeft v-if="layout.sidebar && desktopNav === 'sidebar'" />
-      <main class="sycs-main flex-1 min-w-0 h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve)-var(--app-keyboard-inset))] overflow-y-auto overscroll-contain">
+      <SidebarLeft v-if="!isDirectMessage && layout.sidebar && desktopNav === 'sidebar'" />
+      <main class="sycs-main flex-1 min-w-0 h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h)-var(--app-nav-reserve)-var(--app-keyboard-inset))] overflow-y-auto overscroll-contain" @scroll.passive="onMainScroll">
         <slot />
       </main>
       <ClientOnly>
@@ -179,9 +199,27 @@ onUnmounted(() => {
     <UiToastStack />
     <UiCommandPalette />
     <VoiceCallDock />
-    <WorkbenchFooter />
+    <WorkbenchFooter v-if="!isDirectMessage" />
     <AddToPlaylistModal />
     <QuoteComposerModal />
     <AccountSwitcher v-if="switcherOpen" @close="closeSwitcher" />
   </div>
 </template>
+
+<style>
+.app-content-stage {
+  transform-origin: left center;
+  transition:
+    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 280ms ease,
+    opacity 280ms ease;
+  will-change: transform;
+}
+
+.app-content-stage--thread-open {
+  transform: translateX(-14%) scale(0.94);
+  filter: blur(2px);
+  opacity: 0.58;
+  pointer-events: none;
+}
+</style>

@@ -21,7 +21,7 @@ export function useQuoteComposer() {
     busy.value = true
     _error.value = null
     try {
-      await $fetch('/api/posts', {
+      const result = await $fetch<{ post: any }>('/api/posts', {
         method: 'POST',
         body: {
           content,
@@ -31,6 +31,9 @@ export function useQuoteComposer() {
           quotedPostId: quotedPost.id,
         },
       })
+      if (import.meta.client && result.post) {
+        window.dispatchEvent(new CustomEvent('sycs:post-created', { detail: result.post }))
+      }
       target.value = null
       return true
     } catch (e: any) {

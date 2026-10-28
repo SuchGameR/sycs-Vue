@@ -84,15 +84,25 @@ useBadgeReload(() => {
 
 onMounted(() => {
   loadProfile()
+  window.addEventListener('sycs:post-created', onProfilePostCreated)
   const container = document.querySelector('main')
   container?.addEventListener('scroll', onScroll, { passive: true })
   onScroll()
 })
 onUnmounted(() => {
+  window.removeEventListener('sycs:post-created', onProfilePostCreated)
   const container = document.querySelector('main')
   container?.removeEventListener('scroll', onScroll)
   profileHeaderState.value = null
 })
+
+function onProfilePostCreated(event: Event) {
+  const post = (event as CustomEvent<any>).detail
+  if (!post?.id || post.user?.id !== me.value?.user?.id || !isOwnProfile.value) return
+  if (userPosts.value.some(item => item.id === post.id)) return
+  userPosts.value = [post, ...userPosts.value]
+  if (profile.value?.stats) profile.value.stats.posts += 1
+}
 
 async function loadProfile() {
   loading.value = true
@@ -308,6 +318,10 @@ function reportPost() {
 function openMedia(post: any) {
   mediaPane.openSmart(post, profile.value?.user?.displayName || 'プロフィール')
 }
+
+function openComments(post: any) {
+  mediaPane.openComments(post, profile.value?.user?.displayName || 'プロフィール')
+}
 </script>
 
 <template>
@@ -451,6 +465,7 @@ function openMedia(post: any) {
             @delete="deletePost"
             @report="reportPost"
             @open-media="openMedia"
+            @open-thread="openComments"
           />
         </template>
         <p v-else-if="!profile.locked" class="text-center text-on-surface-variant py-8">まだ投稿がありません</p>

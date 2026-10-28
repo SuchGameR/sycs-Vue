@@ -4,7 +4,8 @@ const { activityUnread, dmUnread, dmLatest } = useUnread()
 const { data: me } = useFetch('/api/auth/me', { key: 'mobilenav-me' })
 
 /** Mobile always uses the pill; on desktop it only wins when the user picked it. */
-const { desktopNav, hydrate: hydrateNav } = useNavLayout()
+const { desktopNav, pillPosition, hydrate: hydrateNav } = useNavLayout()
+const mediaPane = useMediaPane()
 const { items: navModules, hydrate: hydrateModules } = useModularNav()
 const { pulse } = useHaptics()
 onMounted(() => {
@@ -18,6 +19,14 @@ onMounted(() => {
  * inside one transformed space, so the swipe maths above stays exact.
  */
 const { compact: scrollCompact } = useScrollCompact()
+const isDirectMessage = computed(() =>
+  route.path.startsWith('/social/') && route.path.split('/').filter(Boolean).length > 1,
+)
+const navPositionStyle = computed(() => {
+  if (pillPosition.value === 'left') return { left: 'max(0.75rem, env(safe-area-inset-left))', right: 'auto', width: 'max-content', justifyContent: 'flex-start' }
+  if (pillPosition.value === 'right') return { left: 'auto', right: 'max(0.75rem, env(safe-area-inset-right))', width: 'max-content', justifyContent: 'flex-end' }
+  return { left: '0px', right: '0px', width: 'auto', justifyContent: 'center' }
+})
 
 type Item = { key: string; to: string; icon: string; match: (p: string) => boolean }
 
@@ -285,13 +294,6 @@ function onPointerDown(e: PointerEvent) {
   armed.value = false
   dragFrom.value = i
   dragDx.value = 0
-  // Capture on the rail so the gesture keeps tracking even when the pointer
-  // slides off the buttons (it usually does, since they are only 44px apart).
-  // Works identically for touch, pen and mouse, which is what makes the swipe
-  // usable on a desktop trackpad as well as on a phone.
-  try {
-    ;(e.currentTarget as HTMLElement)?.setPointerCapture?.(e.pointerId)
-  } catch { /* capture unsupported; the gesture still tracks on the rail */ }
 }
 
 function onPointerMove(e: PointerEvent) {
@@ -304,7 +306,14 @@ function onPointerMove(e: PointerEvent) {
   if (axisLocked === 'none') {
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
     axisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
-    if (axisLocked === 'x') armed.value = true
+    if (axisLocked === 'x') {
+      armed.value = true
+      // Capture only after a horizontal drag begins; capturing a tap retargets
+      // its click to the rail instead of the selected navigation link.
+      try {
+        ;(e.currentTarget as HTMLElement)?.setPointerCapture?.(e.pointerId)
+      } catch { /* capture unsupported; the gesture still tracks on the rail */ }
+    }
   }
   if (axisLocked !== 'x') return
 
@@ -386,7 +395,7 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
 </script>
 
 <template>
-  <div>
+  <div v-if="!isDirectMessage && !mediaPane.threadOpen.value">
     <!--
       The shrink is a transform on the nav ITSELF, never on this wrapper: a
       transformed ancestor would become the containing block for the nav's
@@ -398,8 +407,9 @@ watch([count, () => me.value?.user?.username], () => nextTick(() => measure()))
       class="sycs-floatnav fixed inset-x-0 bottom-[calc(var(--app-footer-h)+0.75rem+var(--app-safe-bottom))] min-[681px]:bottom-[calc(var(--app-footer-h)+1.25rem+var(--app-safe-bottom))] z-[70] flex justify-center px-4 origin-bottom transition-transform duration-300 ease-out"
       :class="[
         desktopNav === 'pill' ? '' : 'min-[681px]:hidden',
-        scrollCompact && desktopNav === 'pill' ? 'scale-[0.86] -translate-y-1' : 'scale-100',
+        scrollCompact && desktopNav === 'pill' ? 'scale-[0.84] -translate-y-1 opacity-70 hover:opacity-100' : 'scale-100 opacity-100',
       ]"
+      :style="navPositionStyle"
       aria-label="メインナビゲーション"
     >
       <div

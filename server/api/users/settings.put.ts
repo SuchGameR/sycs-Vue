@@ -5,6 +5,7 @@ import { requireAuth } from '../../utils/auth'
 
 const THEME_STYLES = ['classic', 'material3', 'liquid-glass']
 const THEME_SCHEMES = ['light', 'dark', 'system']
+const INTERFACE_SIZES = ['small', 'medium', 'large']
 
 /**
  * 外観設定の正規化。
@@ -28,6 +29,8 @@ function normalizeTheme(merged: Record<string, any>) {
     merged.themeStyle ??= 'classic'
     merged.themeScheme ??= 'dark'
   }
+  if (!INTERFACE_SIZES.includes(merged.fontSize)) delete merged.fontSize
+  if (!INTERFACE_SIZES.includes(merged.buttonSize)) delete merged.buttonSize
   return merged
 }
 

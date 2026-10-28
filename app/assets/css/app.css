@@ -66,6 +66,16 @@ html {
   text-size-adjust: 100%;
 }
 
+html[data-button-size='small'] button,
+html[data-button-size='small'] [role='button'] {
+  zoom: 0.9;
+}
+
+html[data-button-size='large'] button,
+html[data-button-size='large'] [role='button'] {
+  zoom: 1.12;
+}
+
 body {
   touch-action: pan-x pan-y;
 }
@@ -199,10 +209,8 @@ body {
   pointer-events: none;
 }
 
-/* The plate follows a pointer, so the rail must not let the browser pan it and
-   must not start a native image/text drag mid-gesture.
-   `touch-action: pan-y` keeps vertical page scrolling working while horizontal
-   movement is handed to the pointer handlers for the swipe-to-select gesture.
+/* The plate follows a pointer, so this narrow rail is a dedicated horizontal
+   gesture surface and should not hand swipes to native page panning.
    On desktop, where the gesture is driven by a mouse, the same rules apply --
    `touch-action` is inert for a mouse but `user-select` / drag suppression are
    what keep the drag from selecting text or ghost-dragging an avatar. */
@@ -211,7 +219,7 @@ body {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .sycs-floatnav-rail img,
@@ -359,6 +367,21 @@ html[data-style='liquid-glass'] .sycs-hashtag {
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  a,
+  button:not(:disabled):not([aria-disabled='true']),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role='button'][aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+}
+
 a,
 button,
 [role='button'],
@@ -387,12 +410,14 @@ textarea {
 html,
 body {
   overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
 }
 
 /* メインのスクロール領域。慣性スクロールと、フォーカス時の余白を確保する。 */
 .sycs-main {
   -webkit-overflow-scrolling: touch;
   scroll-padding-bottom: calc(var(--app-keyboard-inset) + 1.5rem);
+  overscroll-behavior-x: none;
 }
 
 /* --- ソフトキーボード ----------------------------------------------------- */
@@ -436,29 +461,6 @@ html.sycs-keyboard-open .sycs-mini-player {
   opacity: 0;
 }
 
-/* --- エッジスワイプで戻る インジケータ ---------------------------------- */
-/* 左端から右へスワイプしたときに追従する丸い「戻る」表示。 */
-.sycs-swipe-back-indicator {
-  position: fixed;
-  left: max(0.75rem, env(safe-area-inset-left, 0px));
-  top: 50%;
-  z-index: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  color: rgb(var(--md-sys-color-on-surface, 226 232 240));
-  background: rgb(var(--md-sys-color-surface-container, 30 41 59) / 0.85);
-  box-shadow: 0 6px 20px -6px rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(-50%) scale(0.6);
-  transition: opacity 140ms ease, transform 140ms ease;
-}
 
 /* ==========================================================================
    Interaction Kit — 共通ユーティリティ
@@ -662,4 +664,3 @@ html[data-motion='reduced'] .sycs-skeleton::after {
 html[data-density='compact'] .sycs-floatnav-rail {
   gap: 2px;
 }
-

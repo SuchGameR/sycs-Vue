@@ -13,7 +13,14 @@ const { data: userData, refresh: refreshUser } = await useFetch("/api/auth/me", 
   key: "settings-user",
 });
 const user = computed(() => userData.value?.user);
-const s = computed(() => JSON.parse(user.value?.settings || "{}"));
+const s = computed(() => {
+  try {
+    const parsed = JSON.parse(user.value?.settings || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+});
 
 const displayName = ref(user.value?.displayName || "");
 const bio = ref(user.value?.bio || "");
@@ -32,9 +39,20 @@ const {
   scheme: themeScheme,
   seed: themeSeed,
 } = useTheme();
+const {
+  fontSize,
+  buttonSize,
+  setFontSize,
+  setButtonSize,
+} = useInterfaceScale();
+const interfaceSizeOptions: Array<{ value: 'small' | 'medium' | 'large'; label: string }> = [
+  { value: 'small', label: '小' },
+  { value: 'medium', label: '標準' },
+  { value: 'large', label: '大' },
+];
 
 // デスクトップのナビ（ピル / サイドバー）。スマホは常にピルなので影響しない。
-const { desktopNav, setDesktopNav } = useNavLayout();
+const { desktopNav, setDesktopNav, pillPosition, setPillPosition } = useNavLayout();
 const navOptions: Array<{ value: "pill" | "sidebar"; label: string; icon: string }> = [
   { value: "pill", label: "下部ナビ", icon: "lucide:panel-bottom" },
   { value: "sidebar", label: "サイドバー", icon: "lucide:panel-left" },
@@ -260,6 +278,8 @@ async function save() {
         themeStyle: themeStyle.value,
         themeScheme: themeScheme.value,
         themeSeed: themeSeed.value,
+        fontSize: fontSize.value,
+        buttonSize: buttonSize.value,
         language: language.value,
         github: github.value,
         twitter: twitter.value,
@@ -279,7 +299,7 @@ async function save() {
 </script>
 
 <template>
-  <BottomSheet :open="open" height="min(85dvh, 44rem)" width="min(58rem, 100vw)" :dismiss-on-backdrop="true" @close="emit('close')">
+  <BottomSheet :open="open" height="min(92dvh, 54rem)" width="min(58rem, 100vw)" :dismiss-on-backdrop="true" @close="emit('close')">
       <div class="settings-layout flex h-full min-h-0">
         <div
           class="settings-nav w-44 shrink-0 border-r border-outline-variant p-3 space-y-4 overflow-y-auto"
@@ -654,6 +674,56 @@ async function save() {
           </div>
 
           <div v-if="activeCategory === 'appearance'" class="space-y-4">
+            <section class="rounded-xl border border-outline-variant/70 bg-surface-container/30 p-4">
+              <div class="mb-4">
+                <h3 class="text-sm font-bold text-white">表示サイズ</h3>
+                <p class="mt-1 text-xs leading-relaxed text-on-surface-variant">
+                  文字と操作ボタンを、それぞれ見やすい大きさに調整します。
+                </p>
+              </div>
+              <div class="space-y-4">
+                <div>
+                  <p class="mb-2 text-xs font-medium text-on-surface-variant">フォントサイズ</p>
+                  <div class="grid grid-cols-3 gap-2" role="group" aria-label="フォントサイズ">
+                    <button
+                      v-for="option in interfaceSizeOptions"
+                      :key="`font-${option.value}`"
+                      type="button"
+                      class="min-h-11 rounded-lg border px-3 py-2 transition"
+                      :class="fontSize === option.value
+                        ? 'border-indigo-500 bg-indigo-500/15 text-white'
+                        : 'border-outline bg-surface-container/40 text-on-surface-variant hover:text-white'"
+                      :aria-pressed="fontSize === option.value"
+                      @click="setFontSize(option.value)"
+                    >
+                      <span :class="option.value === 'small' ? 'text-xs' : option.value === 'large' ? 'text-base' : 'text-sm'">{{ option.label }}</span>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p class="mb-2 text-xs font-medium text-on-surface-variant">ボタンサイズ</p>
+                  <div class="grid grid-cols-3 gap-2" role="group" aria-label="ボタンサイズ">
+                    <button
+                      v-for="option in interfaceSizeOptions"
+                      :key="`button-${option.value}`"
+                      type="button"
+                      class="min-h-11 rounded-lg border px-3 py-2 transition"
+                      :class="buttonSize === option.value
+                        ? 'border-indigo-500 bg-indigo-500/15 text-white'
+                        : 'border-outline bg-surface-container/40 text-on-surface-variant hover:text-white'"
+                      :aria-pressed="buttonSize === option.value"
+                      @click="setButtonSize(option.value)"
+                    >
+                      <span class="inline-flex items-center gap-2">
+                        <Icon name="lucide:mouse-pointer-2" :class="option.value === 'small' ? 'h-3 w-3' : option.value === 'large' ? 'h-5 w-5' : 'h-4 w-4'" />
+                        {{ option.label }}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <NuxtLink
               to="/interactions"
               class="group flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-500/15 via-violet-500/10 to-fuchsia-500/10 p-3 transition hover:border-indigo-400/50 hover:from-indigo-500/20"
@@ -708,6 +778,32 @@ async function save() {
                 スマホは常に下部ナビ（スワイプで切り替え）が使えます。デスクトップはここで選べます。
               </p>
             </div>
+            <div>
+              <label class="block text-sm text-on-surface-variant mb-2">下部ナビの位置</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  v-for="option in [
+                    { value: 'left', label: '左', icon: 'lucide:panel-left' },
+                    { value: 'center', label: '中央', icon: 'lucide:panel-bottom' },
+                    { value: 'right', label: '右', icon: 'lucide:panel-right' },
+                  ]"
+                  :key="option.value"
+                  type="button"
+                  @click="setPillPosition(option.value as 'left' | 'center' | 'right')"
+                  class="flex min-h-12 items-center justify-center gap-2 rounded-xl border px-2 py-2 text-sm font-medium transition"
+                  :class="pillPosition === option.value
+                    ? 'border-indigo-500 bg-indigo-500/15 text-white'
+                    : 'border-outline bg-surface-container/30 text-on-surface-variant hover:text-white'"
+                  :aria-pressed="pillPosition === option.value"
+                >
+                  <Icon :name="option.icon" class="h-4 w-4 shrink-0" />
+                  {{ option.label }}
+                </button>
+              </div>
+              <p class="mt-2 text-xs text-on-surface-variant">
+                下部ナビの表示位置をスマホ・デスクトップで切り替えます。
+              </p>
+            </div>
           </div>
 
           <div v-if="activeCategory === 'privacy'" class="space-y-4">
@@ -746,7 +842,7 @@ async function save() {
           <button
             @click="save"
             :disabled="saving"
-            class="w-full py-2.5 bg-indigo-600 rounded-lg font-bold hover:bg-indigo-700 transition disabled:opacity-50"
+            class="settings-save w-full py-2.5 bg-indigo-600 rounded-lg font-bold hover:bg-indigo-700 transition disabled:opacity-50"
           >
             {{ saving ? "保存中..." : "保存" }}
           </button>
@@ -878,6 +974,11 @@ async function save() {
     flex: none;
   }
 
+  .settings-nav-group + .settings-nav-group {
+    padding-left: 0.75rem;
+    border-left: 1px solid rgb(255 255 255 / 0.08);
+  }
+
   .settings-nav-heading {
     padding-inline: 0.25rem;
     white-space: nowrap;
@@ -886,6 +987,7 @@ async function save() {
   .settings-nav-items {
     display: flex;
     gap: 0.375rem;
+    white-space: nowrap;
   }
 
   .settings-nav-item {
@@ -897,7 +999,30 @@ async function save() {
 
   .settings-content {
     padding: 1rem;
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4rem));
+    overscroll-behavior: contain;
+  }
+
+  .settings-save {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    margin: 0 -1rem -1rem;
+    width: calc(100% + 2rem);
+    padding: 0.875rem 1rem max(0.875rem, env(safe-area-inset-bottom));
+    border-radius: 0;
+    background: rgb(79 70 229 / 0.96);
+    backdrop-filter: blur(16px);
+  }
+
+  .settings-heading {
+    position: sticky;
+    top: -1rem;
+    z-index: 5;
+    margin: -1rem -1rem 0;
+    padding: 0.875rem 1rem;
+    background: rgb(20 22 28 / 0.94);
+    backdrop-filter: blur(16px);
   }
 }
 </style>

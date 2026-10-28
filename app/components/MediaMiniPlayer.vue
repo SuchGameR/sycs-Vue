@@ -10,7 +10,7 @@ import ModelViewer from './media/ModelViewer.vue'
 const MODEL_EXT = /\.(glb|gltf|obj|fbx|stl|3ds)(\?|$)/i
 
 const pane = useMediaPane()
-const { selected, sourceLabel, mobileFull, kind } = pane
+const { selected, sourceLabel, mobileFull, threadOpen, kind } = pane
 
 const miniRef = ref<HTMLElement | null>(null)
 /**
@@ -22,10 +22,83 @@ const miniRef = ref<HTMLElement | null>(null)
 useBottomInsetReporter(
   'mini-player',
   () => miniRef.value,
-  () => !!selected.value && !mobileFull.value
+  () => !!selected.value && !mobileFull.value && !threadOpen.value
 )
 
 const mediaIndex = ref(0)
+const threadDragStart = ref({ x: 0, y: 0 })
+const threadDragX = ref(0)
+const threadDragging = ref(false)
+const threadPointerId = ref<number | null>(null)
+const backdropDragStart = ref({ x: 0, y: 0 })
+const backdropDragX = ref(0)
+const backdropDragging = ref(false)
+const backdropPointerId = ref<number | null>(null)
+const threadStyle = computed(() => ({
+  '--thread-drag-x': `${Math.max(0, threadDragX.value)}px`,
+  ...(threadDragging.value ? { transition: 'none' } : {}),
+}))
+
+function onThreadPointerDown(event: PointerEvent) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  if ((event.target as HTMLElement).closest('button, a, input, textarea, select, [contenteditable="true"]')) return
+  threadPointerId.value = event.pointerId
+  threadDragStart.value = { x: event.clientX, y: event.clientY }
+  threadDragX.value = 0
+  threadDragging.value = false
+}
+
+function onThreadPointerMove(event: PointerEvent) {
+  if (event.pointerId !== threadPointerId.value) return
+  const dx = event.clientX - threadDragStart.value.x
+  const dy = event.clientY - threadDragStart.value.y
+  if (dx < 8 || Math.abs(dy) > dx) return
+  if (!threadDragging.value) {
+    threadDragging.value = true
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  }
+  if (event.cancelable) event.preventDefault()
+  threadDragX.value = dx
+}
+
+function onThreadPointerUp(event: PointerEvent) {
+  if (event.pointerId !== threadPointerId.value) return
+  const shouldClose = threadDragX.value > 100
+  threadDragging.value = false
+  threadDragX.value = 0
+  threadPointerId.value = null
+  if (shouldClose) pane.closeComments()
+}
+
+function onBackdropPointerDown(event: PointerEvent) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  backdropPointerId.value = event.pointerId
+  backdropDragStart.value = { x: event.clientX, y: event.clientY }
+  backdropDragX.value = 0
+  backdropDragging.value = false
+}
+
+function onBackdropPointerMove(event: PointerEvent) {
+  if (event.pointerId !== backdropPointerId.value) return
+  const dx = event.clientX - backdropDragStart.value.x
+  const dy = event.clientY - backdropDragStart.value.y
+  if (dx < 10 || Math.abs(dy) > dx) return
+  if (!backdropDragging.value) {
+    backdropDragging.value = true
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  }
+  if (event.cancelable) event.preventDefault()
+  backdropDragX.value = dx
+}
+
+function onBackdropPointerUp(event: PointerEvent) {
+  if (event.pointerId !== backdropPointerId.value) return
+  const shouldClose = backdropDragX.value > 56
+  backdropDragging.value = false
+  backdropDragX.value = 0
+  backdropPointerId.value = null
+  if (shouldClose) pane.closeComments()
+}
 watch(() => selected.value?.id, () => { mediaIndex.value = 0 })
 
 const attachments = computed<any[]>(() => selected.value?.attachments || [])
@@ -120,7 +193,7 @@ function onSheetUp() {
     <!-- Mini player -->
     <Transition name="mini">
       <div
-        v-if="selected && !mobileFull"
+        v-if="selected && !mobileFull && !threadOpen"
         ref="miniRef"
         class="w-fit max-w-[300px] fixed left-3 right-3 bottom-[4.5rem] z-[80] bg-surface-container border border-outline rounded-xl shadow-2xl flex items-center gap-3 p-2"
       >
@@ -137,6 +210,60 @@ function onSheetUp() {
         <button class="min-w-10 min-h-10 min-[681px]:min-w-8 min-[681px]:min-h-8 p-2 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-container transition shrink-0" @click="pane.closeMobile()" title="閉じる" aria-label="ミニプレイヤーを閉じる">
           <Icon name="lucide:x" class="w-4 h-4" />
         </button>
+      </div>
+    </Transition>
+
+    <!-- Right-edge thread drawer: leave the timeline underneath and swipe right to return. -->
+    <Transition name="thread-drawer">
+      <div v-if="selected && threadOpen" class="fixed inset-0 z-[130]">
+        <button
+          class="absolute inset-0 bg-black/25"
+          aria-label="タイムラインに戻る"
+          @click="pane.closeComments()"
+          @pointerdown="onBackdropPointerDown"
+          @pointermove="onBackdropPointerMove"
+          @pointerup="onBackdropPointerUp"
+          @pointercancel="onBackdropPointerUp"
+        />
+        <section
+          class="thread-drawer-panel absolute inset-y-0 right-0 flex w-[min(94vw,34rem)] flex-col overflow-hidden border-l border-white/10 bg-surface shadow-[-24px_0_60px_rgba(0,0,0,.38)]"
+          :style="threadStyle"
+          @pointerdown="onThreadPointerDown"
+          @pointermove="onThreadPointerMove"
+          @pointerup="onThreadPointerUp"
+          @pointercancel="onThreadPointerUp"
+        >
+          <header class="shrink-0 border-b border-outline-variant bg-surface/95 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] backdrop-blur">
+            <div class="flex items-center gap-3">
+              <span class="h-8 w-1 rounded-full bg-indigo-400/70" aria-hidden="true" />
+              <div class="min-w-0 flex-1">
+                <h2 class="text-sm font-bold text-white">返信</h2>
+                <p class="truncate text-[11px] text-on-surface-variant">{{ selected.user?.displayName || '投稿' }} のスレッド</p>
+              </div>
+              <button
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container hover:text-white"
+                title="タイムラインに戻る"
+                aria-label="タイムラインに戻る"
+                @click="pane.closeComments()"
+              >
+                <Icon name="lucide:x" class="h-5 w-5" />
+              </button>
+            </div>
+          </header>
+          <div class="shrink-0 border-b border-outline-variant/70 px-4 py-3">
+            <p v-if="selected.content" class="line-clamp-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-on-surface" v-html="renderRichText(selected.content, { custom: customEmojiMap })" />
+            <QuotedPostCard
+              v-if="selected.quotedPost"
+              :post="selected.quotedPost"
+              class="mt-2"
+              @open="pane.openSmart(selected.quotedPost, sourceLabel)"
+            />
+          </div>
+          <div class="min-h-0 flex-1 overflow-hidden">
+            <PostComments :post="selected" @update="onPatch" />
+          </div>
+          <div class="shrink-0 bg-surface" style="padding-bottom: env(safe-area-inset-bottom)" />
+        </section>
       </div>
     </Transition>
 
@@ -214,4 +341,17 @@ function onSheetUp() {
 .mini-enter-active, .mini-leave-active, .sheet-enter-active, .sheet-leave-active { transition: all 0.25s ease; }
 .mini-enter-from, .mini-leave-to { opacity: 0; transform: translateY(12px); }
 .sheet-enter-from, .sheet-leave-to { opacity: 0; transform: translateY(20px); }
+.thread-drawer-enter-active .thread-drawer-panel,
+.thread-drawer-leave-active .thread-drawer-panel { transition: transform 240ms cubic-bezier(.2,.8,.2,1); }
+.thread-drawer-enter-from .thread-drawer-panel,
+.thread-drawer-leave-to .thread-drawer-panel { transform: translateX(100%); }
+.thread-drawer-enter-active > button,
+.thread-drawer-leave-active > button { transition: opacity 200ms ease; }
+.thread-drawer-enter-from > button,
+.thread-drawer-leave-to > button { opacity: 0; }
+.thread-drawer-panel {
+  transform: translateX(var(--thread-drag-x, 0px));
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+  touch-action: pan-y;
+}
 </style>

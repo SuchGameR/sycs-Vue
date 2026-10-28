@@ -35,12 +35,12 @@ export default defineEventHandler(async (event) => {
   // so the profile shows both, ordered newest-first.
   const posts = await db.query.posts.findMany({
     where: eq(schema.posts.userId, id),
-    limit, offset,
+    limit: limit + offset,
     orderBy: [desc(schema.posts.createdAt)],
   })
   const reposts = await db.query.reposts.findMany({
     where: eq(schema.reposts.userId, id),
-    limit, offset,
+    limit: limit + offset,
     orderBy: [desc(schema.reposts.createdAt)],
   })
 
@@ -75,8 +75,8 @@ export default defineEventHandler(async (event) => {
       merged.push(boostItems[j]); j++
     }
   }
-  const rows = merged.slice(0, limit)
+  const rows = merged.slice(offset, offset + limit)
 
   const result = await serializePosts(rows.map(r => r.row), currentUser)
-  return { posts: result, nextOffset: offset + rows.length, hasMore: rows.length === limit }
+  return { posts: result, nextOffset: offset + rows.length, hasMore: merged.length > offset + rows.length }
 })

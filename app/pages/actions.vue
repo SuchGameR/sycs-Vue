@@ -100,6 +100,11 @@ function openPost(post: any) {
   mediaPane.openSmart(post, 'アクティビティ')
 }
 
+function openComments(post: any) {
+  if (!post) return
+  mediaPane.openComments(post, 'アクティビティ')
+}
+
 function openNotification(n: any) {
   if (n.post) openPost(n.post)
   else if (n.actor) router.push(`/profile/@${n.actor.username}`)
@@ -251,6 +256,7 @@ function timeAgo(date: string) {
             @toggle-repost="toggleRepost"
             @toggle-bookmark="toggleBookmark"
             @open-media="openPost"
+            @open-thread="openComments"
           />
         </div>
       </div>

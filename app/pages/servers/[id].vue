@@ -190,6 +190,11 @@ function openMedia(post: any) {
   }
 }
 
+function openComments(post: any) {
+  const label = activeChannel.value?.name ? `#${activeChannel.value.name}` : server.value?.name
+  mediaPane.openComments(post, label)
+}
+
 async function toggleRepost(postId: string) {
   const p = posts.value.find(x => x.id === postId)
   if (!p) return
@@ -400,7 +405,7 @@ onUnmounted(() => {
             <PostItem v-for="post in posts" :key="post.id" :post="post"
               :show-view-count="false" :current-user-id="undefined"
               @toggle-repost="toggleRepost" @toggle-bookmark="toggleBookmark"
-              @open-media="openMedia" />
+              @open-media="openMedia" @open-thread="openComments" />
             <p v-if="!posts.length" class="text-center text-on-surface-variant py-8 text-sm">まだ投稿がありません。最初のメディアを投稿しましょう</p>
           </div>
 
